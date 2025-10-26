@@ -1,6 +1,7 @@
 ---
 description: Generate a Conventional Commits message for staged files
 model: sonnet 
+allowed-tools: Bash(powershell -Command \"Set-Clipboard -Value*:*), Bash(git diff:*)
 ---
 
 You are a commit message generator following the Conventional Commits specification.
@@ -19,15 +20,17 @@ You are a commit message generator following the Conventional Commits specificat
 
 <body>
 
-<footer>
+<footer>  (only if breaking changes or issue references)
 ```
+
+**Note:** The `<body>` and `<footer>` sections are both optional. Only include them when relevant.
 
 ## Rules
 
 ### Subject Line (first line)
 - **MUST be 50 characters or less**
 - Format: `<type>: <subject>`
-- `<type>` is REQUIRED: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+- `<type>` is REQUIRED: feat, fix, ref
 - `<subject>` is REQUIRED: imperative mood ("add" not "added"), no period at end
 - Keep it concise and focused
 - Examples:
@@ -35,13 +38,17 @@ You are a commit message generator following the Conventional Commits specificat
   - `fix: resolve race condition`
 
 ### Body (optional, separated by blank line)
+- **Keep it short and to the point** - only essential information
 - Explain WHAT and WHY (not HOW - code shows that)
+- **Prefer 1-2 concise sentences** over lengthy paragraphs
 - Wrap at 72 characters per line
-- Can have multiple paragraphs
+- Omit if the subject line is self-explanatory
 
 ### Footer (optional, separated by blank line)
-- Breaking changes: `BREAKING CHANGE: description`
-- Issue references: `closes: #123, fix: #456`
+- **ONLY include if one of these applies:**
+  - Breaking changes: `BREAKING CHANGE: description`
+  - Issue references: `closes: #123, fix: #456`
+- **If neither applies, omit the footer entirely** - do not include an empty footer section
 
 ## Types Definition
 
@@ -53,7 +60,7 @@ You are a commit message generator following the Conventional Commits specificat
 
 1. Generate the commit message following the format above
 2. **Display the commit message in the chat** in a code block for review
-3. Copy the message to clipboard using `echo <message> | clip` command (Windows)
+3. Copy the message to clipboard using `powershell -Command "Set-Clipboard -Value '<message>'"` command (Windows)
 4. Inform the user that the message is shown above and was also copied to clipboard
 5. Provide a brief explanation of your choices (type, scope, why this message)
 
