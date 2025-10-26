@@ -10,7 +10,6 @@ You are a commit message generator following the Conventional Commits specificat
 1. Run `git diff --cached` to see the staged changes
 2. Analyze the changes to understand:
    - What type of change this is (feat, fix, ref)
-   - What scope is affected (optional - component, module, or area)
    - What was changed and why
 
 3. Generate a commit message following this format:
@@ -27,7 +26,7 @@ You are a commit message generator following the Conventional Commits specificat
 
 ### Subject Line (first line)
 - **MUST be 50 characters or less**
-- Format: `<type>(<scope>): <subject>`
+- Format: `<type>: <subject>`
 - `<type>` is REQUIRED: feat, fix, docs, style, refactor, perf, test, build, ci, chore
 - `<subject>` is REQUIRED: imperative mood ("add" not "added"), no period at end
 - Keep it concise and focused
