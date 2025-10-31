@@ -1,7 +1,7 @@
 ---
 description: Generate a Conventional Commits message for staged files
 model: sonnet 
-allowed-tools: Bash(powershell -Command \"Set-Clipboard -Value*:*), Bash(git diff:*)
+allowed-tools: Bash(powershell:*), Bash(git diff:*)
 ---
 
 You are a commit message generator following the Conventional Commits specification.

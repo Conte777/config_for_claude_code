@@ -29,14 +29,13 @@ When I provide a task request:
 
 Do this proactively for any non-trivial task without requiring explicit requests. Use sequential thinking before starting work on complex features, refactoring, or problem-solving tasks.
 
-## Go Code Review and Security
+## Go Code Review
 
 After writing, editing, or generating any Go code (.go files):
 
 1. Complete the code changes
 2. Automatically launch the Task tool with `subagent_type="go-reviewer"`
-3. Then automatically launch the Task tool with `subagent_type="go-security"`
-4. Apply any critical feedback from both reviews
+3. Apply any critical feedback from the review
 
 Do this proactively for all Go code without requiring explicit requests.
 
