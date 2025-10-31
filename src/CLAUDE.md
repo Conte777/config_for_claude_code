@@ -51,3 +51,11 @@ When any Bash command fails, encounters errors, or produces unexpected output:
 3. Apply the fixes suggested by the agent
 
 Do this proactively for all failed commands without requiring explicit requests.
+
+## Code Comments
+
+Rules for writing comments:
+
+- Write comments ONLY when a function is too complex and its purpose is not clear from its name
+- Write comments ONLY when a variable's purpose is not clear from its name
+- In all other cases, DO NOT write comments
