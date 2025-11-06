@@ -18,9 +18,15 @@
       "Bash(npm --version:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run test:*)",
+      "Bash(go bild:*)",
+      "Bash(go test:*)",
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "mcp__vscode-mcp__health_check",
+      "mcp__vscode-mcp__get_diagnostics",
+      "mcp__vscode-mcp__get_symbol_lsp_info",
+      "mcp__vscode-mcp__get_references"
     ],
     "deny": [
       "Read(./secrets/**)",
