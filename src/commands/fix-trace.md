@@ -3,63 +3,69 @@ description: Analyze and fix errors from VS Code diagnostics
 model: sonnet
 ---
 
-You are an error-fixing assistant that processes VS Code diagnostic errors and fixes them.
-
-## Input Format
-
-The user has provided VS Code diagnostics in JSON format:
-
-```json
-$ARGUMENTS
-```
+You are an error-fixing assistant that automatically retrieves and fixes VS Code diagnostic errors.
 
 ## Your Task
 
-1. **Parse the diagnostics**
-   - Extract error information from the JSON array
-   - Identify each error's file path, line number, and message
-   - Group errors by file if there are multiple
+### Step 1: Retrieve Diagnostics
 
-2. **Fix each error**
-   - For each diagnostic entry, use the Task tool with `subagent_type="error-fixer"`
-   - Provide the agent with clear context:
-     - File path: `resource` field
-     - Line number: `startLineNumber` field
-     - Error message: `message` field
-     - Error source: `source` field (syntax, compiler, linter, etc.)
-   - Format the error information clearly for the agent
+First, automatically call `mcp__vscode-mcp__get_diagnostics` with the following parameters:
 
-3. **Handle multiple errors**
-   - Process errors systematically, one at a time
-   - If multiple errors are in the same file, consider fixing them together
-   - Track which errors have been resolved
+- `workspace_path`: Use the current working directory from the environment context
+- `filePaths`:
+  - If user provided specific file paths in $ARGUMENTS, use them as array
+  - Otherwise, use empty array `[]` to get diagnostics for all git modified files
+- `severities`:
+  - If user specified severities in $ARGUMENTS, use them
+  - Otherwise, use `["error", "warning"]` to focus on important issues
+- `sources`: Use empty array `[]` to include all diagnostic sources (eslint, ts, etc.)
 
-4. **Report results**
-   - Summarize what was fixed
-   - Note any errors that couldn't be automatically resolved
-   - Suggest next steps if needed
+### Step 2: Analyze the Diagnostics
 
-## Example Agent Invocation
+After receiving diagnostics:
+1. Extract error information from each diagnostic
+2. Group errors by file path for efficient processing
+3. Identify the severity and source of each issue
+4. Prioritize errors over warnings
 
-For each error, invoke the error-fixer agent like this:
+### Step 3: Fix Each Error
 
-```
-Task tool with subagent_type="error-fixer"
-Prompt: "Fix the following error:
+For each diagnostic issue:
+1. Read the affected file to understand the context
+2. Analyze the error message and identify the root cause
+3. Apply the appropriate fix using the Edit tool
+4. If multiple errors are in the same file, fix them together when possible
 
-File: {resource}
-Line: {startLineNumber}:{startColumn}
-Error: {message}
-Source: {source}
+### Step 4: Verify Fixes
 
-Please read the file, identify the issue at the specified line, and provide a fix."
-```
+After applying fixes:
+1. Re-run `mcp__vscode-mcp__get_diagnostics` on the modified files
+2. Verify that the errors have been resolved
+3. If new errors appeared, fix them as well
+4. Continue until all issues are resolved
+
+### Step 5: Report Results
+
+Provide a summary:
+- List of files that were modified
+- Number of errors/warnings fixed
+- Any issues that couldn't be automatically resolved
+- Suggestions for manual review if needed
+
+## Argument Handling
+
+The `$ARGUMENTS` field can contain:
+- Specific file paths (one per line or comma-separated)
+- Severity filters: "error", "warning", "info", "hint"
+- If empty, process all files with errors and warnings
 
 ## Important Notes
 
-- The error-fixer agent cannot modify files directly - it will provide instructions
-- You should apply the fixes based on the agent's recommendations
-- If an error is a syntax error, read the file and fix the invalid syntax
-- Process all errors in the diagnostic array
+- Always run diagnostics first before attempting to fix
+- Fix errors before warnings
+- Group fixes by file for efficiency
+- Re-verify after applying fixes
+- Use Read tool to understand context before editing
+- Use Edit tool to apply fixes precisely
 
-Begin processing the diagnostics now.
+Begin by retrieving the diagnostics now.

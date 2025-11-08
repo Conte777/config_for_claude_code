@@ -27,6 +27,7 @@ set "TARGET_SETTINGS=%TARGET_CLAUDE_DIR%\settings.json"
 set "TARGET_CLAUDE_MD=%TARGET_CLAUDE_DIR%\CLAUDE.md"
 set "TARGET_COMMANDS=%TARGET_CLAUDE_DIR%\commands"
 set "TARGET_AGENTS=%TARGET_CLAUDE_DIR%\agents"
+set "TARGET_SKILLS=%TARGET_CLAUDE_DIR%\skills"
 
 :: Проверка существующих файлов и директорий
 set "CONFLICT=0"
@@ -48,6 +49,11 @@ if exist "%TARGET_COMMANDS%" (
 
 if exist "%TARGET_AGENTS%" (
     echo WARNING: Directory already exists: %TARGET_AGENTS%
+    set "CONFLICT=1"
+)
+
+if exist "%TARGET_SKILLS%" (
+    echo WARNING: Directory already exists: %TARGET_SKILLS%
     set "CONFLICT=1"
 )
 
@@ -90,6 +96,11 @@ if not exist "%SRC_DIR%\commands" (
 
 if not exist "%SRC_DIR%\agents" (
     echo ERROR: Source directory not found: %SRC_DIR%\agents
+    set "SOURCE_MISSING=1"
+)
+
+if not exist "%SRC_DIR%\skills" (
+    echo ERROR: Source directory not found: %SRC_DIR%\skills
     set "SOURCE_MISSING=1"
 )
 
@@ -141,6 +152,14 @@ if %errorlevel% neq 0 (
     goto :cleanup_on_error
 )
 
+:: Символическая ссылка для skills (директория)
+echo Creating: %TARGET_SKILLS% -^> %SRC_DIR%\skills
+mklink /D "%TARGET_SKILLS%" "%SRC_DIR%\skills"
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to create symlink for skills directory
+    goto :cleanup_on_error
+)
+
 echo.
 echo ============================================
 echo SUCCESS: All symbolic links created successfully!
@@ -159,6 +178,7 @@ if exist "%TARGET_SETTINGS%" del "%TARGET_SETTINGS%" 2>nul
 if exist "%TARGET_CLAUDE_MD%" del "%TARGET_CLAUDE_MD%" 2>nul
 if exist "%TARGET_COMMANDS%" rmdir "%TARGET_COMMANDS%" 2>nul
 if exist "%TARGET_AGENTS%" rmdir "%TARGET_AGENTS%" 2>nul
+if exist "%TARGET_SKILLS%" rmdir "%TARGET_SKILLS%" 2>nul
 echo.
 echo Setup failed. Please check the error messages above.
 pause
