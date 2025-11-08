@@ -2,7 +2,9 @@
 
 ## Language
 
-Always respond in Russian language for all interactions, explanations, and documentation.
+Always respond to the user in Russian language for all interactions and explanations.
+
+However, when creating or editing internal documentation and instructions (CLAUDE.md files, agent prompts in src/agents/, slash command prompts in src/commands/, and any other configuration files), ALWAYS use English exclusively.
 
 ## Context7 Integration
 
@@ -13,48 +15,6 @@ Always use Context7 when I need:
 - Library/API documentation
 
 This means you should automatically use the Context7 MCP tools to resolve library ID and get library docs without me having to explicitly ask.
-
-## Sequential Thinking
-
-Always use the MCP sequential-thinking tool for:
-- Breaking down complex tasks into smaller, manageable steps
-- Planning implementation before writing code
-- Analyzing multi-step problems
-- Tasks that require careful step-by-step reasoning
-
-When I provide a task request:
-1. First use `mcp__sequential-thinking__sequentialthinking` to decompose and plan the approach
-2. Use the tool to think through:
-   - What needs to be done
-   - The logical sequence of steps
-   - Potential challenges or edge cases
-   - Alternative approaches if needed
-3. After completing the sequential thinking process, proceed with implementation
-
-Do this proactively for any non-trivial task without requiring explicit requests. Use sequential thinking before starting work on complex features, refactoring, or problem-solving tasks.
-
-## Go Code Review
-
-After writing, editing, or generating any Go code (.go files):
-
-1. Complete the code changes
-2. Automatically launch the Task tool with `subagent_type="go-reviewer"`
-3. Apply any critical feedback from the review
-
-Do this proactively for all Go code without requiring explicit requests.
-
-## Automatic Error Fixing
-
-When any Bash command fails, encounters errors, or produces unexpected output:
-
-1. Automatically launch the Task tool with `subagent_type="error-fixer"`
-2. Provide the error-fixer agent with:
-   - The command that failed
-   - The error output
-   - Any relevant context about what you were trying to achieve
-3. Apply the fixes suggested by the agent
-
-Do this proactively for all failed commands without requiring explicit requests.
 
 ## VSCode Diagnostics
 
