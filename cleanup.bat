@@ -22,6 +22,7 @@ set "TARGET_SETTINGS=%USERPROFILE%\.claude\settings.json"
 set "TARGET_CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md"
 set "TARGET_COMMANDS=%USERPROFILE%\.claude\commands"
 set "TARGET_AGENTS=%USERPROFILE%\.claude\agents"
+set "TARGET_SKILLS=%USERPROFILE%\.claude\skills"
 
 :: Подтверждение от пользователя
 echo The following symbolic links will be removed:
@@ -29,6 +30,7 @@ echo - %TARGET_SETTINGS%
 echo - %TARGET_CLAUDE_MD%
 echo - %TARGET_COMMANDS%
 echo - %TARGET_AGENTS%
+echo - %TARGET_SKILLS%
 echo.
 set /p "CONFIRM=Are you sure you want to continue? (Y/N): "
 
@@ -99,6 +101,20 @@ if exist "%TARGET_AGENTS%" (
     )
 ) else (
     echo Skipping: %TARGET_AGENTS% (not found)
+)
+
+:: Удаление символической ссылки для skills (директория)
+if exist "%TARGET_SKILLS%" (
+    echo Removing: %TARGET_SKILLS%
+    rmdir "%TARGET_SKILLS%" 2>nul
+    if %errorlevel% neq 0 (
+        echo WARNING: Failed to remove %TARGET_SKILLS%
+        set /a ERROR_COUNT+=1
+    ) else (
+        echo   - Removed successfully
+    )
+) else (
+    echo Skipping: %TARGET_SKILLS% (not found)
 )
 
 echo.
