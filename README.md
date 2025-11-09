@@ -7,18 +7,40 @@ This repository contains configuration files for Claude Code CLI, managed throug
 ```
 config_for_claude_code/
 ├── src/
-│   ├── .claude.json         # Main Claude configuration
-│   ├── settings.json        # Claude Code settings
-│   ├── CLAUDE.md           # Global instructions
-│   ├── commands/           # Custom slash commands
-│   │   └── commit-msg.md
-│   └── agents/             # Custom agents
-│       ├── go-refactor.md
-│       ├── go-reviewer.md
-│       ├── go-security.md
-│       └── error-fixer.md
-├── setup.bat               # Installation script
-├── cleanup.bat             # Uninstallation script
+│   ├── .mcp.json                    # MCP server configurations
+│   ├── settings.json                # Claude Code settings
+│   ├── CLAUDE.md                    # Global instructions
+│   ├── commands/                    # Custom slash commands
+│   │   ├── commit-msg.md
+│   │   └── fix-trace.md
+│   └── agents/                      # Custom subagents
+│       ├── code-reviewer/           # Code review agent
+│       │   ├── code-reviewer.md
+│       │   ├── language-specific/
+│       │   │   ├── go-review.md
+│       │   │   ├── java-review.md
+│       │   │   ├── python-review.md
+│       │   │   └── typescript-review.md
+│       │   └── review-checklists/
+│       │       ├── performance-checklist.md
+│       │       ├── quality-checklist.md
+│       │       └── security-checklist.md
+│       └── code-writer/             # Code writing agent
+│           ├── code-writer.md
+│           ├── design-patterns/
+│           │   ├── common-principles.md
+│           │   ├── gof-patterns.md
+│           │   └── solid-principles.md
+│           ├── language-guides/
+│           │   ├── go-guide.md
+│           │   ├── java-guide.md
+│           │   └── python-guide.md
+│           └── libraries/
+│               ├── go-libraries.md
+│               ├── java-libraries.md
+│               └── python-libraries.md
+├── setup.bat                         # Installation script
+├── cleanup.bat                       # Uninstallation script
 ├── README.md
 └── .gitignore
 ```
@@ -39,7 +61,6 @@ config_for_claude_code/
 
 The script will create symbolic links from the standard Claude Code configuration locations to the files in this repository:
 
-- `%USERPROFILE%\.claude.json` → `src\.claude.json`
 - `%USERPROFILE%\.claude\settings.json` → `src\settings.json`
 - `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
 - `%USERPROFILE%\.claude\commands` → `src\commands`
@@ -89,8 +110,10 @@ git commit -m "Update Claude configuration"
 
 ### Add New Agents
 
-1. Create a new `.md` file in `src/agents/`
-2. The agent will be automatically available in Claude Code
+1. Create a new directory in `src/agents/` with the agent name
+2. Create the main agent file (e.g., `agent-name.md`) with YAML frontmatter
+3. Optionally add supporting materials in subdirectories
+4. The agent will be automatically available in Claude Code
 
 ## Troubleshooting
 
@@ -118,34 +141,69 @@ This should show symbolic links (indicated by `<SYMLINK>` or `<SYMLINKD>`).
 
 ## Configuration Files
 
-### .claude.json
+### .mcp.json
 
-Main Claude Code configuration file containing project-specific settings and MCP server configurations.
+MCP (Model Context Protocol) server configurations containing:
+- **context7**: HTTP-based documentation server (requires API key)
+- **sequential-thinking**: Advanced reasoning tool via NPX
+- **vscode-mcp**: VS Code integration for LSP diagnostics and code navigation
 
 ### settings.json
 
-Claude Code CLI settings including editor preferences, output styles, and other user preferences.
+Claude Code CLI settings including:
+- Tool permissions (allow/deny lists)
+- Always-thinking mode configuration
+- Security restrictions for sensitive files
+- Automatic approvals for web search, file operations, git commands
 
 ### CLAUDE.md
 
 Global instructions that apply to all Claude Code sessions. Contains:
-- Context7 integration settings
-- Sequential thinking configuration
-- Go code review automation
-- Error fixing automation
+- Language preferences (Russian for communication, English for documentation)
+- Context7 integration guidelines
+- VSCode diagnostics usage instructions
+- Code navigation with LSP symbols
+- Code style preferences
 
 ### Custom Commands
 
 Located in `src/commands/`:
-- **commit-msg.md**: Generate conventional commit messages
+- **commit-msg.md**: Generate Conventional Commits messages for staged changes
+- **fix-trace.md**: Analyze and fix errors from VS Code diagnostics
 
 ### Custom Agents
 
 Located in `src/agents/`:
-- **go-refactor.md**: Structured refactoring for Go code
-- **go-reviewer.md**: Comprehensive Go code review
-- **go-security.md**: Security vulnerability analysis for Go
-- **error-fixer.md**: Automatic error diagnosis and fixing
+
+#### code-reviewer
+Expert code reviewer specializing in code quality, security vulnerabilities, and best practices across multiple languages (Go, Java, Python, TypeScript, Rust).
+
+**Features:**
+- VSCode LSP integration for type analysis and diagnostics
+- Context7 integration for automatic library documentation fetching
+- Progressive disclosure with language-specific review patterns
+- Severity-ranked issue reporting (CRITICAL/HIGH/MEDIUM/LOW)
+- Comprehensive checklists for security, performance, and quality
+
+**Supporting Materials:**
+- Language-specific review guides (Go, Java, Python, TypeScript)
+- Specialized checklists (performance, quality, security)
+
+#### code-writer
+Expert code writer specializing in Go, Java, and Python with deep knowledge of best practices, design patterns, and idiomatic language features.
+
+**Features:**
+- Automatic language detection
+- Progressive loading of style guides and conventions
+- SOLID principles and GoF design patterns
+- Context7 integration for up-to-date library documentation
+- Clean architecture and self-documenting code principles
+- Security-focused (prevents SQL injection, XSS, OWASP Top 10)
+
+**Supporting Materials:**
+- Language-specific guides (Go, Java, Python)
+- Design pattern references (SOLID, GoF, common principles)
+- Library-specific documentation (Go, Java, Python libraries)
 
 ## License
 

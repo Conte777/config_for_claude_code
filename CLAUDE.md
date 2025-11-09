@@ -27,7 +27,9 @@ src/
 ├── settings.json      # Claude Code settings (permissions, features)
 ├── CLAUDE.md         # Global Claude Code instructions
 ├── commands/         # Custom slash commands (.md files)
-└── agents/           # Custom subagents directory (currently empty)
+└── agents/           # Custom subagents
+    ├── code-reviewer/    # Code review agent with language-specific checklists
+    └── code-writer/      # Code writing agent with design patterns and guides
 ```
 
 ## Setup and Cleanup
@@ -60,6 +62,12 @@ Run `cleanup.bat` as administrator to remove symbolic links:
 
 - **commit-msg.md**: Generates Conventional Commits messages for staged changes
 - **fix-trace.md**: Analyzes and fixes errors from VS Code diagnostics
+
+### Custom Agents (src/agents/)
+
+- **code-reviewer/**: Expert code reviewer specializing in code quality, security vulnerabilities, and best practices across multiple languages (Go, Java, Python, TypeScript, Rust). Integrates with VSCode LSP for diagnostics and Context7 for library documentation. Uses progressive disclosure with language-specific review checklists (performance, security, quality).
+
+- **code-writer/**: Expert code writer specializing in Go, Java, and Python with deep knowledge of best practices, design patterns (SOLID, GoF), and idiomatic language features. Automatically fetches library documentation via Context7 and applies progressive disclosure strategy with language-specific guides, design pattern references, and library-specific documentation.
 
 ### Settings (settings.json)
 
@@ -97,7 +105,9 @@ git commit -m "Update configuration"
 1. Clone repository
 2. Run `setup.bat` as administrator
 
-## Command Development
+## Custom Development
+
+### Slash Commands
 
 Custom slash commands are Markdown files with YAML frontmatter:
 
@@ -112,6 +122,23 @@ Command prompt goes here...
 ```
 
 When creating new commands in `src/commands/`, they become available immediately as `/command-name`.
+
+### Agents
+
+Custom agents are specialized subagents with YAML frontmatter:
+
+```markdown
+---
+name: agent-name
+description: Agent description and capabilities
+tools: Tool1, Tool2, Tool3
+model: sonnet|opus|haiku (optional)
+---
+
+Agent prompt and instructions...
+```
+
+Agents support progressive disclosure patterns - loading reference materials (language guides, checklists, design patterns) only when needed to optimize token usage. Each agent can have supporting materials in subdirectories that are read on-demand.
 
 ## MCP Configuration Notes
 
