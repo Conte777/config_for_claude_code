@@ -6,348 +6,219 @@ Always respond to the user in Russian language for all interactions and explanat
 
 However, when creating or editing internal documentation and instructions (CLAUDE.md files, agent prompts in src/agents/, slash command prompts in src/commands/, and any other configuration files), ALWAYS use English exclusively.
 
-## Context7 Integration
+## Code Style
 
-Always use Context7 when I need:
-- Code generation
-- Code explanations
-- Setup or configuration steps
-- Library/API documentation
+### Comments
 
-This means you should automatically use the Context7 MCP tools to resolve library ID and get library docs without me having to explicitly ask.
+Write comments in code only when:
+- Variable or function names don't fully reflect their purpose
+- Code behavior is not obvious from the context
 
-## VSCode Diagnostics
+In all other cases, avoid writing comments. Prefer self-documenting code with clear, descriptive names for variables, functions, and classes.
 
-After editing or writing any code files (using Edit or Write tools):
+## Code Writing Workflow
 
-1. Automatically run `mcp__vscode-mcp__get_diagnostics`
-2. Provide the following parameters:
-   - `workspace_path`: The absolute path to the workspace
-   - `filePaths`: Array with the files that were just modified (or empty array for all git modified files)
-   - `severities`: Include all severities by default ["error", "warning", "info", "hint"]
-3. If any errors or warnings are found:
-   - Analyze each diagnostic
-   - Fix all errors and warnings automatically
-   - Apply fixes immediately without asking for confirmation
-4. Re-run diagnostics after fixes to ensure all issues are resolved
+### Agent Delegation for Code Tasks
 
-Do this proactively for all code edits without requiring explicit requests.
+**CRITICAL RULE**: ALL code writing tasks MUST ALWAYS be delegated to the `code-writer` sub-agent using the Task tool, regardless of the task source:
+- Tasks requested directly by the user
+- Tasks identified during plan execution
+- Code modifications needed while implementing a feature
+- Refactoring or code improvements
 
-## Automatic Code Review
+**Never write code directly** - always invoke the code-writer agent for any code generation, modification, or refactoring.
 
-After ANY code modifications or new file creation (using Edit, Write, or NotebookEdit tools), automatically invoke the code-reviewer agent to ensure code quality.
+### Mandatory Code Review
 
-### When to Trigger Code Review
+**CRITICAL RULE**: After ANY code generation, modification, or refactoring task, the `code-reviewer` sub-agent MUST ALWAYS be invoked using the Task tool to validate the changes.
 
-Invoke `code-reviewer` agent automatically after:
+This applies to:
+- All code written by the `code-writer` agent
+- Any code modifications during plan execution
+- Refactoring tasks
+- Bug fixes and improvements
 
-1. **Code file modifications:**
-   - Any `.go`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.rs` file edited or created
-   - Configuration files: `Dockerfile`, `docker-compose.yml`, `.yaml`, `.yml`
-   - Any file containing executable code
+**Never skip code review** - always invoke the code-reviewer agent after code changes are complete, regardless of task complexity or size.
 
-2. **Multiple file changes:**
-   - After completing a set of related changes
-   - Before marking a task as completed in TodoWrite
-   - After implementing a feature or fixing a bug
+**CRITICAL RULE - Code Review Scope**: When invoking the `code-reviewer` agent, you MUST explicitly specify in the prompt:
+- What files were created or modified
+- What specific functions, classes, or code blocks were changed
+- The scope of changes (new feature, refactoring, bug fix, etc.)
 
-3. **Exclusions (DO NOT review):**
-   - Documentation files: `.md`, `.txt`
-   - Configuration files: `.json`, `.toml` (unless they contain logic)
-   - This file: `CLAUDE.md` and agent/command definitions
+The code-reviewer agent should focus ONLY on the modified/created code, not the entire codebase. Provide clear context about what changed to enable focused and efficient review.
 
-### Code Review Workflow
+### Automatic VSCode Diagnostics Fixing
 
-**Step 1: Complete Code Changes**
-- Finish all code modifications
-- Run VSCode diagnostics and fix errors/warnings
-- Ensure code compiles/runs
+**CRITICAL RULE**: After `code-reviewer` completes the first review, if VSCode diagnostics contains ERROR level issues (severity 0), automatically invoke `code-writer` to fix them, then re-run `code-reviewer` for validation.
 
-**Step 2: Invoke Code Reviewer Agent**
+**Trigger Condition:**
+- VSCode diagnostics shows ERROR level (severity 0) diagnostics from language servers
+- Sources: Go compiler errors, Java compiler errors, Python linter errors (pylint, mypy), etc.
 
-Use the Task tool to launch code-reviewer agent:
+**NOT Triggered by:**
+- CRITICAL/HIGH severity issues from manual code review
+- Security vulnerabilities identified by reviewer
+- Logic bugs or best practices violations
+- Only VSCode diagnostics warnings/info/hints (severity 1-3)
 
-```
-Task tool:
-  description: "Review code changes"
-  subagent_type: "general-purpose"
-  prompt: "Use the code-reviewer agent from src/agents/code-reviewer.md to review the following files: [list files]. Focus ONLY on modified functions/sections: [list specific functions or line ranges that were changed]. DO NOT review unchanged code. Provide comprehensive analysis including VSCode diagnostics, Context7 best practices validation, security check, and performance assessment."
-```
+**Fixing Process:**
 
-**Important:** Specify exactly what was changed:
-- For new files: Review entire file
-- For modified files: List specific functions, methods, or line ranges that were edited
-- Skip unchanged code to save time and focus on actual changes
-- Example: "Review function `handleRequest()` at lines 45-78 and `validateInput()` at lines 120-145 in handler.go"
+1. **Analyze VSCode Diagnostics from First Review:**
+   - Extract only ERROR level (severity 0) diagnostics
+   - Group by file and source (Go compiler, javac, pylint, mypy, etc.)
+   - Ignore warnings, info, hints (severity 1-3)
 
-**Step 3: Apply Review Findings**
+2. **Invoke code-writer for Fixing:**
 
-When agent completes:
-- **Critical issues (🔴):** Fix immediately before proceeding
-- **Warnings (🟡):** Fix if time permits, or create follow-up task
-- **Suggestions (🟢):** Consider for future improvements
-- Document any deferred issues in code comments or TODO items
+   Prepare fixing prompt with:
+   - Original task context (language, framework, implementation)
+   - List of files modified in original implementation
+   - **Only VSCode diagnostic errors** with:
+     - File path and line number
+     - Error code and source (e.g., Go: "undefined: variable", Java: "cannot find symbol", Python: "E0602: Undefined variable")
+     - Error message
+     - Current code snippet
+   - Explicit constraints:
+     - Fix ONLY VSCode diagnostic errors
+     - Do not fix manual review issues (security, logic, etc.)
+     - Do not modify unrelated code
+     - Make minimal changes to resolve errors
 
-**Step 4: Re-review if Major Changes**
-- If fixing critical issues required significant changes
-- Re-invoke code-reviewer to verify fixes
-- Ensure no new issues introduced
+3. **Re-invoke code-reviewer for Validation:**
 
-### Integration with Autonomous Workflow
+   After code-writer completes fixes:
+   - Specify files modified during fixing
+   - Scope: "Validation after VSCode diagnostics fixing"
+   - Full review including fresh VSCode diagnostics check
 
-When executing autonomous workflow (after plan approval):
+4. **Proceed to Final Summary:**
+   - Generate Final Summary Report regardless of second review results
+   - If VSCode errors remain: include in report
+   - If new errors introduced: highlight in report
+   - If all resolved: mark diagnostics as clean
 
-**In "Verify Results" step:**
-```
-D. Verify Results
-   - Check files were created/modified as expected
-   - Verify tests pass (if applicable)
-   - Run VSCode diagnostics (automatic after code edits per global instructions)
-   - **[NEW] Invoke code-reviewer agent for quality check**
-   - Ensure no critical errors remain
-```
+### Final Summary Report
 
-**In Final Summary Report:**
+**CRITICAL RULE**: After BOTH `code-writer` and `code-reviewer` agents complete their work, you MUST generate a comprehensive final summary report that consolidates the results from both agents.
 
-Add "Code Review Findings" section with:
-- Errors count (must be 0)
-- Warnings count
-- Quality assessment from code-reviewer
-- Security findings
-- Performance notes
+This report is the primary deliverable to the user and should provide a clear, actionable overview of the entire code implementation and review process.
 
-### Best Practices
+**When to Generate**:
+- After code-writer completes implementation AND code-reviewer finishes review
+- After automatic VSCode diagnostics fixing (if triggered)
+- Before presenting final results to the user
+- As the concluding step of any code writing workflow
 
-**DO:**
-- ✅ Always invoke code-reviewer after code changes
-- ✅ Fix all critical issues before marking tasks complete
-- ✅ Include review findings in final summaries
-- ✅ Use Context7 integration for framework-specific validation
-- ✅ Trust VSCode MCP diagnostics from the agent
-- ✅ **Focus review ONLY on modified functions/sections**
-- ✅ **Specify exact line ranges or function names that changed**
-
-**DON'T:**
-- ❌ Skip code review to save time
-- ❌ Ignore critical security findings
-- ❌ Mark tasks complete with unresolved errors
-- ❌ Review non-code files (documentation, configs)
-- ❌ **Review entire files when only small sections changed**
-- ❌ **Waste time analyzing unchanged code**
-
-### Example Usage
+**Report Structure** (target: 800-1200 tokens):
 
 ```markdown
-# After implementing a feature:
+# Итоговый отчет
 
-1. Edit src/handler.go (add new endpoint)
-2. Run VSCode diagnostics → fix errors
-3. **Invoke code-reviewer agent**
-4. Review findings:
-   - 🔴 1 SQL injection vulnerability → FIX
-   - 🟡 2 performance warnings → FIX
-   - 🟢 3 style suggestions → NOTED
-5. Apply fixes
-6. Re-run code-reviewer → all clear ✅
-7. Mark task as completed
+## Краткая сводка
+
+**Задача**: [Краткое описание запрошенной задачи]
+**Статус**: ✅ Готово к использованию | ⚠️ Требует исправлений | ❌ Обнаружены критические проблемы
+**Язык программирования**: [Используемый язык программирования]
+**Изменено файлов**: X изменено, Y создано
+
+[Обзор реализации и общего качества кода в 2-3 предложениях]
+
+---
+
+## Детали реализации
+
+### Измененные/созданные файлы
+- [file1.go](path/to/file1.go) - [назначение]
+- [file2.java](path/to/file2.java) - [назначение]
+
+### Реализованные ключевые компоненты
+
+#### [file1.go](path/to/file1.go) - краткое описание
+
+#### [file2.java](path/to/file2.java) - краткое описание
+
+### Примененные паттерны проектирования
+- **Название паттерна**: Почему и где был использован
+
+### Ключевые решения при реализации
+- [Важное решение 1]
+- [Важное решение 2]
+
+---
+
+## Результаты ревью кода
+
+### Сводка по проблемам
+- **КРИТИЧЕСКИЕ**: X проблем (требуют немедленного исправления)
+- **ВЫСОКИЕ**: Y проблем (следует исправить перед развертыванием)
+- **СРЕДНИЕ**: Z проблем (исправить при возможности)
+- **НИЗКИЕ**: W проблем (рекомендации по улучшению)
+
+### Критические проблемы (если есть)
+
+#### [Название проблемы] - [file.ext:line](path/to/file.ext#Lline)
+
+**Серьезность**: КРИТИЧЕСКАЯ
+**Категория**: Безопасность / Производительность / Качество
+
+**Проблема**: [Четкое описание]
+**Риск**: [Что может произойти]
+**Решение**: [Конкретное исправление]
+
+### Проблемы высокого приоритета (если есть)
+
+[Тот же формат, что и для критических]
+
+### Положительные наблюдения
+- ✅ [Хорошая практика 1]
+- ✅ [Хорошая практика 2]
+
+---
+
+## Действия
+
+### Немедленные действия (Критические/Высокий приоритет)
+1. [ ] Исправить [конкретную проблему] в [file.ext:line](path/to/file.ext#Lline)
+2. [ ] Устранить [конкретную проблему] в [file.ext:line](path/to/file.ext#Lline)
+
+### Рекомендуемые улучшения (Средний/Низкий приоритет)
+1. [ ] Рассмотреть [предложение по улучшению]
+2. [ ] Проверить [конкретный аспект]
+
+### Следующие шаги
+- [Что пользователю делать дальше]
+- [Рекомендации по тестированию]
+- [Соображения по развертыванию, если применимо]
+
+---
+
+## Общая оценка
+
+[2-3 предложения с итоговой оценкой качества кода, готовности к использованию и важных предостережений или рекомендаций]
+
+**Рекомендация**: [Одобрить к использованию / Сначала исправить критические проблемы / Требуются серьезные доработки]
 ```
 
-## Code Navigation
+**Report Requirements**:
 
-When searching for code elements, analyzing dependencies, or fixing type errors:
+- ✅ **Consolidated View**: Combine implementation and review results into one cohesive report
+- ✅ **Clear Status**: User should immediately understand if the code is ready for use
+- ✅ **Specific Actions**: All issues should have clear prioritized action items
+- ✅ **File References**: Use markdown links with line numbers for convenient navigation
+- ✅ **Balanced View**: Include both identified issues and positive observations
+- ✅ **Concise Format**: Target volume of 800-1200 tokens, without unnecessary repetition
+- ✅ **Severity Awareness**: Prioritize highlighting critical/high severity issues
+- ✅ **Function-Level Details**: Include signatures of all implemented/modified functions
+- ✅ **Visual Clarity**: Use sections, headings, and formatting for easy scanning
 
-1. Use `mcp__vscode-mcp__get_symbol_lsp_info` to:
-   - Get type definitions and documentation for symbols
-   - Understand function signatures and parameters
-   - Retrieve interface and type information
-   - Analyze symbol declarations before making changes
+**Token Optimization**:
+- Reference files through links instead of repeating full paths
+- Generalize patterns instead of listing every detail
+- Group related issues
+- Focus on actionable information
+- Include function signatures for implemented code
 
-2. Use `mcp__vscode-mcp__get_references` to:
-   - Find all usages of a symbol before renaming or refactoring
-   - Understand code dependencies and relationships
-   - Identify impact scope of changes
-   - Locate all places that need updates
-
-3. Prefer these LSP tools over Grep/Glob when:
-   - You need precise type information
-   - Working with TypeScript/JavaScript symbols
-   - Fixing type errors or doing refactoring
-   - Analyzing code structure and dependencies
-
-These tools provide IDE-quality intelligence and should be used whenever accurate code navigation is needed.
-
-## Code Comments
-
-Rules for writing comments:
-
-- Write comments ONLY when a function is too complex and its purpose is not clear from its name
-- Write comments ONLY when a variable's purpose is not clear from its name
-- In all other cases, DO NOT write comments
-
-## Skills Integration
-
-This configuration uses Claude Code Skills for specialized development tasks. Skills are automatically activated based on task context.
-
-### Available Skills
-
-**go-development**
-- Activates for: Go/Golang code tasks, API development, testing
-- Capabilities: Write idiomatic Go code, run tests, apply best practices from Context7
-- Triggers: Keywords like "Go", "Golang", "go test", "REST API", ".go files"
-
-**docker-configuration**
-- Activates for: Docker and containerization tasks
-- Capabilities: Create optimized Dockerfiles, docker-compose.yml, multi-stage builds
-- Triggers: Keywords like "Docker", "Dockerfile", "docker-compose", "containerize"
-
-**kubernetes-deployment**
-- Activates for: Kubernetes deployment and configuration
-- Capabilities: Create K8s manifests, Helm charts, validate configurations
-- Triggers: Keywords like "Kubernetes", "K8s", "kubectl", "Helm", "deployment"
-
-**code-review**
-- Activates for: Code quality and security analysis
-- Capabilities: Read-only review using VSCode diagnostics, security analysis, best practices check
-- Triggers: Keywords like "review code", "check errors", "code quality", "security review"
-
-### How Skills Work
-
-Skills are automatically invoked when you:
-1. Ask questions or give commands matching Skill descriptions
-2. Work with files relevant to a Skill's domain
-3. Use trigger keywords in your requests
-
-You don't need to explicitly call Skills - they activate automatically based on context.
-
-### Best Practices
-
-1. **Use Natural Language**: Describe what you want, and appropriate Skills will activate
-2. **Include Context**: Mention relevant technologies (Go, Docker, K8s) to help Skill selection
-3. **Trust Automation**: Skills handle Context7 integration, VSCode diagnostics, and best practices automatically
-
-## Autonomous Workflow Execution
-
-After you present a plan and the user approves it, automatically become an orchestrator and execute the plan:
-
-### 1. Create TodoWrite List
-
-Break the approved plan into specific, actionable subtasks:
-- Order tasks by dependencies (e.g., code before Docker before K8s)
-- Use imperative form: "Implement health check endpoint", "Create Dockerfile", "Run tests"
-- Include verification steps: "Verify all tests pass", "Check diagnostics"
-
-### 2. Execute Each Task
-
-For each task in TodoWrite:
-
-**A. Mark as In Progress**
-- Update TodoWrite to show current task as `in_progress`
-
-**B. Describe Task Naturally**
-- Describe what needs to be done using natural language
-- Include technology keywords to trigger appropriate Skills:
-  - For Go code: mention "Go", "implement", "handler", "test"
-  - For Docker: mention "Docker", "Dockerfile", "containerize"
-  - For K8s: mention "Kubernetes", "deployment", "manifest"
-  - For review: mention "review code", "check errors", "analyze quality"
-- Skills will activate automatically based on description matching
-
-**C. Wait for Skill Completion**
-- Skills execute with their own instructions and tools
-- Monitor Skill output and results
-
-**D. Verify Results**
-- Check files were created/modified as expected
-- Verify tests pass (if applicable)
-- Run VSCode diagnostics (automatic after code edits per global instructions)
-- **Invoke code-reviewer agent for comprehensive quality check**
-- Apply all critical fixes from code review
-- Ensure no critical errors remain
-
-**E. Mark as Completed**
-- Update TodoWrite to mark task as `completed`
-- **ONLY mark complete when fully done** - not if there are errors
-- Move to next task
-
-### 3. Final Summary Report
-
-After all tasks completed, create comprehensive summary in this format:
-
-```markdown
-# Task Completion Summary
-
-## Overview
-{Brief description of what was accomplished}
-
-## Completed Tasks
-- ✅ {Task 1}
-- ✅ {Task 2}
-- ✅ {Task 3}
-
-## Files Modified/Created
-
-### {Category 1 - e.g., Go Code}
-- [{file.go}](path/to/file.go) - {description}
-- [{file_test.go}](path/to/file_test.go) - {description}
-
-### {Category 2 - e.g., Docker}
-- [{Dockerfile}](Dockerfile) - {description}
-
-### {Category 3 - e.g., Kubernetes}
-- [{deployment.yaml}](k8s/deployment.yaml) - {description}
-
-## Test Results
-- Go tests: ✅ {X tests passed}
-- Docker build: ✅ {status}
-- K8s validation: ✅ {status}
-
-## Code Review Findings
-
-### Errors: {count}
-{List if any, or "None"}
-
-### Warnings: {count}
-{List if any, or "None"}
-
-### Quality Assessment
-{Brief assessment}
-
-## Quality Metrics
-- VSCode Diagnostics: {errors/warnings count}
-- Security: {assessment}
-- Performance: {assessment}
-- Best Practices: {assessment}
-
-## Next Steps
-1. {Recommendation 1}
-2. {Recommendation 2}
-3. {Recommendation 3}
-```
-
-### Important Guidelines
-
-**DO:**
-- ✅ Create detailed TodoWrite lists for tracking
-- ✅ Describe tasks naturally with technology keywords for Skill activation
-- ✅ Verify each step before moving forward
-- ✅ Mark todos as completed immediately after finishing
-- ✅ Create comprehensive final summaries
-- ✅ Handle errors gracefully
-- ✅ Use Context7 for best practices
-- ✅ Run VSCode diagnostics after code changes
-- ✅ Fix all errors and warnings automatically
-- ✅ **Invoke code-reviewer agent after all code modifications**
-- ✅ **Fix all critical issues identified by code-reviewer**
-
-**DON'T:**
-- ❌ Skip verification steps
-- ❌ Mark tasks complete if there are errors
-- ❌ Move to next task if current one failed
-- ❌ Forget to update TodoWrite status
-- ❌ Create incomplete summaries
-- ❌ **Skip code review to save time**
-- ❌ **Ignore security vulnerabilities from code-reviewer**
-
-### Fallback
-
-If automatic workflow doesn't start after plan approval, user can manually trigger it with `/auto-execute` command.
+**Status Indicator Examples**:
+- ✅ **Ready for Use**: No critical/high severity issues, implementation complete, tests passing
+- ⚠️ **Requires Fixes**: High-priority issues found, fix before deployment
+- ❌ **Critical Issues Found**: Security vulnerabilities or critical errors, must fix urgently
