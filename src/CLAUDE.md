@@ -18,38 +18,84 @@ In all other cases, avoid writing comments. Prefer self-documenting code with cl
 
 ## Code Writing Workflow
 
-### Agent Delegation for Code Tasks
+### Sequential Task Execution
 
-**CRITICAL RULE**: ALL code writing tasks MUST ALWAYS be delegated to the `code-writer` sub-agent using the Task tool, regardless of the task source:
-- Tasks requested directly by the user
-- Tasks identified during plan execution
-- Code modifications needed while implementing a feature
-- Refactoring or code improvements
+**CRITICAL RULE**: When a todo list exists with coding tasks, execute them SEQUENTIALLY. Each task must be fully completed, including VSCode diagnostics verification, before starting the next one.
 
-**Never write code directly** - always invoke the code-writer agent for any code generation, modification, or refactoring.
+**Prerequisite**: Todo list already exists (created before this workflow starts) with pending tasks.
 
-### Mandatory Code Review
+**Execution Process**:
 
-**CRITICAL RULE**: After ANY code generation, modification, or refactoring task, the `code-reviewer` sub-agent MUST ALWAYS be invoked using the Task tool to validate the changes.
+1. **Select Next Task**: Take the first task with status `pending` from the todo list
+2. **Mark In Progress**: Update task status to `in_progress` using TodoWrite tool
+3. **Fetch Documentation**: Use Context7 MCP to fetch library/framework documentation:
+   - Use `mcp__context7__resolve-library-id` to find library ID
+   - Use `mcp__context7__get-library-docs` to fetch documentation
+   - Study relevant APIs, best practices, and usage patterns
+4. **Implement Solution**: Write or edit code directly using Write/Edit tools:
+   - Apply best practices from fetched documentation
+   - Follow language-specific idioms and patterns
+   - Use clear, self-documenting names for variables and functions
+5. **Check VSCode Diagnostics**: Use `mcp__vscode-mcp__get_diagnostics` to check for issues:
+   - Check for ERROR level (severity 0) diagnostics
+   - Check for WARNING level (severity 1) diagnostics
+   - Check for INFO/HINT level (severity 2-3) diagnostics
+6. **Fix All Diagnostics**: If any diagnostics found, fix them immediately:
+   - Use Edit tool to fix errors, warnings, and hints
+   - Re-check diagnostics after each fix
+   - Repeat until all diagnostics are resolved
+7. **Mark Completed**: Update task status to `completed` using TodoWrite tool only after all diagnostics are clean
+8. **Move to Next Task**: If more tasks remain, return to step 1
 
-This applies to:
-- All code written by the `code-writer` agent
-- Any code modifications during plan execution
-- Refactoring tasks
-- Bug fixes and improvements
+**CRITICAL**: Execute tasks SEQUENTIALLY, one at a time. Each task must be fully completed (including diagnostic checks and fixes) before moving to the next task.
 
-**Never skip code review** - always invoke the code-reviewer agent after code changes are complete, regardless of task complexity or size.
+**Documentation First**: Always fetch relevant documentation via Context7 MCP before writing code to ensure best practices and correct API usage.
 
-**CRITICAL RULE - Code Review Scope**: When invoking the `code-reviewer` agent, you MUST explicitly specify in the prompt:
-- What files were created or modified
-- What specific functions, classes, or code blocks were changed
-- The scope of changes (new feature, refactoring, bug fix, etc.)
+### Consolidated Code Review After All Tasks
 
-The code-reviewer agent should focus ONLY on the modified/created code, not the entire codebase. Provide clear context about what changed to enable focused and efficient review.
+**CRITICAL RULE**: After ALL tasks from the todo list are completed, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution.
+
+**Timing**: Code-reviewer is invoked AFTER:
+- All tasks in the todo list have been executed and completed
+- All tasks are marked as `completed`
+- All VSCode diagnostics have been resolved for each task
+- NOT after each individual task (this is the key difference from previous workflow)
+
+**Pre-Review Preparation**:
+
+Before invoking code-reviewer, you MUST consolidate information from all completed tasks:
+
+1. **Aggregate Modified Files**: Collect all files that were created or modified across ALL tasks
+2. **Aggregate Modified Components**: List all functions, classes, methods, and modules changed across ALL tasks
+3. **Summarize Scope**: Provide overall scope description covering all changes (e.g., "New feature implementation with authentication, database layer, and API endpoints")
+4. **Context Collection**: Gather any important decisions or trade-offs made during implementation
+
+**Invoking code-reviewer**:
+
+Call the Task tool with subagent_type="code-reviewer" and provide:
+- **Complete file list**: All files created/modified during task execution
+- **Complete component list**: All functions, classes, and code blocks changed during task execution
+- **Consolidated scope**: Overall description of what was implemented across all tasks
+- **Cross-task context**: How different tasks relate to each other, dependencies between changes
+
+**Review Focus**:
+
+The code-reviewer will analyze:
+- ALL changes comprehensively as a cohesive unit
+- Consistency across changes made by different task executions
+- Integration points between different parts of implementation
+- Overall code quality, security, and best practices across the entire implementation
+
+**Never skip code review** - always invoke the code-reviewer agent after all code-writing tasks are complete.
 
 ### Automatic VSCode Diagnostics Fixing
 
-**CRITICAL RULE**: After `code-reviewer` completes the first review, if VSCode diagnostics contains ERROR level issues (severity 0), automatically invoke `code-writer` to fix them, then re-run `code-reviewer` for validation.
+**CRITICAL RULE**: After `code-reviewer` completes the consolidated review of all changes, if VSCode diagnostics contains ERROR level issues (severity 0), automatically fix them directly, then re-run `code-reviewer` for validation.
+
+**Context**: This step occurs AFTER:
+- All tasks have been completed and VSCode diagnostics were checked for each task
+- Consolidated code-reviewer has analyzed all changes together
+- The consolidated review report has been received
 
 **Trigger Condition:**
 - VSCode diagnostics shows ERROR level (severity 0) diagnostics from language servers
@@ -63,33 +109,29 @@ The code-reviewer agent should focus ONLY on the modified/created code, not the 
 
 **Fixing Process:**
 
-1. **Analyze VSCode Diagnostics from First Review:**
-   - Extract only ERROR level (severity 0) diagnostics
+1. **Analyze VSCode Diagnostics from Review:**
+   - Use `mcp__vscode-mcp__get_diagnostics` to check for ERROR level (severity 0) diagnostics
    - Group by file and source (Go compiler, javac, pylint, mypy, etc.)
    - Ignore warnings, info, hints (severity 1-3)
 
-2. **Invoke code-writer for Fixing:**
-
-   Prepare fixing prompt with:
-   - Original task context (language, framework, implementation)
-   - List of files modified in original implementation
-   - **Only VSCode diagnostic errors** with:
-     - File path and line number
-     - Error code and source (e.g., Go: "undefined: variable", Java: "cannot find symbol", Python: "E0602: Undefined variable")
-     - Error message
-     - Current code snippet
+2. **Fix Errors Directly:**
+   - For each ERROR level diagnostic:
+     - Read the affected file if needed
+     - Use Edit tool to fix the specific error
+     - Use Context7 MCP to fetch documentation if needed to understand correct fix
+     - Make minimal changes to resolve errors
    - Explicit constraints:
      - Fix ONLY VSCode diagnostic errors
      - Do not fix manual review issues (security, logic, etc.)
      - Do not modify unrelated code
-     - Make minimal changes to resolve errors
+   - Re-check diagnostics after each fix using `mcp__vscode-mcp__get_diagnostics`
+   - Repeat until all ERROR level diagnostics are resolved
 
 3. **Re-invoke code-reviewer for Validation:**
-
-   After code-writer completes fixes:
-   - Specify files modified during fixing
-   - Scope: "Validation after VSCode diagnostics fixing"
-   - Full review including fresh VSCode diagnostics check
+   - After all diagnostic errors are fixed:
+     - Specify files modified during fixing
+     - Scope: "Validation after VSCode diagnostics fixing"
+     - Full review including fresh VSCode diagnostics check
 
 4. **Proceed to Final Summary:**
    - Generate Final Summary Report regardless of second review results
@@ -99,15 +141,23 @@ The code-reviewer agent should focus ONLY on the modified/created code, not the 
 
 ### Final Summary Report
 
-**CRITICAL RULE**: After BOTH `code-writer` and `code-reviewer` agents complete their work, you MUST generate a comprehensive final summary report that consolidates the results from both agents.
+**CRITICAL RULE**: After ALL tasks are completed and `code-reviewer` completes the consolidated review, you MUST generate a comprehensive final summary report that aggregates results from all task executions and code review.
 
-This report is the primary deliverable to the user and should provide a clear, actionable overview of the entire code implementation and review process.
+This report is the primary deliverable to the user and should provide a clear, actionable overview of the entire multi-task implementation and review process.
 
 **When to Generate**:
-- After code-writer completes implementation AND code-reviewer finishes review
+- After ALL tasks from todo list have been completed through direct task execution
+- After consolidated code-reviewer finishes reviewing all changes together
 - After automatic VSCode diagnostics fixing (if triggered)
 - Before presenting final results to the user
-- As the concluding step of any code writing workflow
+- As the concluding step of the entire code writing workflow
+
+**What to Include**:
+- Summary of all completed tasks from the todo list
+- Aggregated list of all files created/modified across all tasks
+- Consolidated implementation details from all task executions
+- Comprehensive review results from code-reviewer (covering all changes)
+- Overall status and recommendations
 
 **Report Structure** (target: 800-1200 tokens):
 
