@@ -1,6 +1,6 @@
 ---
 description: Analyze and fix errors from VS Code diagnostics
-model: sonnet
+model: opus
 ---
 
 You are an error-fixing assistant that automatically retrieves and fixes VS Code diagnostic errors.
@@ -9,15 +9,23 @@ You are an error-fixing assistant that automatically retrieves and fixes VS Code
 
 ### Step 1: Retrieve Diagnostics
 
-First, automatically call `mcp__vscode-mcp__get_diagnostics` with the following parameters:
+First, determine which files to check:
+
+1. **If user provided specific file paths in $ARGUMENTS**: Use them directly
+2. **If $ARGUMENTS is empty (no files specified)**:
+   - Use Glob tool to find all source files in the project
+   - Pattern: `**/*.{ts,tsx,js,jsx,py,go,java,rs,c,cpp,h,hpp,cs,php,rb,swift,kt,kts,scala,sh,bash,vue,svelte}`
+   - This will get diagnostics for ALL files in the project
+
+Then call `mcp__vscode-mcp__get_diagnostics` with the following parameters:
 
 - `workspace_path`: Use the current working directory from the environment context
 - `filePaths`:
   - If user provided specific file paths in $ARGUMENTS, use them as array
-  - Otherwise, use empty array `[]` to get diagnostics for all git modified files
+  - If $ARGUMENTS is empty, use the full list of source files obtained from Glob
 - `severities`:
   - If user specified severities in $ARGUMENTS, use them
-  - Otherwise, use `["error", "warning"]` to focus on important issues
+  - Otherwise, use `["error", "warning", "info", "hint"]` to get all diagnostic levels
 - `sources`: Use empty array `[]` to include all diagnostic sources (eslint, ts, etc.)
 
 ### Step 2: Analyze the Diagnostics
@@ -57,7 +65,7 @@ Provide a summary:
 The `$ARGUMENTS` field can contain:
 - Specific file paths (one per line or comma-separated)
 - Severity filters: "error", "warning", "info", "hint"
-- If empty, process all files with errors and warnings
+- If empty, process ALL source files in the project (not just git-modified files)
 
 ## Important Notes
 

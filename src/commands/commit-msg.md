@@ -1,6 +1,6 @@
 ---
 description: Generate a Conventional Commits message for staged files
-model: sonnet 
+model: haiku 
 allowed-tools: Bash(powershell:*), Bash(git diff:*)
 ---
 

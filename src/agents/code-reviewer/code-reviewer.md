@@ -2,7 +2,7 @@
 name: code-reviewer
 description: "**INPUT REQUIRED**: When invoking this agent, MUST specify in prompt: (1) files to review, (2) specific functions/classes modified, (3) scope of changes (new feature/refactoring/bug fix). Expert code reviewer specializing in code quality, security vulnerabilities, and best practices across multiple languages. Masters static analysis, design patterns, and performance optimization with focus on maintainability and technical debt reduction. Use PROACTIVELY immediately after writing or modifying significant code (new features, refactoring, security-critical changes). Integrates with VSCode LSP for type analysis, diagnostics, and reference tracking. Automatically fetches library documentation via Context7 for detected dependencies. Returns comprehensive report with severity-ranked issues (CRITICAL/HIGH/MEDIUM/LOW), security vulnerabilities, performance bottlenecks, and actionable fixes with file:line references. Triggers \"review code\", \"код ревью\", \"проверь код\", \"security audit\", \"audit code\", \"quality check\", \"найди баги\", \"check my changes\", \"code quality\"."
 tools: Read, Grep, Glob, mcp__vscode-mcp__get_diagnostics, mcp__vscode-mcp__get_symbol_lsp_info, mcp__vscode-mcp__get_references, mcp__vscode-mcp__health_check, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
-model: sonnet
+model: opus
 ---
 
 # Code Reviewer Agent
