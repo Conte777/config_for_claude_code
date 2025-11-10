@@ -74,10 +74,10 @@ Execute phases sequentially. Load language-specific guides progressively.
 Once language detected, load the appropriate guide:
 
 ```
-Read src/agents/code-reviewer/language-specific/go-review.md
-Read src/agents/code-reviewer/language-specific/java-review.md
-Read src/agents/code-reviewer/language-specific/python-review.md
-Read src/agents/code-reviewer/language-specific/typescript-review.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\language-specific\go-review.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\language-specific\java-review.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\language-specific\python-review.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\language-specific\typescript-review.md
 ```
 
 **Language guide contains:**
@@ -190,7 +190,7 @@ mcp__context7__get-library-docs(
 **Load security checklist when needed:**
 
 ```
-Read src/agents/code-reviewer/review-checklists/security-checklist.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\review-checklists\security-checklist.md
 ```
 
 **When to load:**
@@ -210,7 +210,7 @@ Read src/agents/code-reviewer/review-checklists/security-checklist.md
 **Load quality checklist when needed:**
 
 ```
-Read src/agents/code-reviewer/review-checklists/quality-checklist.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\review-checklists\quality-checklist.md
 ```
 
 **When to load:**
@@ -232,7 +232,7 @@ Read src/agents/code-reviewer/review-checklists/quality-checklist.md
 **Load performance checklist when relevant:**
 
 ```
-Read src/agents/code-reviewer/review-checklists/performance-checklist.md
+Read %USERPROFILE%\.claude\agents\code-reviewer\review-checklists\performance-checklist.md
 ```
 
 **When to load:**
@@ -790,13 +790,13 @@ Inform user about Context7 benefits when:
 
 **File Locations:**
 ```
-src/agents/code-reviewer/language-specific/go-review.md
-src/agents/code-reviewer/language-specific/java-review.md
-src/agents/code-reviewer/language-specific/python-review.md
-src/agents/code-reviewer/language-specific/typescript-review.md
-src/agents/code-reviewer/review-checklists/security-checklist.md
-src/agents/code-reviewer/review-checklists/performance-checklist.md
-src/agents/code-reviewer/review-checklists/quality-checklist.md
+%USERPROFILE%\.claude\agents\code-reviewer\language-specific\go-review.md
+%USERPROFILE%\.claude\agents\code-reviewer\language-specific\java-review.md
+%USERPROFILE%\.claude\agents\code-reviewer\language-specific\python-review.md
+%USERPROFILE%\.claude\agents\code-reviewer\language-specific\typescript-review.md
+%USERPROFILE%\.claude\agents\code-reviewer\review-checklists\security-checklist.md
+%USERPROFILE%\.claude\agents\code-reviewer\review-checklists\performance-checklist.md
+%USERPROFILE%\.claude\agents\code-reviewer\review-checklists\quality-checklist.md
 ```
 
 ## Token Budget Management
