@@ -41,45 +41,45 @@ In all other cases, avoid writing comments. Prefer self-documenting code with cl
 
 ### Sequential Task Execution
 
-**CRITICAL RULE**: When a todo list exists with coding tasks, execute them SEQUENTIALLY. Each task must be fully completed, including VSCode diagnostics verification, before starting the next one.
+**Process**:
 
-**Prerequisite**: Todo list already exists (created before this workflow starts) with pending tasks.
+1. **Fetch Documentation**: Use Context7 MCP before writing code to understand best practices
+2. **Implement Solution**: Write or edit code using Write/Edit tools
+3. **Mark Task Completed**: Update task status to `completed` using TodoWrite
+4. **Move to Next Task**: Return to step 1 until all tasks are completed
 
-**Execution Process**:
+### After All Tasks Completed
 
-1. **Select Next Task**: Take the first task with status `pending` from the todo list
-2. **Mark In Progress**: Update task status to `in_progress` using TodoWrite tool
-3. **Fetch Documentation**: Use Context7 MCP to fetch library/framework documentation:
-   - Use `mcp__context7__resolve-library-id` to find library ID
-   - Use `mcp__context7__get-library-docs` to fetch documentation
-   - Study relevant APIs, best practices, and usage patterns
-4. **Implement Solution**: Write or edit code directly using Write/Edit tools:
-   - Apply best practices from fetched documentation
-   - Follow language-specific idioms and patterns
-   - Use clear, self-documenting names for variables and functions
-5. **Check VSCode Diagnostics**: Use `mcp__vscode-mcp__get_diagnostics` to check for issues:
-   - Check for ERROR level (severity 0) diagnostics
-   - Check for WARNING level (severity 1) diagnostics
-   - Check for INFO/HINT level (severity 2-3) diagnostics
-6. **Fix All Diagnostics**: If any diagnostics found, fix them immediately:
-   - Use Edit tool to fix errors, warnings, and hints
-   - Re-check diagnostics after each fix
-   - Repeat until all diagnostics are resolved
-7. **Mark Completed**: Update task status to `completed` using TodoWrite tool only after all diagnostics are clean
-8. **Move to Next Task**: If more tasks remain, return to step 1
+**Diagnostics Check Strategy**:
 
-**CRITICAL**: Execute tasks SEQUENTIALLY, one at a time. Each task must be fully completed (including diagnostic checks and fixes) before moving to the next task.
+1. **Primary Method**: Use `mcp__vscode-mcp__get_diagnostics` with workspace path to check entire project
+2. **Fallback Methods** (if MCP unavailable):
+   - **TypeScript**: `npx tsc --noEmit && npx eslint .`
+   - **Python**: `python -m mypy . && python -m pylint .`
+   - **Go**: `go build ./... && go vet ./...`
+   - **Java**: `mvn compile && mvn checkstyle:check`
 
-**Documentation First**: Always fetch relevant documentation via Context7 MCP before writing code to ensure best practices and correct API usage.
+**Fixing Process**:
+
+1. Check diagnostics for entire project
+2. For each file with issues:
+   - Fix ERROR (severity 0), WARNING (severity 1), INFO/HINT (severity 2-3)
+   - Use Edit tool to apply fixes
+   - Re-check that file's diagnostics
+3. Repeat until all diagnostics are clean
+4. Run final project-wide diagnostics check
 
 ### Consolidated Code Review After All Tasks
 
-**CRITICAL RULE**: After ALL tasks from the todo list are completed, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution.
+**CRITICAL RULE**: After ALL tasks from the todo list are completed AND all diagnostics have been checked/fixed via MCP or fallback methods, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution.
 
 **Timing**: Code-reviewer is invoked AFTER:
 - All tasks in the todo list have been executed and completed
 - All tasks are marked as `completed`
-- All VSCode diagnostics have been resolved for each task
+- "After All Tasks Completed" section has been fully executed:
+  - Project-wide diagnostics check performed (via `mcp__vscode-mcp__get_diagnostics` or fallback methods)
+  - All diagnostics issues have been fixed
+  - Final project-wide diagnostics check passed
 - NOT after each individual task (this is the key difference from previous workflow)
 
 **Pre-Review Preparation**:
@@ -98,6 +98,7 @@ Call the Task tool with subagent_type="code-reviewer" and provide:
 - **Complete component list**: All functions, classes, and code blocks changed during task execution
 - **Consolidated scope**: Overall description of what was implemented across all tasks
 - **Cross-task context**: How different tasks relate to each other, dependencies between changes
+- **Skip diagnostics**: Explicitly instruct the code-reviewer to NOT run diagnostic tools (mcp__vscode-mcp__get_diagnostics, tsc --noEmit, eslint, go vet, etc.) since comprehensive diagnostics were already performed and all issues fixed in the previous step
 
 **Review Focus**:
 
@@ -109,57 +110,6 @@ The code-reviewer will analyze:
 
 **Never skip code review** - always invoke the code-reviewer agent after all code-writing tasks are complete.
 
-### Automatic VSCode Diagnostics Fixing
-
-**CRITICAL RULE**: After `code-reviewer` completes the consolidated review of all changes, if VSCode diagnostics contains ERROR level issues (severity 0), automatically fix them directly, then re-run `code-reviewer` for validation.
-
-**Context**: This step occurs AFTER:
-- All tasks have been completed and VSCode diagnostics were checked for each task
-- Consolidated code-reviewer has analyzed all changes together
-- The consolidated review report has been received
-
-**Trigger Condition:**
-- VSCode diagnostics shows ERROR level (severity 0) diagnostics from language servers
-- Sources: Go compiler errors, Java compiler errors, Python linter errors (pylint, mypy), etc.
-
-**NOT Triggered by:**
-- CRITICAL/HIGH severity issues from manual code review
-- Security vulnerabilities identified by reviewer
-- Logic bugs or best practices violations
-- Only VSCode diagnostics warnings/info/hints (severity 1-3)
-
-**Fixing Process:**
-
-1. **Analyze VSCode Diagnostics from Review:**
-   - Use `mcp__vscode-mcp__get_diagnostics` to check for ERROR level (severity 0) diagnostics
-   - Group by file and source (Go compiler, javac, pylint, mypy, etc.)
-   - Ignore warnings, info, hints (severity 1-3)
-
-2. **Fix Errors Directly:**
-   - For each ERROR level diagnostic:
-     - Read the affected file if needed
-     - Use Edit tool to fix the specific error
-     - Use Context7 MCP to fetch documentation if needed to understand correct fix
-     - Make minimal changes to resolve errors
-   - Explicit constraints:
-     - Fix ONLY VSCode diagnostic errors
-     - Do not fix manual review issues (security, logic, etc.)
-     - Do not modify unrelated code
-   - Re-check diagnostics after each fix using `mcp__vscode-mcp__get_diagnostics`
-   - Repeat until all ERROR level diagnostics are resolved
-
-3. **Re-invoke code-reviewer for Validation:**
-   - After all diagnostic errors are fixed:
-     - Specify files modified during fixing
-     - Scope: "Validation after VSCode diagnostics fixing"
-     - Full review including fresh VSCode diagnostics check
-
-4. **Proceed to Final Summary:**
-   - Generate Final Summary Report regardless of second review results
-   - If VSCode errors remain: include in report
-   - If new errors introduced: highlight in report
-   - If all resolved: mark diagnostics as clean
-
 ### Final Summary Report
 
 **CRITICAL RULE**: After ALL tasks are completed and `code-reviewer` completes the consolidated review, you MUST generate a comprehensive final summary report that aggregates results from all task executions and code review.
@@ -168,8 +118,8 @@ This report is the primary deliverable to the user and should provide a clear, a
 
 **When to Generate**:
 - After ALL tasks from todo list have been completed through direct task execution
+- After project-wide VSCode diagnostics have been checked and fixed
 - After consolidated code-reviewer finishes reviewing all changes together
-- After automatic VSCode diagnostics fixing (if triggered)
 - Before presenting final results to the user
 - As the concluding step of the entire code writing workflow
 
@@ -183,33 +133,16 @@ This report is the primary deliverable to the user and should provide a clear, a
 **Report Structure** (target: 800-1200 tokens):
 
 ```markdown
-# Итоговый отчет
-
-## Краткая сводка
-
-**Задача**: [Краткое описание запрошенной задачи]
-**Статус**: ✅ Готово к использованию | ⚠️ Требует исправлений | ❌ Обнаружены критические проблемы
-**Язык программирования**: [Используемый язык программирования]
-**Изменено файлов**: X изменено, Y создано
-
-[Обзор реализации и общего качества кода в 2-3 предложениях]
-
----
+# Отчёт о результатах реализации
 
 ## Детали реализации
 
-### Измененные/созданные файлы
-- [file1.go](path/to/file1.go) - [назначение]
-- [file2.java](path/to/file2.java) - [назначение]
+### Изменённые/созданные файлы
+- [file1.go](path/to/file1.go) - Описание назначения/функционала
+- [file2.java](path/to/file2.java) - Описание назначения/функционала
 
-### Реализованные ключевые компоненты
-
-#### [file1.go](path/to/file1.go) - краткое описание
-
-#### [file2.java](path/to/file2.java) - краткое описание
-
-### Примененные паттерны проектирования
-- **Название паттерна**: Почему и где был использован
+### Применённые паттерны проектирования
+- **Название паттерна**: Где и почему он использован
 
 ### Ключевые решения при реализации
 - [Важное решение 1]
@@ -217,28 +150,59 @@ This report is the primary deliverable to the user and should provide a clear, a
 
 ---
 
-## Результаты ревью кода
+## Результаты проверки кода
 
-### Сводка по проблемам
-- **КРИТИЧЕСКИЕ**: X проблем (требуют немедленного исправления)
-- **ВЫСОКИЕ**: Y проблем (следует исправить перед развертыванием)
-- **СРЕДНИЕ**: Z проблем (исправить при возможности)
-- **НИЗКИЕ**: W проблем (рекомендации по улучшению)
+### Итого
 
-### Критические проблемы (если есть)
+- **Критических**: X проблем (необходимо исправить перед слиянием/развёртыванием)
+- **Высокий приоритет**: Y проблем (следует исправить перед развёртыванием)
+- **Рекомендации**: Z предложений по улучшению
 
-#### [Название проблемы] - [file.ext:line](path/to/file.ext#Lline)
+### Критические проблемы
 
-**Серьезность**: КРИТИЧЕСКАЯ
-**Категория**: Безопасность / Производительность / Качество
+1. [Название или описание проблемы]
+   Подробное объяснение проблемы. Описание воздействия и рисков.
+   Предложенные способы исправления или смягчения проблемы.
 
-**Проблема**: [Четкое описание]
-**Риск**: [Что может произойти]
-**Решение**: [Конкретное исправление]
+   Затронутые файлы:
+   - path/to/file1.go:123
+   - path/to/file2.java:45-67
 
-### Проблемы высокого приоритета (если есть)
+2. [Вторая критическая проблема]
+   Описание и детали.
 
-[Тот же формат, что и для критических]
+   Затронутые файлы:
+   - path/to/file3.py:89
+
+### Высокий приоритет
+
+1. [Описание проблемы]
+   Объяснение и описание воздействия.
+
+   Затронутые файлы:
+   - path/to/file4.ts:234
+   - path/to/file5.go:145
+
+2. [Вторая проблема высокого приоритета]
+   Детали и объяснение.
+
+   Затронутые файлы:
+   - path/to/file6.java:12
+
+### Рекомендации
+
+1. [Предложение по улучшению]
+   Почему это важно и как это улучшить.
+
+   Затронутые файлы:
+   - path/to/file7.py:56
+   - path/to/file8.py:67
+
+2. [Вторая рекомендация]
+   Детали рекомендации.
+
+   Затронутые файлы:
+   - path/to/file9.ts:123
 
 ### Положительные наблюдения
 - ✅ [Хорошая практика 1]
@@ -246,28 +210,16 @@ This report is the primary deliverable to the user and should provide a clear, a
 
 ---
 
-## Действия
-
-### Немедленные действия (Критические/Высокий приоритет)
-1. [ ] Исправить [конкретную проблему] в [file.ext:line](path/to/file.ext#Lline)
-2. [ ] Устранить [конкретную проблему] в [file.ext:line](path/to/file.ext#Lline)
-
-### Рекомендуемые улучшения (Средний/Низкий приоритет)
-1. [ ] Рассмотреть [предложение по улучшению]
-2. [ ] Проверить [конкретный аспект]
-
-### Следующие шаги
-- [Что пользователю делать дальше]
-- [Рекомендации по тестированию]
-- [Соображения по развертыванию, если применимо]
+## Следующие шаги
+- [Что нужно сделать дальше]
+- [Соображения по развёртыванию, если применимо]
 
 ---
 
 ## Общая оценка
 
-[2-3 предложения с итоговой оценкой качества кода, готовности к использованию и важных предостережений или рекомендаций]
+2-3 предложения с итоговой оценкой качества кода, готовности к использованию и важных предупреждений или рекомендаций.
 
-**Рекомендация**: [Одобрить к использованию / Сначала исправить критические проблемы / Требуются серьезные доработки]
 ```
 
 **Report Requirements**:

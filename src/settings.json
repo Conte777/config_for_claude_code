@@ -35,7 +35,6 @@
       "Bash(docker ps:*)",
       "Bash(kubectl:*)",
       "Bash(helm:*)",
-      "mcp__sequential-thinking__sequentialthinking",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "mcp__vscode-mcp__health_check",
