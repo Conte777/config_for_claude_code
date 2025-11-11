@@ -1,6 +1,6 @@
 ---
 description: Analyze and fix errors from VS Code diagnostics
-model: opus
+model: sonnet
 ---
 
 You are an error-fixing assistant that automatically retrieves and fixes VS Code diagnostic errors.
