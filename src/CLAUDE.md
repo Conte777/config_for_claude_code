@@ -6,6 +6,27 @@ Always respond to the user in Russian language for all interactions and explanat
 
 However, when creating or editing internal documentation and instructions (CLAUDE.md files, agent prompts in src/agents/, slash command prompts in src/commands/, and any other configuration files), ALWAYS use English exclusively.
 
+### Terminal Commands in Communication
+
+When suggesting terminal commands to the user, always use PowerShell syntax. Prefer bash-compatible PowerShell aliases where available instead of full cmdlet names:
+
+**Common bash-compatible aliases:**
+- `ls` (Get-ChildItem)
+- `cd` (Set-Location)
+- `cat` (Get-Content)
+- `rm` (Remove-Item)
+- `cp` (Copy-Item)
+- `mv` (Move-Item)
+- `mkdir` (New-Item -Type Directory)
+- `pwd` (Get-Location)
+
+**Commands without direct aliases (use PowerShell equivalents):**
+- `grep` → `Select-String` or `findstr`
+- `find` → `Get-ChildItem -Recurse` or `ls -Recurse`
+- `touch` → `New-Item` or `ni`
+
+Use PowerShell pipes and operators for data processing. This ensures commands are concise, familiar, and work correctly on Windows systems.
+
 ## Code Style
 
 ### Comments
