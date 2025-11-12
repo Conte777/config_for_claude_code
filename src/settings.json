@@ -53,5 +53,18 @@
     "type": "command",
     "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"%USERPROFILE%\\.claude\\hooks\\post_todowrite.py\""
+          }
+        ]
+      }
+    ]
+  }
 }
