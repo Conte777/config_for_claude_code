@@ -16,6 +16,7 @@ The repository uses Windows symbolic links to connect the standard Claude Code c
 - `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
 - `%USERPROFILE%\.claude\commands` → `src\commands`
 - `%USERPROFILE%\.claude\agents` → `src\agents`
+- `%USERPROFILE%\.claude\hooks` → `src\hooks`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -24,12 +25,14 @@ This allows editing files in `src/` while Claude Code reads from the standard lo
 ```
 src/
 ├── .mcp.json          # MCP server configurations
-├── settings.json      # Claude Code settings (permissions, features)
+├── settings.json      # Claude Code settings (permissions, features, hooks)
 ├── CLAUDE.md         # Global Claude Code instructions
 ├── commands/         # Custom slash commands (.md files)
-└── agents/           # Custom subagents
-    ├── code-reviewer/    # Code review agent with language-specific checklists
-    └── code-writer/      # Code writing agent with design patterns and guides
+├── agents/           # Custom subagents
+│   ├── code-reviewer/    # Code review agent with language-specific checklists
+│   └── code-writer/      # Code writing agent with design patterns and guides
+└── hooks/            # Hooks for tool events
+    └── post_todowrite.py # PostToolUse hook for TodoWrite completion
 ```
 
 ## Setup and Cleanup
@@ -69,6 +72,21 @@ Run `cleanup.bat` as administrator to remove symbolic links:
 
 - **code-writer/**: Expert code writer specializing in Go, Java, and Python with deep knowledge of best practices, design patterns (SOLID, GoF), and idiomatic language features. Automatically fetches library documentation via Context7 and applies progressive disclosure strategy with language-specific guides, design pattern references, and library-specific documentation.
 
+### Hooks (src/hooks/)
+
+Custom hooks are scripts that execute in response to tool events. Configured in `settings.json` under the `hooks` section.
+
+- **post_todowrite.py**: PostToolUse hook for TodoWrite tool
+  - **Purpose**: Automatically detects when all tasks in the todo list are completed
+  - **Trigger**: After every TodoWrite tool execution
+  - **Action**: Injects a prompt reminder to execute the final workflow steps:
+    1. Run project-wide diagnostics (VSCode MCP or fallback methods)
+    2. Fix all diagnostic issues
+    3. Invoke code-reviewer sub-agent for consolidated review
+    4. Generate final summary report
+  - **Implementation**: Parses session transcript to analyze todo list state, uses `decision: "block"` to inject prompt into Claude Code dialog
+  - **Configuration**: Defined in `settings.json` under `hooks.PostToolUse` with matcher `"TodoWrite"`
+
 ### Settings (settings.json)
 
 Defines:
@@ -76,6 +94,7 @@ Defines:
 - **Always-thinking mode**: Enabled for enhanced reasoning
 - **Security restrictions**: Blocks access to secrets, .env files
 - **Automatic approvals**: Pre-approved tools include web search/fetch, read operations, git commands, and MCP integrations
+- **Hooks**: PostToolUse hook for TodoWrite to automate workflow completion
 
 ### Global Instructions (src/CLAUDE.md)
 
@@ -139,6 +158,49 @@ Agent prompt and instructions...
 ```
 
 Agents support progressive disclosure patterns - loading reference materials (language guides, checklists, design patterns) only when needed to optimize token usage. Each agent can have supporting materials in subdirectories that are read on-demand.
+
+### Hooks
+
+Custom hooks are executable scripts (Python, PowerShell, Bash) that respond to tool execution events. Hooks are configured in `settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "ToolName",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"%USERPROFILE%\\.claude\\hooks\\hook_script.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Hook Input** (via stdin as JSON):
+- `tool_name`: Name of the tool that was executed
+- `tool_input`: Input parameters passed to the tool
+- `tool_response`: Tool execution result
+- `transcript_path`: Path to session transcript (JSONL format)
+- `session_id`, `cwd`, `permission_mode`: Session metadata
+
+**Hook Output** (stdout as JSON):
+- `decision: "block"` + `reason: "message"`: Injects prompt into Claude dialog (blocks until acknowledged)
+- `decision: "allow"`: Continues without interruption
+- Exit code 0: Success (stdout visible to user, NOT Claude)
+- Exit code 2: Blocks and sends stderr to Claude as prompt
+
+**Use Cases**:
+- Workflow automation (e.g., trigger actions when tasks complete)
+- Validation and enforcement (e.g., code formatting checks)
+- Notifications and logging
+- Auto-commit after file changes
+
+When creating new hooks in `src/hooks/`, update `settings.json` to register them.
 
 ## MCP Configuration Notes
 
