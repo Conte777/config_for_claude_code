@@ -6,6 +6,17 @@ Always respond to the user in Russian language for all interactions and explanat
 
 However, when creating or editing internal documentation and instructions (CLAUDE.md files, agent prompts in src/agents/, slash command prompts in src/commands/, and any other configuration files), ALWAYS use English exclusively.
 
+## Code Style
+
+### Comments
+
+**CRITICAL RULE**: Write comments in code only when:
+- Variable or function names don't fully reflect their purpose
+- Code behavior is not obvious from the context
+
+In all other cases, avoid writing comments. Prefer self-documenting code with clear, descriptive names for variables, functions, and classes.
+
+
 ### Terminal Commands in Communication
 
 When suggesting terminal commands to the user, always use PowerShell syntax. Prefer bash-compatible PowerShell aliases where available instead of full cmdlet names:
@@ -27,15 +38,6 @@ When suggesting terminal commands to the user, always use PowerShell syntax. Pre
 
 Use PowerShell pipes and operators for data processing. This ensures commands are concise, familiar, and work correctly on Windows systems.
 
-## Code Style
-
-### Comments
-
-Write comments in code only when:
-- Variable or function names don't fully reflect their purpose
-- Code behavior is not obvious from the context
-
-In all other cases, avoid writing comments. Prefer self-documenting code with clear, descriptive names for variables, functions, and classes.
 
 ## Code Writing Workflow
 
@@ -48,7 +50,7 @@ In all other cases, avoid writing comments. Prefer self-documenting code with cl
 3. **Mark Task Completed**: Update task status to `completed` using TodoWrite
 4. **Move to Next Task**: Return to step 1 until all tasks are completed
 
-### After All Tasks Completed
+### After All Tasks Completed. ALWAYS DO THIS STEP
 
 **Diagnostics Check Strategy**:
 
@@ -69,9 +71,9 @@ In all other cases, avoid writing comments. Prefer self-documenting code with cl
 3. Repeat until all diagnostics are clean
 4. Run final project-wide diagnostics check
 
-### Consolidated Code Review After All Tasks
+### Consolidated Code Review After All Tasks. ALWAYS DO THIS STEP
 
-**CRITICAL RULE**: After ALL tasks from the todo list are completed AND all diagnostics have been checked/fixed via MCP or fallback methods, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution.
+**CRITICAL RULE**: After ALL tasks from the todo list are completed AND all diagnostics have been checked/fixed via MCP or fallback methods, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution. **DO NOT SKIP THIS STEP**
 
 **Timing**: Code-reviewer is invoked AFTER:
 - All tasks in the todo list have been executed and completed
@@ -110,7 +112,7 @@ The code-reviewer will analyze:
 
 **Never skip code review** - always invoke the code-reviewer agent after all code-writing tasks are complete.
 
-### Final Summary Report
+### Final Summary Report. ALWAYS DO THIS STEP
 
 **CRITICAL RULE**: After ALL tasks are completed and `code-reviewer` completes the consolidated review, you MUST generate a comprehensive final summary report that aggregates results from all task executions and code review.
 

@@ -48,9 +48,10 @@
       "Read(.env.*)"
     ]
   },
-  "alwaysThinkingEnabled": true,
+  "model": "haiku",
   "statusLine": {
     "type": "command",
     "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
-  }
+  },
+  "alwaysThinkingEnabled": true
 }

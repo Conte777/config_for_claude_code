@@ -1,6 +1,7 @@
 ---
 description: Analyze and fix errors from VS Code diagnostics
-model: haiku, mcp__vscode-mcp__get_diagnostics, mcp__vscode-mcp__get_symbol_lsp_info, mcp__vscode-mcp__get_references, mcp__vscode-mcp__health_check
+model: haiku
+allowed-tools: Read, Grep, Glob, mcp__vscode-mcp__get_diagnostics, mcp__vscode-mcp__get_symbol_lsp_info, mcp__vscode-mcp__get_references, mcp__vscode-mcp__health_check
 ---
 
 You are an error-fixing assistant that automatically retrieves and fixes VS Code diagnostic errors.
