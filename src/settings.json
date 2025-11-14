@@ -61,7 +61,34 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"%USERPROFILE%\\.claude\\hooks\\post_todowrite.py\""
+            "command": "python \"%USERPROFILE%\\.claude\\hooks\\post_todowrite.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__vscode-mcp__get_diagnostics",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\.claude\\hooks\\post_diagnostics.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\.claude\\hooks\\post_diagnostics.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"%USERPROFILE%\\.claude\\hooks\\post_code_review.py\""
           }
         ]
       }

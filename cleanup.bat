@@ -20,6 +20,7 @@ echo.
 :: Целевые пути
 set "TARGET_SETTINGS=%USERPROFILE%\.claude\settings.json"
 set "TARGET_CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md"
+set "TARGET_STATUSLINE=%USERPROFILE%\.claude\statusline.ps1"
 set "TARGET_COMMANDS=%USERPROFILE%\.claude\commands"
 set "TARGET_AGENTS=%USERPROFILE%\.claude\agents"
 set "TARGET_SKILLS=%USERPROFILE%\.claude\skills"
@@ -29,6 +30,7 @@ set "TARGET_HOOKS=%USERPROFILE%\.claude\hooks"
 echo The following symbolic links will be removed:
 echo - %TARGET_SETTINGS%
 echo - %TARGET_CLAUDE_MD%
+echo - %TARGET_STATUSLINE%
 echo - %TARGET_COMMANDS%
 echo - %TARGET_AGENTS%
 echo - %TARGET_SKILLS%
@@ -75,6 +77,20 @@ if exist "%TARGET_CLAUDE_MD%" (
     )
 ) else (
     echo Skipping: %TARGET_CLAUDE_MD% (not found)
+)
+
+:: Удаление символической ссылки для statusline.ps1
+if exist "%TARGET_STATUSLINE%" (
+    echo Removing: %TARGET_STATUSLINE%
+    del "%TARGET_STATUSLINE%" 2>nul
+    if %errorlevel% neq 0 (
+        echo WARNING: Failed to remove %TARGET_STATUSLINE%
+        set /a ERROR_COUNT+=1
+    ) else (
+        echo   - Removed successfully
+    )
+) else (
+    echo Skipping: %TARGET_STATUSLINE% (not found)
 )
 
 :: Удаление символической ссылки для commands (директория)

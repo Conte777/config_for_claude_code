@@ -3,11 +3,13 @@
 PostToolUse hook for TodoWrite tool
 
 Detects when all tasks in the todo list are marked as completed and injects
-a prompt to remind Claude Code to execute the final workflow steps:
-1. Run project-wide diagnostics
-2. Fix all diagnostic issues
-3. Invoke code-reviewer for consolidated review
-4. Generate final summary report
+a prompt to trigger the diagnostics workflow stage.
+
+This hook is the first stage of the automated workflow pipeline:
+- Stage 1→2: Detects todo list completion → injects diagnostics prompt
+- Stage 2→3: Handled by post_diagnostics.py (when diagnostics are clean)
+- Stage 3→4: Handled by post_code_review.py (when code review completes)
+- Stage 4: Final report generation (manual or automated)
 
 This hook is triggered after every TodoWrite tool execution and analyzes
 the session transcript to determine the current state of all tasks.
@@ -86,18 +88,24 @@ def create_injection_prompt() -> str:
     """
     return """All tasks from the todo list have been completed!
 
-According to the CLAUDE.md workflow, you must now execute the "After All Tasks Completed" section:
+According to the CLAUDE.md workflow, you must now perform project-wide diagnostics:
 
-1. **Run project-wide diagnostics**: Use mcp__vscode-mcp__get_diagnostics with workspace path
-2. **Fix all diagnostic issues**: Address ERROR (severity 0), WARNING (severity 1), and INFO/HINT (severity 2-3)
-3. **Invoke code-reviewer**: Launch code-reviewer sub-agent for consolidated review of ALL changes
-   - Provide complete list of modified files
-   - Specify all modified functions/classes
-   - Describe overall scope of changes
-   - Instruct to skip diagnostics (already performed)
-4. **Generate final summary report**: Create comprehensive report with implementation details and review findings
+**Diagnostics Check Strategy**:
 
-Proceed with these steps now."""
+1. **Primary Method**: Use `mcp__vscode-mcp__get_diagnostics` with workspace path
+2. **Fallback Methods** (if MCP unavailable):
+   - TypeScript: `npx tsc --noEmit && npx eslint .`
+   - Python: `python -m mypy . && python -m pylint .`
+   - Go: `go build ./... && go vet ./...`
+   - Java: `mvn compile && mvn checkstyle:check`
+
+**Fixing Process**:
+1. Check diagnostics for entire project
+2. Fix ERROR (severity 0), WARNING (severity 1), INFO/HINT (severity 2-3)
+3. Re-check diagnostics after fixes
+4. Repeat until all diagnostics are clean
+
+Proceed with diagnostics check now. The next workflow steps will be triggered automatically after diagnostics are clean."""
 
 
 def main():
@@ -139,7 +147,9 @@ def main():
         print(json.dumps(response, ensure_ascii=False))
         sys.exit(0)
 
-    # Not all tasks completed yet, or no todos found - normal exit
+    # Not all tasks completed yet, or no todos found - allow normal flow
+    response = {}
+    print(json.dumps(response, ensure_ascii=False))
     sys.exit(0)
 
 
