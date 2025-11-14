@@ -50,86 +50,66 @@ Use PowerShell pipes and operators for data processing. This ensures commands ar
 3. **Mark Task Completed**: Update task status to `completed` using TodoWrite
 4. **Move to Next Task**: Return to step 1 until all tasks are completed
 
-### After All Tasks Completed. ALWAYS DO THIS STEP
+### Automated Workflow System
 
-**Diagnostics Check Strategy**:
+This configuration uses a hook-based system to automate workflow progression through four stages:
 
-1. **Primary Method**: Use `mcp__vscode-mcp__get_diagnostics` with workspace path to check entire project
-2. **Fallback Methods** (if MCP unavailable):
-   - **TypeScript**: `npx tsc --noEmit && npx eslint .`
-   - **Python**: `python -m mypy . && python -m pylint .`
-   - **Go**: `go build ./... && go vet ./...`
-   - **Java**: `mvn compile && mvn checkstyle:check`
+**Workflow Stages**:
 
-**Fixing Process**:
+1. **Stage 1→2 (post_todowrite.py)**: When all tasks are marked as `completed`, automatically injects prompt for diagnostics check
+2. **Stage 2→3 (post_diagnostics.py)**: When diagnostics are clean (0 critical issues), automatically injects prompt for code-reviewer invocation
+3. **Stage 3→4 (post_code_review.py)**: When code-reviewer completes, automatically injects prompt for final summary report
+4. **Stage 4**: Final report generation (follows automated prompt)
 
-1. Check diagnostics for entire project
-2. For each file with issues:
-   - Fix ERROR (severity 0), WARNING (severity 1), INFO/HINT (severity 2-3)
-   - Use Edit tool to apply fixes
-   - Re-check that file's diagnostics
-3. Repeat until all diagnostics are clean
-4. Run final project-wide diagnostics check
+**Diagnostics Tools**:
 
-### Consolidated Code Review After All Tasks. ALWAYS DO THIS STEP
+- **Primary**: `mcp__vscode-mcp__get_diagnostics` (VSCode MCP)
+- **Fallback**: Language-specific CLI tools:
+  - TypeScript: `npx tsc --noEmit && npx eslint .`
+  - Python: `python -m mypy . && python -m pylint .`
+  - Go: `go build ./... && go vet ./...`
+  - Java: `mvn compile && mvn checkstyle:check`
 
-**CRITICAL RULE**: After ALL tasks from the todo list are completed AND all diagnostics have been checked/fixed via MCP or fallback methods, the `code-reviewer` sub-agent MUST be invoked ONCE to perform a comprehensive review of ALL changes made during task execution. **DO NOT SKIP THIS STEP**
+**Priority Levels**:
 
-**Timing**: Code-reviewer is invoked AFTER:
-- All tasks in the todo list have been executed and completed
-- All tasks are marked as `completed`
-- "After All Tasks Completed" section has been fully executed:
-  - Project-wide diagnostics check performed (via `mcp__vscode-mcp__get_diagnostics` or fallback methods)
-  - All diagnostics issues have been fixed
-  - Final project-wide diagnostics check passed
-- NOT after each individual task (this is the key difference from previous workflow)
+- ERROR (severity 0): Must fix before proceeding
+- WARNING (severity 1): Should fix before deployment
+- INFO/HINT (severity 2-3): Optional improvements
 
-**Pre-Review Preparation**:
+When diagnostics are clean (0 errors), the workflow automatically proceeds to code review via `post_diagnostics.py` hook injection.
 
-Before invoking code-reviewer, you MUST consolidate information from all completed tasks:
+### Code Review (Automated)
 
-1. **Aggregate Modified Files**: Collect all files that were created or modified across ALL tasks
-2. **Aggregate Modified Components**: List all functions, classes, methods, and modules changed across ALL tasks
-3. **Summarize Scope**: Provide overall scope description covering all changes (e.g., "New feature implementation with authentication, database layer, and API endpoints")
-4. **Context Collection**: Gather any important decisions or trade-offs made during implementation
+After diagnostics are clean, the workflow automatically triggers code review invocation via `post_diagnostics.py` hook injection.
 
-**Invoking code-reviewer**:
+**What to Provide to code-reviewer**:
 
-Call the Task tool with subagent_type="code-reviewer" and provide:
 - **Complete file list**: All files created/modified during task execution
-- **Complete component list**: All functions, classes, and code blocks changed during task execution
-- **Consolidated scope**: Overall description of what was implemented across all tasks
-- **Cross-task context**: How different tasks relate to each other, dependencies between changes
-- **Skip diagnostics**: Explicitly instruct the code-reviewer to NOT run diagnostic tools (mcp__vscode-mcp__get_diagnostics, tsc --noEmit, eslint, go vet, etc.) since comprehensive diagnostics were already performed and all issues fixed in the previous step
+- **Complete component list**: All functions, classes, methods changed
+- **Consolidated scope**: Overall description of implementation across all tasks
+- **Cross-task context**: How different tasks relate to each other, dependencies
+- **Skip diagnostics flag**: Instruct to skip diagnostic tools (already performed)
 
 **Review Focus**:
 
-The code-reviewer will analyze:
+The code-reviewer analyzes:
 - ALL changes comprehensively as a cohesive unit
-- Consistency across changes made by different task executions
-- Integration points between different parts of implementation
-- Overall code quality, security, and best practices across the entire implementation
+- Consistency across all task implementations
+- Integration points between components
+- Code quality, security, and best practices
 
-**Never skip code review** - always invoke the code-reviewer agent after all code-writing tasks are complete.
+When code review completes, the workflow automatically proceeds to final report via `post_code_review.py` hook injection.
 
-### Final Summary Report. ALWAYS DO THIS STEP
+### Final Summary Report (Automated)
 
-**CRITICAL RULE**: After ALL tasks are completed and `code-reviewer` completes the consolidated review, you MUST generate a comprehensive final summary report that aggregates results from all task executions and code review.
-
-This report is the primary deliverable to the user and should provide a clear, actionable overview of the entire multi-task implementation and review process.
-
-**When to Generate**:
-- After ALL tasks from todo list have been completed through direct task execution
-- After project-wide VSCode diagnostics have been checked and fixed
-- After consolidated code-reviewer finishes reviewing all changes together
-- Before presenting final results to the user
-- As the concluding step of the entire code writing workflow
+After code review completes, the workflow automatically triggers final report generation via `post_code_review.py` hook injection.
 
 **What to Include**:
+
 - Summary of all completed tasks from the todo list
-- Aggregated list of all files created/modified across all tasks
+- Aggregated list of all files created/modified
 - Consolidated implementation details from all task executions
-- Comprehensive review results from code-reviewer (covering all changes)
+- Comprehensive review results from code-reviewer
 - Overall status and recommendations
 
 **Report Structure** (target: 800-1200 tokens):

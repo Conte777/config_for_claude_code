@@ -14,6 +14,7 @@ The repository uses Windows symbolic links to connect the standard Claude Code c
 
 - `%USERPROFILE%\.claude\settings.json` → `src\settings.json`
 - `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
+- `%USERPROFILE%\.claude\statusline.ps1` → `src\statusline.ps1`
 - `%USERPROFILE%\.claude\commands` → `src\commands`
 - `%USERPROFILE%\.claude\agents` → `src\agents`
 - `%USERPROFILE%\.claude\hooks` → `src\hooks`
@@ -27,6 +28,7 @@ src/
 ├── .mcp.json          # MCP server configurations
 ├── settings.json      # Claude Code settings (permissions, features, hooks)
 ├── CLAUDE.md         # Global Claude Code instructions
+├── statusline.ps1    # PowerShell script for custom status line
 ├── commands/         # Custom slash commands (.md files)
 ├── agents/           # Custom subagents
 │   ├── code-reviewer/    # Code review agent with language-specific checklists
@@ -201,6 +203,30 @@ Custom hooks are executable scripts (Python, PowerShell, Bash) that respond to t
 - Auto-commit after file changes
 
 When creating new hooks in `src/hooks/`, update `settings.json` to register them.
+
+### Status Line (src/statusline.ps1)
+
+Custom PowerShell script that provides real-time status information in Claude Code's status line.
+
+**Features**:
+- **Current directory**: Displays the basename of the current working directory
+- **Git integration**: Shows current branch name and status indicators
+  - `!` - Modified files (uncommitted changes)
+  - `?` - Untracked files
+- **Model display**: Shows the current Claude model name
+- **ANSI colors**: Uses color coding for visual clarity (cyan for directory, green for branch, magenta for model)
+
+**Display Format**: `directory | branch !? | Model Name`
+
+**Configuration**:
+- Defined in `settings.json` under `statusLine.command`
+- Receives JSON input via stdin with model, workspace, and session data
+- Updates automatically when conversation state changes (max 300ms interval)
+
+**Customization**:
+- Edit `src/statusline.ps1` to modify display format or add new information
+- Changes apply immediately through symbolic link
+- Supports adding custom data from JSON input (cost, duration, transcript path)
 
 ## MCP Configuration Notes
 

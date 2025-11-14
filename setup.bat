@@ -25,6 +25,7 @@ echo.
 set "TARGET_CLAUDE_DIR=%USERPROFILE%\.claude"
 set "TARGET_SETTINGS=%TARGET_CLAUDE_DIR%\settings.json"
 set "TARGET_CLAUDE_MD=%TARGET_CLAUDE_DIR%\CLAUDE.md"
+set "TARGET_STATUSLINE=%TARGET_CLAUDE_DIR%\statusline.ps1"
 set "TARGET_COMMANDS=%TARGET_CLAUDE_DIR%\commands"
 set "TARGET_AGENTS=%TARGET_CLAUDE_DIR%\agents"
 set "TARGET_SKILLS=%TARGET_CLAUDE_DIR%\skills"
@@ -40,6 +41,11 @@ if exist "%TARGET_SETTINGS%" (
 
 if exist "%TARGET_CLAUDE_MD%" (
     echo WARNING: File already exists: %TARGET_CLAUDE_MD%
+    set "CONFLICT=1"
+)
+
+if exist "%TARGET_STATUSLINE%" (
+    echo WARNING: File already exists: %TARGET_STATUSLINE%
     set "CONFLICT=1"
 )
 
@@ -95,6 +101,11 @@ if not exist "%SRC_DIR%\CLAUDE.md" (
     set "SOURCE_MISSING=1"
 )
 
+if not exist "%SRC_DIR%\statusline.ps1" (
+    echo ERROR: Source file not found: %SRC_DIR%\statusline.ps1
+    set "SOURCE_MISSING=1"
+)
+
 if not exist "%SRC_DIR%\commands" (
     echo ERROR: Source directory not found: %SRC_DIR%\commands
     set "SOURCE_MISSING=1"
@@ -147,6 +158,14 @@ if %errorlevel% neq 0 (
     goto :cleanup_on_error
 )
 
+:: Символическая ссылка для statusline.ps1 (файл)
+echo Creating: %TARGET_STATUSLINE% -^> %SRC_DIR%\statusline.ps1
+mklink "%TARGET_STATUSLINE%" "%SRC_DIR%\statusline.ps1"
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to create symlink for statusline.ps1
+    goto :cleanup_on_error
+)
+
 :: Символическая ссылка для commands (директория)
 echo Creating: %TARGET_COMMANDS% -^> %SRC_DIR%\commands
 mklink /D "%TARGET_COMMANDS%" "%SRC_DIR%\commands"
@@ -195,6 +214,7 @@ echo.
 echo Cleaning up partial installation...
 if exist "%TARGET_SETTINGS%" del "%TARGET_SETTINGS%" 2>nul
 if exist "%TARGET_CLAUDE_MD%" del "%TARGET_CLAUDE_MD%" 2>nul
+if exist "%TARGET_STATUSLINE%" del "%TARGET_STATUSLINE%" 2>nul
 if exist "%TARGET_COMMANDS%" rmdir "%TARGET_COMMANDS%" 2>nul
 if exist "%TARGET_AGENTS%" rmdir "%TARGET_AGENTS%" 2>nul
 if exist "%TARGET_SKILLS%" rmdir "%TARGET_SKILLS%" 2>nul
