@@ -60,5 +60,6 @@
     ]
   },
   "includeCoAuthoredBy": false,
-  "defaultMode": "plan"
+  "defaultMode": "plan",
+  "disableBypassPermissionsMode": false
 }
