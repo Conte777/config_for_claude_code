@@ -18,6 +18,15 @@
             "env": {
                 "VSCODE_MCP_ENABLED_TOOLS": "get_symbol_lsp_info,get_diagnostics,get_references,health_check"
             }
+        },
+        "sequential-thinking": {
+            "command": "cmd",
+            "args": [
+                "/c",
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-sequential-thinking"
+            ]
         }
     }
 }
