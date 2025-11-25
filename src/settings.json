@@ -1,4 +1,5 @@
 {
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "WebSearch",
@@ -9,7 +10,13 @@
       "Bash",
       "mcp__sequential-thinking",
       "mcp__vscode-mcp",
-      "mcp__context7"
+      "mcp__context7",
+      "mcp__dbhub"
+    ],
+    "deny": [
+      "Read(./secrets/**)",
+      "Read(.env)",
+      "Read(.env.*)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -24,19 +31,8 @@
       "Bash(docker rm:*)",
       "Bash(docker rmi:*)",
       "Bash(kubectl delete:*)"
-    ],
-    "deny": [
-      "Read(./secrets/**)",
-      "Read(.env)",
-      "Read(.env.*)"
     ]
   },
-  "model": "haiku",
-  "statusLine": {
-    "type": "command",
-    "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
-  },
-  "alwaysThinkingEnabled": true,
   "hooks": {
     "PostToolUse": [
       {
@@ -59,7 +55,11 @@
       }
     ]
   },
-  "includeCoAuthoredBy": false,
+  "statusLine": {
+    "type": "command",
+    "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
+  },
+  "alwaysThinkingEnabled": true,
   "defaultMode": "plan",
   "disableBypassPermissionsMode": false
 }
