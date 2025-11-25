@@ -27,6 +27,28 @@
                 "-y",
                 "@modelcontextprotocol/server-sequential-thinking"
             ]
+        },
+        "dbhub_pr": {
+            "command": "cmd",
+            "args": [
+                "/c",
+                "npx",
+                "-y",
+                "@bytebase/dbhub",
+                "--config",
+                "dbhub_pr.toml"
+            ]
+        },
+        "dbhub_cp": {
+            "command": "cmd",
+            "args": [
+                "/c",
+                "npx",
+                "-y",
+                "@bytebase/dbhub",
+                "--config",
+                "dbhub_cp.toml"
+            ]
         }
     }
 }
