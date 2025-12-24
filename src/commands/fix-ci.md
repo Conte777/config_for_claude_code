@@ -1,6 +1,6 @@
 ---
 description: Analyze CI/CD trace and provide error fixing plan
-model: sonnet
+model: opus
 allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*)
 argument-hint: <ci-trace-output>
 ---
