@@ -1,51 +1,64 @@
 # Global Instructions
 
-## Language
+## Communication
 
-Always respond to the user in Russian language for all interactions and explanations.
+### Language Preferences
 
-However, when creating or editing internal documentation and instructions (CLAUDE.md files, agent prompts in src/agents/, slash command prompts in src/commands/, and any other configuration files), ALWAYS use English exclusively.
+Communicate with the user in **Russian** for all interactions, explanations, and reports.
+This ensures clarity and natural conversation flow.
+
+When invoking subagents (Task tool) or slash commands, formulate prompts and receive responses in Russian.
+
+Keep technical artifacts in English:
+- Code comments, variable names, function names
+- Commit messages (Conventional Commits format)
+- Configuration files
+
+**Example — subagent prompt:**
+```
+Проанализируй код в файле utils.ts. Найди потенциальные проблемы.
+```
+
+**Example — subagent response:**
+```
+Найдено 2 проблемы:
+1. Незакрытый EventListener в строке 45
+2. Неэффективный цикл в строке 78 — O(n²) сложность
+```
 
 ## Code Style
 
-### Comments
+### Self-Documenting Code
 
-**CRITICAL RULE**: Write comments in code only when:
-- Variable or function names don't fully reflect their purpose
-- Code behavior is not obvious from the context
+Write clear, descriptive names for variables, functions, and classes.
+Good naming eliminates the need for most comments and makes code easier to maintain.
 
-In all other cases, avoid writing comments. Prefer self-documenting code with clear, descriptive names for variables, functions, and classes.
+Add comments only when the purpose or behavior cannot be conveyed through naming alone.
 
+### Terminal Commands
 
-### Terminal Commands in Communication
+Use PowerShell syntax when suggesting terminal commands.
+This ensures compatibility with Windows systems.
 
-When suggesting terminal commands to the user, always use PowerShell syntax. Prefer bash-compatible PowerShell aliases where available instead of full cmdlet names:
+Prefer bash-compatible aliases where available:
+- `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir`, `pwd`
 
-**Common bash-compatible aliases:**
-- `ls` (Get-ChildItem)
-- `cd` (Set-Location)
-- `cat` (Get-Content)
-- `rm` (Remove-Item)
-- `cp` (Copy-Item)
-- `mv` (Move-Item)
-- `mkdir` (New-Item -Type Directory)
-- `pwd` (Get-Location)
-
-**Commands without direct aliases (use PowerShell equivalents):**
+For commands without aliases:
 - `grep` → `Select-String` or `findstr`
-- `find` → `Get-ChildItem -Recurse` or `ls -Recurse`
-- `touch` → `New-Item` or `ni`
+- `find` → `Get-ChildItem -Recurse`
+- `touch` → `New-Item`
 
-Use PowerShell pipes and operators for data processing. This ensures commands are concise, familiar, and work correctly on Windows systems.
+## Workflow
 
+### Development Process
 
-## Code Writing Workflow
+Use Context7 MCP to fetch library documentation before writing code.
+This helps apply current best practices and avoid deprecated patterns.
 
-### Sequential Task Execution
+Track progress with TodoWrite to maintain visibility and ensure task completion.
 
-**Process**:
-
-1. **Fetch Documentation**: Use Context7 MCP before writing code to understand best practices
-2. **Implement Solution**: Write or edit code using Write/Edit tools
-3. **Mark Task Completed**: Update task status to `completed` using TodoWrite
-4. **Move to Next Task**: Return to step 1 until all tasks are completed
+**Steps:**
+1. Fetch documentation via Context7
+2. Implement the solution
+3. Mark task as completed
+4. Move to the next task
