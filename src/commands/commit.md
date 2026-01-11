@@ -33,9 +33,9 @@ Run: `git branch --show-current`
 
 If branch is `main`, `stage`, or `develop`:
 - Use AskUserQuestion to confirm:
-  - Question: "You are committing to [branch]. Continue?"
-  - Header: "Confirm"
-  - Options: "Yes, continue" / "No, cancel"
+  - Question: "Вы коммитите в [branch]. Продолжить?"
+  - Header: "Ветка"
+  - Options: "Да, продолжить" / "Нет, отменить"
 - If user cancels, abort the operation
 
 ### Step 3: Extract Ticket ID
@@ -50,9 +50,9 @@ Run: `git diff --staged --name-only`
 
 **If output is empty** (no staged files):
 - Use AskUserQuestion:
-  - Question: "No staged files. What to add?"
-  - Header: "Stage"
-  - Options: "All changes (git add -A)" / "Only tracked (git add -u)" / "Cancel"
+  - Question: "Нет файлов в индексе. Что добавить?"
+  - Header: "Индекс"
+  - Options: "Все изменения (git add -A)" / "Только отслеживаемые (git add -u)" / "Отменить"
 - Execute chosen option or abort
 
 **If output is NOT empty** (staged files exist):

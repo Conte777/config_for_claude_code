@@ -66,26 +66,36 @@ try {
 
     Pop-Location
 
-    $totalTokens = 0
+    $currentContextTokens = 0
     if (-not [string]::IsNullOrWhiteSpace($data.transcript_path) -and (Test-Path $data.transcript_path)) {
+        $lastUsage = $null
+
         Get-Content $data.transcript_path | ForEach-Object {
             try {
                 $line = $_ | ConvertFrom-Json -ErrorAction SilentlyContinue
+                if ($line.isSidechain -eq $true) { return }
                 if ($null -ne $line.message.usage) {
-                    $totalTokens += [int]($line.message.usage.input_tokens ?? 0)
-                    $totalTokens += [int]($line.message.usage.output_tokens ?? 0)
+                    $lastUsage = $line.message.usage
                 }
-            } catch {
-            }
+            } catch {}
+        }
+
+        if ($null -ne $lastUsage) {
+            $currentContextTokens = [int]($lastUsage.input_tokens ?? 0)
+            $currentContextTokens += [int]($lastUsage.cache_read_input_tokens ?? 0)
+            $currentContextTokens += [int]($lastUsage.cache_creation_input_tokens ?? 0)
         }
     }
 
     $contextLimit = 200000
-    $contextPercent = if ($totalTokens -gt 0) { [math]::Round(($totalTokens / $contextLimit) * 100, 0) } else { 0 }
-    $totalTokensFormatted = if ($totalTokens -ge 1000) { "$([math]::Round($totalTokens / 1000, 1))K" } else { "$totalTokens" }
+    if ($null -ne $data.context_window -and $null -ne $data.context_window.context_window_size) {
+        $contextLimit = [int]$data.context_window.context_window_size
+    }
+
+    $contextPercent = if ($currentContextTokens -gt 0) { [math]::Round(($currentContextTokens / $contextLimit) * 100, 0) } else { 0 }
+    $tokensFormatted = if ($currentContextTokens -ge 1000) { "$([math]::Round($currentContextTokens / 1000, 1))K" } else { "$currentContextTokens" }
 
     $contextColor = if ($contextPercent -lt 50) { $Green } elseif ($contextPercent -lt 80) { $Yellow } else { $Red }
-    $contextIndicator = if ($totalTokens -gt 0) { "${contextColor}${totalTokensFormatted} ($contextPercent%)${Reset}" } else { "" }
 
     $userIcon = [char]0xEB99
     $folderIcon = [char]0xF07B
@@ -101,8 +111,8 @@ try {
         $segments += "${TealDark}${gitBranchIcon} ${gitBranch}${Reset}"
     }
 
-    if ($totalTokens -gt 0) {
-        $contextWithIcon = "${contextColor}${contextIcon} ${totalTokensFormatted} ($contextPercent%)${Reset}"
+    if ($currentContextTokens -gt 0) {
+        $contextWithIcon = "${contextColor}${contextIcon} ${tokensFormatted} ($contextPercent%)${Reset}"
         $segments += $contextWithIcon
     }
 
