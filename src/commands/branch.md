@@ -2,6 +2,7 @@
 description: Create and switch to a new branch from ticket ID
 allowed-tools: Bash(git switch:*), Bash(git diff:*), Bash(git status:*)
 argument-hint: <ticket-id>
+model: Haiku
 ---
 
 ## Task
@@ -14,7 +15,15 @@ Create a new git branch using the provided ticket ID and switch to it.
 
 1. **Validate input:**
    - Ticket ID: `$ARGUMENTS`
-   - If no ticket ID provided, ask the user
+   - If ticket ID provided, proceed to step 2
+   - If no ticket ID provided:
+     - Use AskUserQuestion:
+       - Question: "Нет ID тикета. Как назвать ветку?"
+       - Header: "Ветка"
+       - Options: "Автоматически (fix/feat)" / "Ввести вручную"
+     - If "Автоматически": analyze changes and use `fix` or `feat` prefix
+     - If "Ввести вручную": use the text provided by user
+     - If user cancels, abort the operation
 
 2. **Analyze changes:**
    - Run `git diff` and `git diff --staged` to understand current work
