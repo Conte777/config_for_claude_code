@@ -38,10 +38,12 @@
     "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
   },
   "enabledPlugins": {
+    "code-simplifier@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "autoUpdatesChannel": "latest",
   "defaultMode": "plan",
-  "disableBypassPermissionsMode": false
+  "disableBypassPermissionsMode": false,
+  "language": "Russian",
+  "autoUpdatesChannel": "latest"
 }
