@@ -11,11 +11,7 @@
       "mcp__sequential-thinking",
       "mcp__context7"
     ],
-    "deny": [
-      "Read(./secrets/**)",
-      "Read(.env)",
-      "Read(.env.*)"
-    ],
+    "deny": [],
     "ask": [
       "Bash(git push:*)",
       "Bash(git reset:*)",
