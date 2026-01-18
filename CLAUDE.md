@@ -28,11 +28,14 @@ src/
 ├── settings.json      # Claude Code settings
 ├── CLAUDE.md          # Global Claude Code instructions
 ├── statusline.ps1     # PowerShell script for custom status line
+├── agents/            # Custom subagents for Task tool
+│   └── code-reviewer.md
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
 │   ├── commit.md      # Commit with ticket ID from branch
 │   └── fix-ci.md      # CI/CD trace analysis
 └── skills/            # Skill packages (see Skills section)
+    ├── code-review/
     ├── commit-msg/
     ├── command-development/
     ├── go-microservice/
@@ -80,6 +83,7 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 - `scripts/` — utility scripts
 
 **Available skills:**
+- **code-review**: Code review for Go, Java, Python with framework-specific checks (Uber FX, Spring, FastAPI)
 - **commit-msg**: Generates Conventional Commits messages with ticket ID extraction
 - **command-development**: Guidance for creating Claude Code slash commands
 - **go-microservice**: Go microservice development with Uber FX, DDD patterns
