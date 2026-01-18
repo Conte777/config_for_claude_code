@@ -1,76 +1,16 @@
 ---
 description: Create a commit with ticket ID from branch name
-allowed-tools: Bash(git status:*), Bash(git branch:*), Bash(git add:*), Bash(git diff:*), Bash(git commit:*), AskUserQuestion, Read
-model: Haiku
+allowed-tools: AskUserQuestion, Read, Skill, Bash(git commit:*)
 ---
 
 # Commit Command
 
-Create a git commit following the project conventions.
+Create a git commit.
 
-## Commit Message Format
+Invoke the commit message skill using Skill tool. Use the generated commit message from this skill.
 
-**With ticket ID (from branch):**
-- Format: `CUS-XXXX: brief description`
-- Example: `CUS-1234: add user authentication`
-
-**Without ticket ID:**
-- Format: `feat: brief description` or `fix: brief description`
-- Example: `feat: add login page`
-
-**Constraints:**
-- Maximum 50 characters total
-- Lowercase description
-- No trailing period
-
-## Workflow
-
-### Step 1: Get Current Branch
-
-Run: `git branch --show-current`
-
-### Step 2: Check Branch Type
-
-If branch is `main`, `stage`, or `develop`:
-- Use AskUserQuestion to confirm:
-  - Question: "Вы коммитите в [branch]. Продолжить?"
-  - Header: "Ветка"
-  - Options: "Да, продолжить" / "Нет, отменить"
-- If user cancels, abort the operation
-
-### Step 3: Extract Ticket ID
-
-Parse branch name for `CUS-XXXX` pattern (case-insensitive).
-- Found: use `CUS-XXXX:` as prefix
-- Not found: determine `feat:` or `fix:` based on changes
-
-### Step 4: Check Staging Area
-
-Run: `git diff --staged --name-only`
-
-**If output is empty** (no staged files):
-- Use AskUserQuestion:
-  - Question: "Нет файлов в индексе. Что добавить?"
-  - Header: "Индекс"
-  - Options: "Все изменения (git add -A)" / "Только отслеживаемые (git add -u)" / "Отменить"
-- Execute chosen option or abort
-
-**If output is NOT empty** (staged files exist):
-- Do NOT ask any questions about staging
-- Proceed directly to Step 5
-
-### Step 5: Analyze Changes
-
-Run: `git diff --staged`
-
-Determine commit type (if no ticket):
-- **feat**: new files, new functions, added functionality
-- **fix**: bug fixes, code deletions, modifications to existing code
-
-Generate brief description (max ~40 chars after prefix).
-
-### Step 6: Execute Commit
-
-Run: `git commit -m "PREFIX: description"`
+```bash
+git commit -m "MESSAGE"
+```
 
 Report success with the commit message used.
