@@ -16,7 +16,7 @@ The repository uses Windows symbolic links to connect the standard Claude Code c
 - `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
 - `%USERPROFILE%\.claude\statusline.ps1` → `src\statusline.ps1`
 - `%USERPROFILE%\.claude\commands` → `src\commands`
-- `%USERPROFILE%\.claude\agents` → `src\agents`
+- `%USERPROFILE%\.claude\skills` → `src\skills`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -25,14 +25,20 @@ This allows editing files in `src/` while Claude Code reads from the standard lo
 ```
 src/
 ├── .mcp.json          # MCP server configurations
-├── settings.json      # Claude Code settings (permissions, model, status line)
+├── settings.json      # Claude Code settings
 ├── CLAUDE.md          # Global Claude Code instructions
 ├── statusline.ps1     # PowerShell script for custom status line
-├── commands/          # Custom slash commands (.md files)
-│   ├── fix-ci.md      # CI/CD trace analysis and error fixing
-│   └── fix-trace.md   # VS Code diagnostics error fixing
-└── agents/            # Custom subagents
-    └── code-reviewer.md  # Multi-language code review agent
+├── commands/          # Custom slash commands
+│   ├── branch.md      # Create branch from ticket ID
+│   ├── commit.md      # Commit with ticket ID from branch
+│   └── fix-ci.md      # CI/CD trace analysis
+└── skills/            # Skill packages (see Skills section)
+    ├── commit-msg/
+    ├── command-development/
+    ├── go-microservice/
+    ├── hook-development/
+    ├── mcp-integration/
+    └── skill-development/
 ```
 
 ## Setup and Cleanup
@@ -61,22 +67,35 @@ Run `cleanup.bat` as administrator to remove symbolic links:
 
 ### Custom Commands (src/commands/)
 
-- **fix-ci.md**: Analyzes CI/CD trace output to identify failing stages, determine root causes, and provide actionable fixing plans
-- **fix-trace.md**: Analyzes and fixes errors from VS Code diagnostics
+- **branch.md**: Creates git branch from Jira ticket ID
+- **commit.md**: Creates commit using commit-msg skill for message generation
+- **fix-ci.md**: Analyzes CI/CD trace output to identify failing stages and provide fixing plans
 
-### Custom Agents (src/agents/)
+### Skills (src/skills/)
 
-- **code-reviewer.md**: Expert code reviewer for quality assurance across multiple languages (Go, Java, Python, TypeScript, Rust, C/C++). Reviews for logical errors, race conditions, security vulnerabilities, and language-specific conventions. Uses Context7 for library docs and LSP for code analysis.
+Skills are modular packages extending Claude's capabilities with specialized knowledge and workflows. Each skill has:
+- `SKILL.md` — main file with YAML frontmatter (name, description) and instructions
+- `references/` — detailed documentation loaded as needed
+- `examples/` — working code examples
+- `scripts/` — utility scripts
+
+**Available skills:**
+- **commit-msg**: Generates Conventional Commits messages with ticket ID extraction
+- **command-development**: Guidance for creating Claude Code slash commands
+- **go-microservice**: Go microservice development with Uber FX, DDD patterns
+- **hook-development**: Creating Claude Code hooks (PreToolUse, PostToolUse, etc.)
+- **mcp-integration**: Integrating MCP servers into plugins
+- **skill-development**: Creating new skills for Claude Code plugins
 
 ### Settings (settings.json)
 
 Key configurations:
-- **Tool permissions**: Allow/deny lists for tools and bash commands
-- **Security restrictions**: Blocks access to secrets, .env files
+- **Tool permissions**: Allow/deny/ask lists for tools and bash commands
 - **Always-thinking mode**: Enabled for enhanced reasoning
 - **Default model**: Opus
+- **Default mode**: Plan mode
 - **Status line**: Custom PowerShell script
-- **Plugins**: gopls-lsp enabled
+- **Plugins**: code-simplifier, gopls-lsp
 
 ### Global Instructions (src/CLAUDE.md)
 
@@ -103,44 +122,34 @@ argument-hint: <hint-for-arguments> (optional)
 Command prompt...
 ```
 
-### Agents
+### Skills
 
-Markdown files with YAML frontmatter in `src/agents/`:
+Skills are organized in `src/skills/skill-name/` directories:
 
-```markdown
----
-name: agent-name
-description: Agent description and invocation examples
-tools: Tool1, Tool2, Tool3
-model: sonnet|opus|haiku (optional)
-color: red|green|blue (optional)
----
-
-Agent prompt and instructions...
 ```
+skill-name/
+├── SKILL.md           # Required: frontmatter + instructions
+├── references/        # Optional: detailed docs
+├── examples/          # Optional: working examples
+└── scripts/           # Optional: utility scripts
+```
+
+**SKILL.md frontmatter:**
+```yaml
+---
+name: skill-name
+description: This skill should be used when the user asks to "trigger phrase 1", "trigger phrase 2"...
+version: 0.1.0
+---
+```
+
+Use the `skill-development` skill for guidance on creating new skills.
 
 ### Status Line (src/statusline.ps1)
 
 PowerShell script providing real-time status: `directory | branch !? | Model`
 - Receives JSON via stdin with model, workspace, session data
 - Color coded: cyan (directory), green (branch), magenta (model)
-
-### Hooks
-
-Hook configuration is supported in `settings.json` but no hooks are currently active. To add hooks:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "ToolName",
-        "hooks": [{ "type": "command", "command": "script.py" }]
-      }
-    ]
-  }
-}
-```
 
 ## Validation
 

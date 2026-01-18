@@ -10,37 +10,21 @@ config_for_claude_code/
 │   ├── .mcp.json                    # MCP server configurations
 │   ├── settings.json                # Claude Code settings
 │   ├── CLAUDE.md                    # Global instructions
+│   ├── statusline.ps1               # Custom status line script
 │   ├── commands/                    # Custom slash commands
-│   │   ├── commit-msg.md
-│   │   └── fix-trace.md
-│   └── agents/                      # Custom subagents
-│       ├── code-reviewer/           # Code review agent
-│       │   ├── code-reviewer.md
-│       │   ├── language-specific/
-│       │   │   ├── go-review.md
-│       │   │   ├── java-review.md
-│       │   │   ├── python-review.md
-│       │   │   └── typescript-review.md
-│       │   └── review-checklists/
-│       │       ├── performance-checklist.md
-│       │       ├── quality-checklist.md
-│       │       └── security-checklist.md
-│       └── code-writer/             # Code writing agent
-│           ├── code-writer.md
-│           ├── design-patterns/
-│           │   ├── common-principles.md
-│           │   ├── gof-patterns.md
-│           │   └── solid-principles.md
-│           ├── language-guides/
-│           │   ├── go-guide.md
-│           │   ├── java-guide.md
-│           │   └── python-guide.md
-│           └── libraries/
-│               ├── go-libraries.md
-│               ├── java-libraries.md
-│               └── python-libraries.md
-├── setup.bat                         # Installation script
-├── cleanup.bat                       # Uninstallation script
+│   │   ├── branch.md                # Create branch from ticket ID
+│   │   ├── commit.md                # Commit with ticket ID
+│   │   └── fix-ci.md                # CI/CD trace analysis
+│   └── skills/                      # Skill packages
+│       ├── commit-msg/              # Commit message generation
+│       ├── command-development/     # Slash command creation guide
+│       ├── go-microservice/         # Go microservice development
+│       ├── hook-development/        # Claude Code hooks creation
+│       ├── mcp-integration/         # MCP server integration
+│       └── skill-development/       # Skill creation guide
+├── setup.bat                        # Installation script
+├── cleanup.bat                      # Uninstallation script
+├── CLAUDE.md                        # Project-specific instructions
 ├── README.md
 └── .gitignore
 ```
@@ -63,8 +47,9 @@ The script will create symbolic links from the standard Claude Code configuratio
 
 - `%USERPROFILE%\.claude\settings.json` → `src\settings.json`
 - `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
+- `%USERPROFILE%\.claude\statusline.ps1` → `src\statusline.ps1`
 - `%USERPROFILE%\.claude\commands` → `src\commands`
-- `%USERPROFILE%\.claude\agents` → `src\agents`
+- `%USERPROFILE%\.claude\skills` → `src\skills`
 
 ### Important Notes
 
@@ -106,14 +91,15 @@ git commit -m "Update Claude configuration"
 ### Add New Commands
 
 1. Create a new `.md` file in `src/commands/`
-2. The command will be automatically available in Claude Code
+2. Add YAML frontmatter with `description` field
+3. The command will be automatically available in Claude Code
 
-### Add New Agents
+### Add New Skills
 
-1. Create a new directory in `src/agents/` with the agent name
-2. Create the main agent file (e.g., `agent-name.md`) with YAML frontmatter
-3. Optionally add supporting materials in subdirectories
-4. The agent will be automatically available in Claude Code
+1. Create a new directory in `src/skills/` with the skill name
+2. Create `SKILL.md` with YAML frontmatter (name, description)
+3. Optionally add `references/`, `examples/`, `scripts/` subdirectories
+4. The skill will be automatically available in Claude Code
 
 ## Troubleshooting
 
@@ -143,72 +129,54 @@ This should show symbolic links (indicated by `<SYMLINK>` or `<SYMLINKD>`).
 
 ### .mcp.json
 
-MCP (Model Context Protocol) server configurations containing:
-- **context7**: HTTP-based documentation server (requires API key)
+MCP (Model Context Protocol) server configurations:
+- **context7**: HTTP-based documentation server (requires API key from https://context7.com)
 - **sequential-thinking**: Advanced reasoning tool via NPX
-- **vscode-mcp**: VS Code integration for LSP diagnostics and code navigation
 
 ### settings.json
 
-Claude Code CLI settings including:
-- Tool permissions (allow/deny lists)
-- Always-thinking mode configuration
-- Security restrictions for sensitive files
-- Automatic approvals for web search, file operations, git commands
+Claude Code CLI settings:
+- **Tool permissions**: Allow/deny/ask lists for tools and bash commands
+- **Always-thinking mode**: Enabled for enhanced reasoning
+- **Default model**: Opus
+- **Default mode**: Plan mode
+- **Status line**: Custom PowerShell script
+- **Plugins**: code-simplifier, gopls-lsp
 
-### CLAUDE.md
+### CLAUDE.md (src/)
 
-Global instructions that apply to all Claude Code sessions. Contains:
-- Language preferences (Russian for communication, English for documentation)
+Global instructions for all Claude Code sessions:
+- Language preferences (Russian for communication, English for code artifacts)
 - Context7 integration guidelines
-- VSCode diagnostics usage instructions
-- Code navigation with LSP symbols
-- Code style preferences
+- Code style preferences (self-documenting code)
+- Terminal command syntax (PowerShell with bash aliases)
 
 ### Custom Commands
 
 Located in `src/commands/`:
-- **commit-msg.md**: Generate Conventional Commits messages for staged changes
-- **fix-trace.md**: Analyze and fix errors from VS Code diagnostics
+- **branch.md**: Create and switch to a new git branch from Jira ticket ID
+- **commit.md**: Create a commit using the commit-msg skill for message generation
+- **fix-ci.md**: Analyze CI/CD trace output to identify failing stages and provide fixing plans
 
-### Custom Agents
+### Skills
 
-Located in `src/agents/`:
+Located in `src/skills/`. Each skill is a directory containing:
+- `SKILL.md` — main file with YAML frontmatter and instructions
+- `references/` — detailed documentation (loaded as needed)
+- `examples/` — working code examples
+- `scripts/` — utility scripts
 
-#### code-reviewer
-Expert code reviewer specializing in code quality, security vulnerabilities, and best practices across multiple languages (Go, Java, Python, TypeScript, Rust).
+**Available skills:**
 
-**Features:**
-- VSCode LSP integration for type analysis and diagnostics
-- Context7 integration for automatic library documentation fetching
-- Progressive disclosure with language-specific review patterns
-- Severity-ranked issue reporting (CRITICAL/HIGH/MEDIUM/LOW)
-- Comprehensive checklists for security, performance, and quality
-
-**Supporting Materials:**
-- Language-specific review guides (Go, Java, Python, TypeScript)
-- Specialized checklists (performance, quality, security)
-
-#### code-writer
-Expert code writer specializing in Go, Java, and Python with deep knowledge of best practices, design patterns, and idiomatic language features.
-
-**Features:**
-- Automatic language detection
-- Progressive loading of style guides and conventions
-- SOLID principles and GoF design patterns
-- Context7 integration for up-to-date library documentation
-- Clean architecture and self-documenting code principles
-- Security-focused (prevents SQL injection, XSS, OWASP Top 10)
-
-**Supporting Materials:**
-- Language-specific guides (Go, Java, Python)
-- Design pattern references (SOLID, GoF, common principles)
-- Library-specific documentation (Go, Java, Python libraries)
+| Skill | Description |
+|-------|-------------|
+| **commit-msg** | Generates Conventional Commits messages with ticket ID extraction from branch name |
+| **command-development** | Guidance for creating Claude Code slash commands with YAML frontmatter |
+| **go-microservice** | Go microservice development with Uber FX, DDD patterns, internal packages |
+| **hook-development** | Creating Claude Code hooks (PreToolUse, PostToolUse, Stop, etc.) |
+| **mcp-integration** | Integrating MCP servers (stdio, SSE, HTTP) into plugins |
+| **skill-development** | Creating new skills with progressive disclosure pattern |
 
 ## License
 
 This is a personal configuration repository. Feel free to use and modify as needed.
-
-## Contributing
-
-Since this is a personal configuration repository, it's not accepting contributions. However, feel free to fork it and create your own version!
