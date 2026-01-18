@@ -69,17 +69,15 @@ try {
     Pop-Location
 
     # Get token data directly from Claude Code
-    $totalInputTokens = 0
-    $totalOutputTokens = 0
     $usedPercentage = 0
+    $maxContextTokens = 200000
 
     if ($null -ne $data.context_window) {
-        $totalInputTokens = [int]($data.context_window.total_input_tokens ?? 0)
-        $totalOutputTokens = [int]($data.context_window.total_output_tokens ?? 0)
         $usedPercentage = [double]($data.context_window.used_percentage ?? 0)
+        $maxContextTokens = [int]($data.context_window.max_tokens ?? 200000)
     }
 
-    $currentContextTokens = $totalInputTokens + $totalOutputTokens
+    $currentContextTokens = [math]::Round($maxContextTokens * $usedPercentage / 100, 0)
     $contextPercent = [math]::Round($usedPercentage, 0)
     $tokensFormatted = if ($currentContextTokens -ge 1000) { "$([math]::Round($currentContextTokens / 1000, 1))K" } else { "$currentContextTokens" }
 
