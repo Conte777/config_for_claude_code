@@ -1,85 +1,63 @@
 ---
 name: commit-msg
 description: Use this skill when the user wants to generate a commit message. Contains workflow for branch checking, ticket ID extraction, and message formatting.
+allowed-tools: Bash(git branch *), Bash(git diff *), Read
 ---
 
-# Commit Workflow Skill
+# Commit Message Generator
 
-This skill defines the workflow for creating commits with proper validation, ticket ID extraction, and message formatting.
+This skill generates commit messages with proper ticket ID extraction and formatting.
 
 ## When to Use
 
-- User runs `/commit` command
-- User asks to create a commit
+- User runs `/commit` command (called by commit command)
+- User asks to generate a commit message
 - User needs help with commit message format
-- User wants to commit staged changes
 
 ## Workflow Steps
 
-### Step 1: Run Pre-commit Checks
+### Step 1: Get Branch Name
 
-Execute the helper script to gather git state information:
-
-```powershell
-pwsh -NoProfile -File "${SKILL_DIR}/scripts/commit-helper.ps1"
+```bash
+git branch --show-current
 ```
 
-The script returns JSON with the following structure:
+### Step 2: Extract Ticket ID
 
-```json
-{
-  "stagedFiles": ["file1.ts", "file2.go"],
-  "stagedCount": 2,
-  "branchName": "CUS-1234/add-feature",
-  "ticketId": "CUS-1234",
-  "isProtectedBranch": false,
-  "warnings": []
-}
-```
+Extract ticket ID from branch name using pattern `CUS-\d+` (case insensitive).
 
-### Step 2: Handle Warnings
-
-Process any warnings returned by the script:
-
-#### EMPTY_STAGING
-The staging area is empty. No files to commit.
-
-**Action:** Use `AskUserQuestion` to ask the user:
-- Question: "Staging area is empty. Add files?"
-- Options:
-  - "All files (-A)" — adds all files including untracked
-  - "Tracked files only (-u)" — adds only tracked files
-  - "Cancel" — abort the commit
-
-After adding files, re-run the helper script to refresh the state.
-
-#### PROTECTED_BRANCH
-Attempting to commit directly to a protected branch (main, master, develop, stage).
-
-**Action:** Use `AskUserQuestion` to confirm:
-- Question: "You're about to commit to protected branch '{branchName}'. Continue?"
-- Options:
-  - "Да, продолжай" — proceed with commit
-  - "Отмени" — abort the commit
-
-#### NO_TICKET_ID
-No ticket ID pattern (CUS-XXXX) found in branch name.
-
-**Action:** Use `AskUserQuestion` to determine prefix:
-- Question: "Нет номера задачи в ветке, Какой префикс использовать?"
-- Options:
-  - "feat/fix" — new feature or bug fix
-  - "Ввести CUS-XXXX" — user provides ticket ID
+Examples:
+- `CUS-1234/add-feature` → `CUS-1234`
+- `feature/CUS-5678-fix-bug` → `CUS-5678`
+- `cus-9999-update-docs` → `CUS-9999`
 
 ### Step 3: Analyze Changes
 
-Review the staged changes to understand the nature of the commit:
+Review the staged changes:
 
-1. Run `git diff --staged` to see the actual changes
-2. Identify the type of change (new feature or bug fix)
-3. Note key files and components affected
+```bash
+git diff --staged
+```
 
-### Step 4: Generate Commit Message
+Identify:
+1. Type of change (new feature or bug fix)
+2. Key files and components affected
+3. Main purpose of the changes
+
+### Step 4: Determine Prefix
+
+**If ticket ID found** → use `CUS-XXXX:`
+
+**If no ticket ID** → determine prefix from diff analysis:
+
+| Prefix | Use when changes... |
+|--------|---------------------|
+| `fix:` | Fix bugs, errors, null checks, edge cases, error handling, typos, broken logic |
+| `feat:` | Add new functionality, files, endpoints, components, capabilities |
+
+Analyze the nature of changes — don't ask the user.
+
+### Step 5: Generate Commit Message
 
 Create a commit message following the strict format:
 
@@ -105,19 +83,16 @@ feat: impl login & signup forms
 fix: handle empty response in api client
 ```
 
-### Step 5: Show commit message
+### Step 6: Return Message
 
-Show commit message to user
+Return the generated commit message to the caller.
 
 ## File References
 
-- [Commit Helper Script](./scripts/commit-helper.ps1) — PowerShell validation script
-- [Workflow Scenarios](./examples/workflow-scenarios.md) — Example scenarios
 - [Message Format](./references/message-format.md) — Detailed format specification
 - [Branch Conventions](./references/branch-conventions.md) — Branch naming rules
 
 ## Error Handling
 
 - If git is not initialized, inform the user
-- If there are merge conflicts, abort and notify
-- If commit hook fails, show the error and suggest fixes
+- If detached HEAD state, use short commit hash as reference
