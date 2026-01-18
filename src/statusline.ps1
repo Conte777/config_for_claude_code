@@ -28,11 +28,14 @@ try {
 
     if ($modelId -match "sonnet") {
         $modelName = "Sonnet"
-    } elseif ($modelId -match "opus") {
+    }
+    elseif ($modelId -match "opus") {
         $modelName = "Opus"
-    } elseif ($modelId -match "haiku") {
+    }
+    elseif ($modelId -match "haiku") {
         $modelName = "Haiku"
-    } else {
+    }
+    else {
         $modelName = $modelId -replace "-.*", ""
     }
 
@@ -48,7 +51,6 @@ try {
     Push-Location $currentDir
 
     $gitBranch = ""
-    $upstreamIcon = ""
 
     if (Test-Path ".git") {
         $branch = git symbolic-ref --short HEAD 2>$null
@@ -106,7 +108,8 @@ try {
 
     Write-Output $output
 
-} catch {
+}
+catch {
     Write-Output "Error: $($_.Exception.Message)"
     exit 1
 }

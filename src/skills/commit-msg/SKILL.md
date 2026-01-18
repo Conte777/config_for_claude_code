@@ -1,5 +1,5 @@
 ---
-name: Commit message
+name: commit-msg
 description: Use this skill when the user wants to generate a commit message. Contains workflow for branch checking, ticket ID extraction, and message formatting.
 ---
 
