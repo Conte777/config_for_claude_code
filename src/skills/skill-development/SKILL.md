@@ -1,7 +1,6 @@
 ---
 name: skill-development
 description: This skill should be used when the user wants to "создать скил", "добавить скил в плагин", "написать новый скил", "улучшить описание скила", "организовать контент скила", "составь план создания скила", "составь план изменения скила", or needs guidance on skill structure, progressive disclosure, or skill development best practices for Claude Code plugins.
-version: 0.1.0
 ---
 
 # Skill Development for Claude Code Plugins
