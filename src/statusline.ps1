@@ -66,33 +66,19 @@ try {
 
     Pop-Location
 
-    $currentContextTokens = 0
-    if (-not [string]::IsNullOrWhiteSpace($data.transcript_path) -and (Test-Path $data.transcript_path)) {
-        $lastUsage = $null
+    # Get token data directly from Claude Code
+    $totalInputTokens = 0
+    $totalOutputTokens = 0
+    $usedPercentage = 0
 
-        Get-Content $data.transcript_path | ForEach-Object {
-            try {
-                $line = $_ | ConvertFrom-Json -ErrorAction SilentlyContinue
-                if ($line.isSidechain -eq $true) { return }
-                if ($null -ne $line.message.usage) {
-                    $lastUsage = $line.message.usage
-                }
-            } catch {}
-        }
-
-        if ($null -ne $lastUsage) {
-            $currentContextTokens = [int]($lastUsage.input_tokens ?? 0)
-            $currentContextTokens += [int]($lastUsage.cache_read_input_tokens ?? 0)
-            $currentContextTokens += [int]($lastUsage.cache_creation_input_tokens ?? 0)
-        }
+    if ($null -ne $data.context_window) {
+        $totalInputTokens = [int]($data.context_window.total_input_tokens ?? 0)
+        $totalOutputTokens = [int]($data.context_window.total_output_tokens ?? 0)
+        $usedPercentage = [double]($data.context_window.used_percentage ?? 0)
     }
 
-    $contextLimit = 200000
-    if ($null -ne $data.context_window -and $null -ne $data.context_window.context_window_size) {
-        $contextLimit = [int]$data.context_window.context_window_size
-    }
-
-    $contextPercent = if ($currentContextTokens -gt 0) { [math]::Round(($currentContextTokens / $contextLimit) * 100, 0) } else { 0 }
+    $currentContextTokens = $totalInputTokens + $totalOutputTokens
+    $contextPercent = [math]::Round($usedPercentage, 0)
     $tokensFormatted = if ($currentContextTokens -ge 1000) { "$([math]::Round($currentContextTokens / 1000, 1))K" } else { "$currentContextTokens" }
 
     $contextColor = if ($contextPercent -lt 50) { $Green } elseif ($contextPercent -lt 80) { $Yellow } else { $Red }
