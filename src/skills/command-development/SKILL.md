@@ -1,6 +1,6 @@
 ---
 name: Command Development
-description: This skill should be used when the user asks to "создать слэш-команду", "добавить команду", "написать пользовательскую команду", "определить аргументы команды", "использовать frontmatter команды", "организовать команды", "создать команду со ссылками на файлы", "интерактивная команда", "использовать AskUserQuestion в команде", or needs guidance on slash command structure, YAML frontmatter fields, dynamic arguments, bash execution in commands, user interaction patterns, or command development best practices for Claude Code.
+description: This skill should be used when the user asks to "создать слэш-команду", "добавить команду", "написать пользовательскую команду", "определить аргументы команды", "использовать frontmatter команды", "организовать команды", "создать команду со ссылками на файлы", "интерактивная команда", "использовать AskUserQuestion в команде", "составь план создания слеш команды", "составь план изменения слеш команды" or needs guidance on slash command structure, YAML frontmatter fields, dynamic arguments, bash execution in commands, user interaction patterns, or command development best practices for Claude Code.
 version: 0.2.0
 ---
 
