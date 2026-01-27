@@ -10,7 +10,7 @@ Detailed documentation for internal infrastructure packages used across microser
 
 PostgreSQL connection with pooling, transaction management, hooks, and migrations.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/pgconnector`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/pgconnector`
 
 **Key Interface:**
 
@@ -77,7 +77,7 @@ DB_LOG_EXEC_TIME                  # true/false
 
 Redis client with OpenTelemetry tracing, supports standalone and Sentinel modes.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/redisconnector`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/redisconnector`
 
 **Key Interface:**
 
@@ -132,7 +132,7 @@ REDIS_WRITE_TIMEOUT    # 5s
 
 Kafka producer and consumer with OpenTelemetry tracing, supports JSON and Avro serialization.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/kafkaconnector`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/kafkaconnector`
 
 **Key Interfaces:**
 
@@ -204,7 +204,7 @@ KAFKA_SCHEMA_REGISTRY_URL  # For Avro
 
 RabbitMQ producer and consumer with OpenTelemetry tracing and auto-reconnect.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/rabbitconnector`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/rabbitconnector`
 
 **Key Interfaces:**
 
@@ -252,7 +252,7 @@ func (h *Handler) HandleMessage(ctx context.Context, delivery amqp.Delivery) rab
 
 HashiCorp Vault integration for secrets management with AppRole authentication.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/vaultconnector`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/vaultconnector`
 
 **Key Interface:**
 
@@ -296,7 +296,7 @@ VAULT_SECRET_ID  # AppRole secret ID
 
 S3-compatible storage operations using AWS SDK v2.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/s3`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/s3`
 
 **Key Interface:**
 
@@ -482,7 +482,7 @@ LOGGER_LEVEL            # debug/info/warn/error
 
 OpenTelemetry tracing for gRPC, Kafka, RabbitMQ, and database operations.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/tracer`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/tracer`
 
 **Key Interface:**
 
@@ -542,7 +542,7 @@ wrappedHandler := tracer.WrapKafkaHandler("topic", handler)
 
 Prometheus metrics collection via OpenTelemetry.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/meter`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/meter`
 
 **Key Interface:**
 
@@ -608,7 +608,7 @@ HEALTHCHECK_PATH  # /healthz
 
 Universal configuration parsing from YAML or ENV with validation.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/configurator`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/configurator`
 
 **Usage:**
 
@@ -662,7 +662,7 @@ All types have `IsValid() error` method for validation.
 
 Transactional Outbox pattern for guaranteed message delivery.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/outbox`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/outbox`
 
 **Key Interface:**
 
@@ -771,7 +771,7 @@ type ListResponse[T any] struct {
 
 gRPC access control via protobuf annotations.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/access-level-guard`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/access-level-guard`
 
 **Usage:**
 
@@ -806,7 +806,7 @@ service MyService {
 
 TLS certificate management for gRPC.
 
-**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/pkg/tlser`
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/tlser`
 
 **Key Interface:**
 

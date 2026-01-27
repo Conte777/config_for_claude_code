@@ -1,6 +1,6 @@
 ---
 name: go-microservice
-description: This skill should be used when the user asks to "создать микросервис", "добавить домен", "имплементировать фичу", "использовать Uber FX", "создать репозиторий", "добавить gRPC endpoint", "добавить HTTP endpoint", "создать воркер", "составь план создания микросервиса", "использовать внутренние пакеты", "настроить kafka/redis/postgres/кафку/редис/постгрес", mentions "service_template", "backend_cp/pkg", or needs guidance on Go microservice architecture, domain-driven design patterns, or backend development.
+description: This skill should be used when the user asks to "создать микросервис", "добавить домен", "имплементировать фичу", "использовать Uber FX", "создать репозиторий", "добавить gRPC endpoint", "добавить HTTP endpoint", "создать воркер", "составь план создания микросервиса", "использовать внутренние пакеты", "настроить kafka/redis/postgres/кафку/редис/постгрес", mentions "service_template", "shared", or needs guidance on Go microservice architecture, domain-driven design patterns, or backend development.
 ---
 
 # Go Microservice Development
