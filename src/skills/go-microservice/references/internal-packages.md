@@ -1,6 +1,6 @@
 # Internal Packages Reference
 
-Detailed documentation for packages in `D:\Work\friday_releases\cryptoprocessing\backend_cp\pkg`.
+Detailed documentation for internal infrastructure packages used across microservices.
 
 ---
 
@@ -318,6 +318,95 @@ S3_ENDPOINT  # https://s3.amazonaws.com
 S3_REGION    # us-east-1
 S3_BUCKET    # bucket-name
 ```
+
+---
+
+### clickhouseconnector
+
+ClickHouse connection with native protocol, OpenTelemetry tracing, hooks, and batch inserts.
+
+**Import:** `git.itcrew.info/Fri_releases/cryptoprocessing/shared/clickhouseconnector`
+
+**Key Interface:**
+
+```go
+type ICH interface {
+    Exec(ctx context.Context, query string, args ...any) error
+    Query(ctx context.Context, query string, args ...any) (driver.Rows, error)
+    QueryRow(ctx context.Context, query string, args ...any) driver.Row
+    Select(ctx context.Context, dest any, query string, args ...any) error
+    PrepareBatch(ctx context.Context, query string, opts ...driver.PrepareBatchOption) (driver.Batch, error)
+    Ping(ctx context.Context) error
+    Close() error
+    FXStart(ctx context.Context) error
+    FXStop(ctx context.Context) error
+}
+```
+
+**FX Module:** `clickhouseconnectorfx.ClickHouseConnectorFx`
+
+**Usage:**
+
+```go
+// Inject ICH
+func NewRepository(ch clickhouseconnector.ICH) *Repository {
+    return &Repository{ch: ch}
+}
+
+// Simple query
+func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Entity, error) {
+    var entities []Entity
+    err := r.ch.Select(ctx, &entities, `SELECT * FROM table WHERE id = ?`, id)
+    if len(entities) == 0 {
+        return nil, ErrNotFound
+    }
+    return &entities[0], err
+}
+
+// Exec
+func (r *Repository) Insert(ctx context.Context, entity *Entity) error {
+    return r.ch.Exec(ctx,
+        `INSERT INTO table (id, name, created_at) VALUES (?, ?, ?)`,
+        entity.ID, entity.Name, entity.CreatedAt,
+    )
+}
+
+// Batch insert
+func (r *Repository) BulkInsert(ctx context.Context, entities []Entity) error {
+    batch, err := r.ch.PrepareBatch(ctx, "INSERT INTO table")
+    if err != nil {
+        return err
+    }
+    for _, e := range entities {
+        if err := batch.Append(e.ID, e.Name, e.CreatedAt); err != nil {
+            return err
+        }
+    }
+    return batch.Send()
+}
+```
+
+**Configuration:**
+
+```
+CLICKHOUSE_HOSTS=host1,host2           # Comma-separated hosts (failover)
+CLICKHOUSE_PORT=9000                   # Native protocol port
+CLICKHOUSE_DATABASE=mydb
+CLICKHOUSE_USERNAME=user
+CLICKHOUSE_PASSWORD=password
+CLICKHOUSE_POOL_MAX_OPEN_CONNS=10
+CLICKHOUSE_POOL_MAX_IDLE_CONNS=5
+CLICKHOUSE_POOL_CONN_MAX_LIFETIME_SEC=300
+CLICKHOUSE_TLS_ENABLED=false
+CLICKHOUSE_COMPRESSION_ENABLED=true
+CLICKHOUSE_COMPRESSION_METHOD=lz4     # lz4/zstd/none
+CLICKHOUSE_LOG_EXEC_TIME=true
+CLICKHOUSE_TRACING_ENABLED=true
+```
+
+**Hooks:**
+- `ExecTimeHook` — Execution time logging
+- `TracingHook` — OpenTelemetry spans for ClickHouse queries
 
 ---
 
@@ -781,6 +870,7 @@ type ISubscriber interface {
 | rabbitconnector | Manual | `IProducer`, `IConsumer` | Message queue |
 | vaultconnector | `VaultFx` | `Connector` | Secrets management |
 | s3 | `S3Fx` | `IS3` | File storage |
+| clickhouseconnector | `clickhouseconnectorfx.ClickHouseConnectorFx` | `ICH` | ClickHouse operations |
 | logger | `loggerfx.LoggerFx` | `ILogger` | Structured logging |
 | tracer | `tracerfx.TracerFx` | `ITracer` | Distributed tracing |
 | meter | `meterFx` | `IMeter` | Metrics collection |

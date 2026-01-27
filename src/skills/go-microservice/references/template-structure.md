@@ -2,7 +2,7 @@
 
 Complete description of each file and directory in the microservice template.
 
-**Template Location:** `D:\Work\friday_releases\cryptoprocessing\shared\service_template`
+**Note:** All template files and code examples are documented inline below.
 
 ---
 

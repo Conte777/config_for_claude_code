@@ -9,12 +9,7 @@ This skill provides guidance for creating and extending Go microservices using t
 
 ## Overview
 
-The microservice architecture follows Clean Architecture principles with Uber FX for dependency injection. All services share a common structure based on `service_template` and use internal packages from `backend_cp/pkg`.
-
-**Key Locations:**
-- Template: `D:\Work\friday_releases\cryptoprocessing\shared\service_template`
-- Internal packages: `D:\Work\friday_releases\cryptoprocessing\backend_cp\pkg`
-- Existing services: `D:\Work\friday_releases\cryptoprocessing\backend_core`
+The microservice architecture follows Clean Architecture principles with Uber FX for dependency injection. All services share a common structure and use a set of internal infrastructure packages.
 
 ## Architecture Overview
 
@@ -89,6 +84,7 @@ For detailed patterns and code examples, consult `references/layer-patterns.md`.
 | `rabbitconnector` | RabbitMQ | Manual | `IProducer`, `IConsumer` |
 | `vaultconnector` | HashiCorp Vault | `VaultFx` | `Connector` |
 | `s3` | S3 storage | `S3Fx` | `IS3` |
+| `clickhouseconnector` | ClickHouse | `clickhouseconnectorfx.ClickHouseConnectorFx` | `ICH` |
 
 ### Observability
 
@@ -319,8 +315,3 @@ For detailed patterns and techniques, consult:
 Working examples in `examples/`:
 - **`examples/new-domain-checklist.md`** - Step-by-step domain creation with copy-paste code
 
-### External References
-
-- Template location: `D:\Work\friday_releases\cryptoprocessing\shared\service_template`
-- Internal packages: `D:\Work\friday_releases\cryptoprocessing\backend_cp\pkg`
-- Existing services: `D:\Work\friday_releases\cryptoprocessing\backend_core`
