@@ -42,5 +42,19 @@
   "defaultMode": "plan",
   "disableBypassPermissionsMode": false,
   "language": "Russian",
-  "autoUpdatesChannel": "latest"
+  "autoUpdatesChannel": "latest",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\hooks\\cleanup-nul.ps1\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }
