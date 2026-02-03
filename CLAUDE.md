@@ -10,13 +10,13 @@ This repository manages Claude Code CLI configuration files through symbolic lin
 
 ### Symbolic Link Strategy
 
-The repository uses Windows symbolic links to connect the standard Claude Code configuration locations to version-controlled files in `src/`:
+The repository uses symbolic links to connect the standard Claude Code configuration locations to version-controlled files in `src/`:
 
-- `%USERPROFILE%\.claude\settings.json` → `src\settings.json`
-- `%USERPROFILE%\.claude\CLAUDE.md` → `src\CLAUDE.md`
-- `%USERPROFILE%\.claude\statusline.ps1` → `src\statusline.ps1`
-- `%USERPROFILE%\.claude\commands` → `src\commands`
-- `%USERPROFILE%\.claude\skills` → `src\skills`
+- `~/.claude/settings.json` → `src/settings.json`
+- `~/.claude/CLAUDE.md` → `src/CLAUDE.md`
+- `~/.claude/statusline.sh` → `src/statusline.sh`
+- `~/.claude/commands` → `src/commands`
+- `~/.claude/skills` → `src/skills`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -27,7 +27,7 @@ src/
 ├── .mcp.json          # MCP server configurations
 ├── settings.json      # Claude Code settings
 ├── CLAUDE.md          # Global Claude Code instructions
-├── statusline.ps1     # PowerShell script for custom status line
+├── statusline.sh      # Bash script for custom status line
 ├── agents/            # Custom subagents for Task tool
 │   └── code-reviewer.md
 ├── commands/          # Custom slash commands
@@ -48,16 +48,15 @@ src/
 
 ### Installation
 
-Run `setup.bat` as administrator to create symbolic links:
-- Requires administrator privileges (Windows symlink requirement)
+Run `setup.sh` to create symbolic links:
 - Checks for conflicts with existing files/directories
-- Creates `%USERPROFILE%\.claude` if needed
+- Creates `~/.claude` if needed
 - Validates source files before creating links
 - Rolls back on error
 
 ### Uninstallation
 
-Run `cleanup.bat` as administrator to remove symbolic links:
+Run `cleanup.sh` to remove symbolic links:
 - Prompts for confirmation before removal
 - Removes only symbolic links (preserves `.claude` directory)
 
@@ -98,7 +97,7 @@ Key configurations:
 - **Always-thinking mode**: Enabled for enhanced reasoning
 - **Default model**: Opus
 - **Default mode**: Plan mode
-- **Status line**: Custom PowerShell script
+- **Status line**: Custom bash script
 - **Plugins**: code-simplifier, gopls-lsp
 
 ### Global Instructions (src/CLAUDE.md)
@@ -149,13 +148,13 @@ version: 0.1.0
 
 Use the `skill-development` skill for guidance on creating new skills.
 
-### Status Line (src/statusline.ps1)
+### Status Line (src/statusline.sh)
 
-PowerShell script providing real-time status: `directory | branch !? | Model`
-- Receives JSON via stdin with model, workspace, session data
-- Color coded: cyan (directory), green (branch), magenta (model)
+Bash script providing real-time status: `Model on directory branch context`
+- Receives JSON via stdin with model, workspace, context_window data
+- ANSI RGB colors, Nerd Font icons
+- No external dependencies (JSON parsing via grep/sed)
 
 ## Validation
 
-- Symbolic links require administrator privileges on Windows
-- Verify symlinks: `dir %USERPROFILE%\.claude /AL`
+- Verify symlinks: `ls -la ~/.claude/`
