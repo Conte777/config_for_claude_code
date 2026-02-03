@@ -42,6 +42,5 @@
   "autoUpdatesChannel": "latest",
   "defaultMode": "plan",
   "disableBypassPermissionsMode": false,
-  "language": "Russian",
-  "autoUpdatesChannel": "latest"
+  "language": "Russian"
 }
