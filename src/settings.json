@@ -32,7 +32,7 @@
   "model": "opus",
   "statusLine": {
     "type": "command",
-    "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\statusline.ps1\""
+    "command": "bash \"$HOME/.claude/statusline.sh\""
   },
   "enabledPlugins": {
     "code-simplifier@claude-plugins-official": true,
@@ -43,19 +43,5 @@
   "defaultMode": "plan",
   "disableBypassPermissionsMode": false,
   "language": "Russian",
-  "autoUpdatesChannel": "latest",
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pwsh -NoProfile -File \"%USERPROFILE%\\.claude\\hooks\\cleanup-nul.ps1\"",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  }
+  "autoUpdatesChannel": "latest"
 }
