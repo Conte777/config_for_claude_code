@@ -17,6 +17,7 @@ The repository uses symbolic links to connect the standard Claude Code configura
 - `~/.claude/statusline.sh` → `src/statusline.sh`
 - `~/.claude/commands` → `src/commands`
 - `~/.claude/skills` → `src/skills`
+- `~/.claude/hooks` → `src/hooks`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -29,7 +30,10 @@ src/
 ├── CLAUDE.md          # Global Claude Code instructions
 ├── statusline.sh      # Bash script for custom status line
 ├── agents/            # Custom subagents for Task tool
-│   └── code-reviewer.md
+│   ├── code-reviewer.md
+│   └── kubectl-log-fetcher.md
+├── hooks/             # Hook scripts for tool events
+│   └── lint-go.sh
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
 │   ├── commit.md      # Commit with ticket ID from branch
@@ -66,6 +70,7 @@ Run `cleanup.sh` to remove symbolic links:
 
 - **context7**: HTTP-based documentation server (requires API key from https://context7.com)
 - **sequential-thinking**: NPX-based advanced reasoning tool
+- **db-mcp-server**: Stdio-based database access tool (query, schema, performance analysis)
 
 ### Custom Commands (src/commands/)
 
@@ -90,6 +95,10 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 - **mcp-integration**: Integrating MCP servers into plugins
 - **skill-development**: Creating new skills for Claude Code plugins
 
+### Hooks (src/hooks/)
+
+- **lint-go.sh**: PostToolUse hook triggered on Edit/Write — runs `golangci-lint` on modified `.go` files, finds the nearest `go.mod` root automatically
+
 ### Settings (settings.json)
 
 Key configurations:
@@ -97,6 +106,8 @@ Key configurations:
 - **Always-thinking mode**: Enabled for enhanced reasoning
 - **Default model**: Opus
 - **Default mode**: Plan mode
+- **Language**: Russian
+- **Sandbox**: Enabled with `autoAllowBashIfSandboxed`
 - **Status line**: Custom bash script
 - **Plugins**: code-simplifier, gopls-lsp
 
@@ -106,7 +117,6 @@ User-specific instructions for all Claude Code sessions:
 - **Language preferences**: Russian for communication, English for code artifacts
 - **Context7 integration**: Fetch library docs before writing code
 - **Code style**: Self-documenting code, minimal comments
-- **Terminal**: PowerShell syntax with bash-compatible aliases
 
 ## Custom Development
 

@@ -49,5 +49,19 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/lint-go.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
   }
 }
