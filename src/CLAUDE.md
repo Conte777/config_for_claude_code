@@ -35,19 +35,6 @@ Good naming eliminates the need for most comments and makes code easier to maint
 
 Add comments only when the purpose or behavior cannot be conveyed through naming alone.
 
-### Terminal Commands
-
-Use PowerShell syntax when suggesting terminal commands.
-This ensures compatibility with Windows systems.
-
-Prefer bash-compatible aliases where available:
-- `ls`, `cd`, `cat`, `rm`, `cp`, `mv`, `mkdir`, `pwd`
-
-For commands without aliases:
-- `grep` → `Select-String` or `findstr`
-- `find` → `Get-ChildItem -Recurse`
-- `touch` → `New-Item`
-
 ## Workflow
 
 ### Development Process
