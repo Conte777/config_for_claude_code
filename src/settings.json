@@ -12,9 +12,9 @@
       "mcp__sequential-thinking",
       "mcp__context7",
       "mcp__db-mcp-server__list_databases",
-      "mcp__db-mcp-server__query_*",
-      "mcp__db-mcp-server__schema_*",
-      "mcp__db-mcp-server__performance_*"
+      "mcp__db-mcp-server__query",
+      "mcp__db-mcp-server__schema",
+      "mcp__db-mcp-server__performance"
     ],
     "deny": [],
     "ask": [

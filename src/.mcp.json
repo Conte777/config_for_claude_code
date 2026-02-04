@@ -13,7 +13,7 @@
         },
         "db-mcp-server": {
             "command": "/Users/conte/go/bin/server",
-            "args": ["-t", "stdio", "-c", "/Users/conte/db-mcp-config.json", "-lazy-loading"]
+            "args": ["-t", "stdio", "-c", "/Users/conte/db-mcp-config.json", "-lazy-loading", "-unified-tools"]
         }
     }
 }
