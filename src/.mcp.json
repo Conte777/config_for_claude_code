@@ -8,35 +8,12 @@
             }
         },
         "sequential-thinking": {
-            "command": "cmd",
-            "args": [
-                "/c",
-                "npx",
-                "-y",
-                "@modelcontextprotocol/server-sequential-thinking"
-            ]
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
         },
-        "dbhub_pr": {
-            "command": "cmd",
-            "args": [
-                "/c",
-                "npx",
-                "-y",
-                "@bytebase/dbhub",
-                "--config",
-                "dbhub_pr.toml"
-            ]
-        },
-        "dbhub_cp": {
-            "command": "cmd",
-            "args": [
-                "/c",
-                "npx",
-                "-y",
-                "@bytebase/dbhub",
-                "--config",
-                "dbhub_cp.toml"
-            ]
+        "db-mcp-server": {
+            "command": "/Users/conte/go/bin/server",
+            "args": ["-t", "stdio", "-c", "/Users/conte/db-mcp-config.json", "-lazy-loading"]
         }
     }
 }
