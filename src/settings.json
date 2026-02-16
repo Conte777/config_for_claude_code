@@ -33,23 +33,6 @@
     ],
     "defaultMode": "plan"
   },
-  "model": "opus",
-  "statusLine": {
-    "type": "command",
-    "command": "bash \"$HOME/.claude/statusline.sh\""
-  },
-  "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true
-  },
-  "alwaysThinkingEnabled": true,
-  "autoUpdatesChannel": "latest",
-  "defaultMode": "plan",
-  "language": "Russian",
-  "sandbox": {
-    "enabled": true,
-    "autoAllowBashIfSandboxed": true
-  },
   "hooks": {
     "PostToolUse": [
       {
@@ -63,5 +46,24 @@
         ]
       }
     ]
-  }
+  },
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4-5-20250929"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.claude/statusline.sh\""
+  },
+  "enabledPlugins": {
+    "code-simplifier@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "language": "Russian",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "alwaysThinkingEnabled": true,
+  "autoUpdatesChannel": "latest",
+  "defaultMode": "plan"
 }
