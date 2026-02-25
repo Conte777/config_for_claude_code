@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4-5-20250929"
+  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
@@ -33,6 +36,7 @@
     ],
     "defaultMode": "plan"
   },
+  "model": "opus",
   "hooks": {
     "PostToolUse": [
       {
@@ -47,16 +51,13 @@
       }
     ]
   },
-  "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4-5-20250929"
-  },
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline.sh\""
   },
   "enabledPlugins": {
-    "code-simplifier@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "document-skills@anthropic-agent-skills": true
   },
   "language": "Russian",
   "sandbox": {
