@@ -38,22 +38,22 @@ module_root=$(find_go_mod "$file_dir") || {
   exit 0
 }
 
-relative_path="${file_path#"$module_root"/}"
+package_path="${file_dir#"$module_root"/}"
 
-lint_output=$(cd "$module_root" && golangci-lint run --timeout=25s "./${relative_path}" 2>&1) && lint_exit=0 || lint_exit=$?
+lint_output=$(cd "$module_root" && golangci-lint run --timeout=25s "./${package_path}/" 2>&1) && lint_exit=0 || lint_exit=$?
 
 lint_output=$(echo "$lint_output" | grep -v '^level=warning' || true)
 
 if [[ $lint_exit -eq 0 ]]; then
-  jq -n --arg msg "✅ golangci-lint: no issues in ${relative_path}" \
+  jq -n --arg msg "✅ golangci-lint: no issues in ${package_path}" \
     '{systemMessage: $msg, hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $msg}}'
 elif [[ $lint_exit -eq 1 ]]; then
-  full_msg="⚠️ golangci-lint found issues in ${relative_path}:
+  full_msg="⚠️ golangci-lint found issues in ${package_path}:
 ${lint_output}"
   jq -n --arg msg "$full_msg" \
     '{systemMessage: $msg, hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $msg}}'
 else
-  full_msg="⚠️ golangci-lint error (exit ${lint_exit}) on ${relative_path}:
+  full_msg="⚠️ golangci-lint error (exit ${lint_exit}) on ${package_path}:
 ${lint_output}"
   jq -n --arg msg "$full_msg" \
     '{systemMessage: $msg, hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $msg}}'
