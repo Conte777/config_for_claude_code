@@ -33,7 +33,8 @@ src/
 │   ├── code-reviewer.md
 │   └── kubectl-log-fetcher.md
 ├── hooks/             # Hook scripts for tool events
-│   └── lint-go.sh
+│   ├── lint-go.sh
+│   └── lint-project.sh
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
 │   ├── commit.md      # Commit with ticket ID from branch
@@ -68,6 +69,8 @@ Run `cleanup.sh` to remove symbolic links:
 
 ### MCP Servers (.mcp.json)
 
+> Note: `.mcp.json` lives in `src/` for reference but is **not** symlinked by `setup.sh`. It must be placed manually or configured per-project.
+
 - **context7**: HTTP-based documentation server (requires API key from https://context7.com)
 - **sequential-thinking**: NPX-based advanced reasoning tool
 - **db-mcp-server**: Stdio-based database access tool (query, schema, performance analysis)
@@ -98,18 +101,25 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 ### Hooks (src/hooks/)
 
 - **lint-go.sh**: PostToolUse hook triggered on Edit/Write — runs `golangci-lint` on modified `.go` files, finds the nearest `go.mod` root automatically
+- **lint-project.sh**: SubagentStart hook triggered on code-reviewer — runs `golangci-lint run ./...` on entire project before code review starts
+
+### Custom Agents (src/agents/)
+
+Markdown files defining specialized subagents for the Task tool:
+- **code-reviewer.md**: Code review agent with language-specific checks (Go, Java, Python)
+- **kubectl-log-fetcher.md**: Agent for retrieving and filtering Kubernetes pod logs
 
 ### Settings (settings.json)
 
 Key configurations:
 - **Tool permissions**: Allow/deny/ask lists for tools and bash commands
 - **Always-thinking mode**: Enabled for enhanced reasoning
-- **Default model**: Opus
+- **Default model**: Opus (haiku overridden to sonnet via `ANTHROPIC_DEFAULT_HAIKU_MODEL` env)
 - **Default mode**: Plan mode
 - **Language**: Russian
 - **Sandbox**: Enabled with `autoAllowBashIfSandboxed`
 - **Status line**: Custom bash script
-- **Plugins**: code-simplifier, gopls-lsp
+- **Plugins**: gopls-lsp, document-skills
 
 ### Global Instructions (src/CLAUDE.md)
 
