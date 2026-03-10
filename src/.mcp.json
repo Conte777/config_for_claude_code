@@ -11,9 +11,9 @@
             "command": "npx",
             "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
         },
-        "db-mcp-server": {
-            "command": "/Users/conte/go/bin/server",
-            "args": ["-t", "stdio", "-c", "/Users/conte/db-mcp-config.json", "-lazy-loading", "-unified-tools"]
+        "db-view-mcp": {
+            "command": "npx",
+            "args": ["-y", "@conte777/db-view-mcp", "--config", "/Users/conte/.db-mcp-config.json"]
         }
     }
 }
