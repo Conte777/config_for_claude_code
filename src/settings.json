@@ -14,10 +14,10 @@
       "Skill",
       "mcp__sequential-thinking",
       "mcp__context7",
-      "mcp__db-mcp-server__list_databases",
-      "mcp__db-mcp-server__query",
-      "mcp__db-mcp-server__schema",
-      "mcp__db-mcp-server__performance"
+      "mcp__db-view-mcp__list_databases",
+      "mcp__db-view-mcp__query",
+      "mcp__db-view-mcp__schema",
+      "mcp__db-view-mcp__performance"
     ],
     "deny": [],
     "ask": [
@@ -38,6 +38,18 @@
   },
   "model": "opus",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/service-context.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SubagentStart": [
       {
         "matcher": "code-reviewer",
@@ -69,7 +81,8 @@
   },
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
-    "document-skills@anthropic-agent-skills": true
+    "document-skills@anthropic-agent-skills": true,
+    "clangd-lsp@claude-plugins-official": true
   },
   "language": "Russian",
   "sandbox": {
