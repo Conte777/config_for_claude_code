@@ -40,7 +40,7 @@ module_root=$(find_go_mod "$file_dir") || {
 
 package_path="${file_dir#"$module_root"/}"
 
-lint_output=$(cd "$module_root" && golangci-lint run --timeout=25s "./${package_path}/" 2>&1) && lint_exit=0 || lint_exit=$?
+lint_output=$(cd "$module_root" && golangci-lint run --new-from-rev=HEAD --timeout=25s "./${package_path}/" 2>&1) && lint_exit=0 || lint_exit=$?
 
 lint_output=$(echo "$lint_output" | grep -v '^level=warning' || true)
 

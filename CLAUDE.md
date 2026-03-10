@@ -73,7 +73,7 @@ Run `cleanup.sh` to remove symbolic links:
 
 - **context7**: HTTP-based documentation server (requires API key from https://context7.com)
 - **sequential-thinking**: NPX-based advanced reasoning tool
-- **db-mcp-server**: Stdio-based database access tool (query, schema, performance analysis)
+- **db-view-mcp**: Stdio-based database access tool via npx @conte777/db-view-mcp (query, schema, performance analysis)
 
 ### Custom Commands (src/commands/)
 
@@ -102,6 +102,7 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 
 - **lint-go.sh**: PostToolUse hook triggered on Edit/Write — runs `golangci-lint` on modified `.go` files, finds the nearest `go.mod` root automatically
 - **lint-project.sh**: SubagentStart hook triggered on code-reviewer — runs `golangci-lint run ./...` on entire project before code review starts
+- **service-context.sh**: SessionStart hook triggered on startup — auto-detects microservice in `friday_releases/` monorepo, parses `env.dev.yaml` config, and injects context about gRPC deps, RabbitMQ exchanges, Kafka topics, TLS clients, exchange neighbors, and migrations
 
 ### Custom Agents (src/agents/)
 
