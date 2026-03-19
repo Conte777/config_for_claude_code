@@ -1,6 +1,6 @@
 ---
 description: Create a commit with ticket ID from branch name
-allowed-tools: AskUserQuestion, Skill, Bash(git *)
+allowed-tools: AskUserQuestion, Skill, Bash(git:*), Bash(git commit:*)
 ---
 
 # Commit Command
