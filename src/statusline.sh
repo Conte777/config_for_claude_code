@@ -57,14 +57,14 @@ fi
 
 # Context window
 usedPercentage=$(extractJsonNumber "used_percentage")
-maxTokens=$(extractJsonNumber "max_tokens")
+contextSize=$(extractJsonNumber "context_window_size")
 usedPercentage="${usedPercentage:-0}"
-maxTokens="${maxTokens:-200000}"
+contextSize="${contextSize:-200000}"
 
 # Calculate tokens (integer math)
 contextPercent="${usedPercentage%%.*}"
 contextPercent="${contextPercent:-0}"
-currentTokens=$(( ${maxTokens%%.*} * ${contextPercent} / 100 ))
+currentTokens=$(( ${contextSize%%.*} * ${contextPercent} / 100 ))
 
 if [ "$currentTokens" -ge 1000 ]; then
     tokensK=$((currentTokens / 1000))
