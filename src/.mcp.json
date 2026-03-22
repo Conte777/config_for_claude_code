@@ -14,6 +14,23 @@
         "db-view-mcp": {
             "command": "npx",
             "args": ["-y", "@conte777/db-view-mcp", "--config", "/Users/conte/.db-mcp-config.json"]
+        },
+        "jira": {
+            "command": "uvx",
+            "args": ["--from", "git+https://github.com/Conte777/mcp-atlassian.git@feat/gitplugin-fallback", "mcp-atlassian"],
+            "env": {
+                "JIRA_URL": "https://jira.your-company.com",
+                "JIRA_PERSONAL_TOKEN": "{JIRA_PAT}"
+            }
+        },
+        "gitlab": {
+            "command": "npx",
+            "args": ["-y", "@zereight/mcp-gitlab"],
+            "env": {
+                "GITLAB_PERSONAL_ACCESS_TOKEN": "{GITLAB_PAT}",
+                "GITLAB_API_URL": "https://git.itcrew.info",
+                "GITLAB_TOOLSETS": "merge_requests"
+            }
         }
     }
 }

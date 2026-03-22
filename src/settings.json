@@ -1,7 +1,4 @@
 {
-  "env": {
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-sonnet-4-5-20250929"
-  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
@@ -17,7 +14,9 @@
       "mcp__db-view-mcp__list_databases",
       "mcp__db-view-mcp__query",
       "mcp__db-view-mcp__schema",
-      "mcp__db-view-mcp__performance"
+      "mcp__db-view-mcp__performance",
+      "Bash(git worktree:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": [
@@ -81,7 +80,8 @@
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true,
-    "clangd-lsp@claude-plugins-official": true
+    "clangd-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
   },
   "language": "Russian",
   "sandbox": {
