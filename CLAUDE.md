@@ -33,7 +33,7 @@ src/
 │   ├── code-reviewer.md
 │   └── kubectl-log-fetcher.md
 ├── hooks/             # Hook scripts for tool events
-│   ├── lint-go.sh
+│   ├── lint-file.sh
 │   └── lint-project.sh
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
@@ -100,8 +100,8 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 
 ### Hooks (src/hooks/)
 
-- **lint-go.sh**: PostToolUse hook triggered on Edit/Write — runs `golangci-lint` on modified `.go` files, finds the nearest `go.mod` root automatically
-- **lint-project.sh**: SubagentStart hook triggered on code-reviewer — runs `golangci-lint run ./...` on entire project before code review starts
+- **lint-file.sh**: PostToolUse hook triggered on Edit/Write — runs language-specific linters on modified files (`golangci-lint` for `.go`, `uv run ruff check` for `.py`), finds the nearest project root automatically
+- **lint-project.sh**: SubagentStart hook triggered on code-reviewer — runs project-wide linting before code review (`golangci-lint` for Go projects with `go.mod`, `ruff` for Python projects with `pyproject.toml`/`ruff.toml`)
 - **service-context.sh**: SessionStart hook triggered on startup — auto-detects microservice in `friday_releases/` monorepo, parses `env.dev.yaml` config, and injects context about gRPC deps, RabbitMQ exchanges, Kafka topics, TLS clients, exchange neighbors, and migrations
 
 ### Custom Agents (src/agents/)

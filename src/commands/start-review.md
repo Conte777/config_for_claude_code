@@ -1,14 +1,32 @@
 ---
 description: Run code review on changes or entire project
-argument-hint: [--all]
+argument-hint: [--all | --branch[=<base>]]
 ---
 
 Your task: perform a verified code review.
 
 ## Step 1: Determine scope
 
+If $ARGUMENTS contains both "--all" and "--branch":
+  Error: "Флаги --all и --branch взаимоисключающие. Используйте один из них." → stop execution.
+
 If $ARGUMENTS contains "--all":
   Scope: entire project
+
+Else if $ARGUMENTS contains "--branch":
+  Scope: branch changes
+  If $ARGUMENTS contains "--branch=" followed by a value (e.g. "--branch=develop"):
+    BASE_BRANCH = the specified value
+  Else:
+    Auto-detect base branch by running:
+    ```bash
+    git rev-parse --verify origin/main >/dev/null 2>&1 && echo "main" || \
+    (git rev-parse --verify origin/master >/dev/null 2>&1 && echo "master" || \
+    (git rev-parse --verify origin/develop >/dev/null 2>&1 && echo "develop" || echo "NONE"))
+    ```
+    If result is "NONE": Error: "Не удалось определить base branch. Укажите явно: --branch=<name>" → stop execution.
+    Else: BASE_BRANCH = result
+
 Else:
   Scope: current changes only (staged + unstaged diff)
 
@@ -23,6 +41,11 @@ Collect the list of files to review based on scope:
 **If scope is "current changes only":**
 - Run `git diff --name-only` and `git diff --name-only --staged`
 - Filter to supported extensions: `.go`, `.java`, `.py`
+
+**If scope is "branch changes":**
+- Run `git diff --name-only $(git merge-base HEAD origin/{BASE_BRANCH})..HEAD`
+- Filter to supported extensions: `.go`, `.java`, `.py`
+- If no files found: report "Нет изменений относительно ветки {BASE_BRANCH}" and stop
 
 Then evaluate parallelization:
 
@@ -42,11 +65,24 @@ Constraints:
 ## Step 3: Run code review
 
 **Single agent mode:**
-Run one code review using @"code-reviewer (agent)" with the full scope description (as before).
+Run one code review using @"code-reviewer (agent)" with the full scope description.
+If scope is "branch changes", include in the prompt: `Контекст: ревью ветки "{current_branch}" относительно "{BASE_BRANCH}".`
 
 **Parallel agent mode:**
 For each group, launch a separate @"code-reviewer (agent)" with a prompt:
 
+If scope is "branch changes":
+```
+Проведи code review следующих файлов ({group description: language, module, directory}).
+Контекст: ревью ветки "{current_branch}" относительно "{BASE_BRANCH}".
+Файлы:
+- path/to/file1.go
+- path/to/file2.go
+...
+Анализируй ТОЛЬКО перечисленные файлы.
+```
+
+Otherwise:
 ```
 Проведи code review следующих файлов ({group description: language, module, directory}):
 - path/to/file1.go

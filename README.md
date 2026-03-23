@@ -15,7 +15,7 @@ config_for_claude_code/
 │   │   ├── code-reviewer.md         # Code review agent
 │   │   └── kubectl-log-fetcher.md   # Kubernetes log fetcher agent
 │   ├── hooks/                       # Hook scripts for tool events
-│   │   ├── lint-go.sh               # Go linter on file edit
+│   │   ├── lint-file.sh              # Multi-language linter on file edit
 │   │   └── lint-project.sh          # Project-wide lint before code review
 │   ├── commands/                    # Custom slash commands
 │   │   ├── branch.md                # Create branch from ticket ID
@@ -173,8 +173,8 @@ Located in `src/commands/`:
 ### Hooks
 
 Located in `src/hooks/`:
-- **lint-go.sh**: PostToolUse hook (Edit/Write) — runs `golangci-lint` on modified `.go` files
-- **lint-project.sh**: SubagentStart hook (code-reviewer) — runs `golangci-lint run ./...` before code review
+- **lint-file.sh**: PostToolUse hook (Edit/Write) — runs `golangci-lint` on `.go` files, `uv run ruff check` on `.py` files
+- **lint-project.sh**: SubagentStart hook (code-reviewer) — runs `golangci-lint` and `ruff` on project before code review
 
 ### Custom Agents
 
