@@ -10,15 +10,11 @@ if [[ -z "$workspace" ]]; then
   exit 0
 fi
 
-if ! command -v golangci-lint &>/dev/null; then
-  echo '{"continue": true, "systemMessage": "⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/"}'
-  exit 0
-fi
-
-find_go_mod() {
+find_project_root() {
   local dir="$1"
+  local marker="$2"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/go.mod" ]]; then
+    if [[ -f "$dir/$marker" ]]; then
       echo "$dir"
       return 0
     fi
@@ -27,26 +23,57 @@ find_go_mod() {
   return 1
 }
 
-module_root=$(find_go_mod "$workspace") || {
+messages=()
+
+# --- Go linting ---
+go_module_root=$(find_project_root "$workspace" "go.mod") || true
+
+if [[ -n "$go_module_root" ]]; then
+  if ! command -v golangci-lint &>/dev/null; then
+    messages+=("⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/")
+  else
+    go_output=$(cd "$go_module_root" && golangci-lint run --timeout=90s ./... 2>&1) && go_exit=0 || go_exit=$?
+    go_output=$(echo "$go_output" | grep -v '^level=warning' || true)
+
+    if [[ $go_exit -eq 0 ]]; then
+      messages+=("✅ golangci-lint: no issues in project")
+    elif [[ $go_exit -eq 1 ]]; then
+      messages+=("⚠️ golangci-lint found issues in project:
+${go_output}")
+    else
+      messages+=("⚠️ golangci-lint error (exit ${go_exit}):
+${go_output}")
+    fi
+  fi
+fi
+
+# --- Python linting ---
+py_project_root=$(find_project_root "$workspace" "pyproject.toml") || \
+  py_project_root=$(find_project_root "$workspace" "ruff.toml") || true
+
+if [[ -n "${py_project_root:-}" ]]; then
+  if ! command -v uv &>/dev/null; then
+    messages+=("⚠️ uv not found in PATH. Install: https://docs.astral.sh/uv/getting-started/installation/")
+  else
+    py_output=$(cd "$py_project_root" && uv run ruff check . 2>&1) && py_exit=0 || py_exit=$?
+
+    if [[ $py_exit -eq 0 ]]; then
+      messages+=("✅ ruff: no issues in project")
+    elif [[ $py_exit -eq 1 ]]; then
+      messages+=("⚠️ ruff found issues in project:
+${py_output}")
+    else
+      messages+=("⚠️ ruff error (exit ${py_exit}):
+${py_output}")
+    fi
+  fi
+fi
+
+# --- Output ---
+if [[ ${#messages[@]} -eq 0 ]]; then
   echo '{"continue": true}'
-  exit 0
-}
-
-lint_output=$(cd "$module_root" && golangci-lint run --timeout=90s ./... 2>&1) && lint_exit=0 || lint_exit=$?
-
-lint_output=$(echo "$lint_output" | grep -v '^level=warning' || true)
-
-if [[ $lint_exit -eq 0 ]]; then
-  jq -n --arg msg "✅ golangci-lint: no issues in project" \
-    '{continue: true, systemMessage: $msg}'
-elif [[ $lint_exit -eq 1 ]]; then
-  full_msg="⚠️ golangci-lint found issues in project:
-${lint_output}"
-  jq -n --arg msg "$full_msg" \
-    '{continue: true, systemMessage: $msg}'
 else
-  full_msg="⚠️ golangci-lint error (exit ${lint_exit}):
-${lint_output}"
-  jq -n --arg msg "$full_msg" \
+  combined=$(printf '%s\n\n' "${messages[@]}")
+  jq -n --arg msg "$combined" \
     '{continue: true, systemMessage: $msg}'
 fi
