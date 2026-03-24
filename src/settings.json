@@ -81,7 +81,8 @@
     "gopls-lsp@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true,
     "clangd-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
   },
   "language": "Russian",
   "sandbox": {
@@ -89,7 +90,7 @@
     "autoAllowBashIfSandboxed": true
   },
   "alwaysThinkingEnabled": true,
+  "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
-  "defaultMode": "plan",
-  "showClearContextOnPlanAccept": true
+  "defaultMode": "plan"
 }

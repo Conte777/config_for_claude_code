@@ -27,6 +27,8 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/skills"
     "$TARGET_DIR/hooks"
     "$TARGET_DIR/statusline.sh"
+    "$TARGET_DIR/plugins"
+    "$TARGET_DIR/keybindings.json"
 )
 
 declare -a LINK_SOURCES=(
@@ -37,6 +39,8 @@ declare -a LINK_SOURCES=(
     "$SRC_DIR/skills"
     "$SRC_DIR/hooks"
     "$SRC_DIR/statusline.sh"
+    "$SRC_DIR/plugins"
+    "$SRC_DIR/keybindings.json"
 )
 
 # Rollback on error
