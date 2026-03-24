@@ -1,0 +1,10 @@
+# Plugin cache (downloaded plugin files, auto-reinstalled)
+cache/
+# Plugin runtime data
+data/
+# Marketplace repos (auto-cloned from known_marketplaces.json)
+marketplaces/
+# Temp files
+*.tmp
+# Install counts cache
+install-counts-cache.json

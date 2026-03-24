@@ -18,6 +18,8 @@ The repository uses symbolic links to connect the standard Claude Code configura
 - `~/.claude/commands` → `src/commands`
 - `~/.claude/skills` → `src/skills`
 - `~/.claude/hooks` → `src/hooks`
+- `~/.claude/plugins` → `src/plugins`
+- `~/.claude/keybindings.json` → `src/keybindings.json`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -29,6 +31,12 @@ src/
 ├── settings.json      # Claude Code settings
 ├── CLAUDE.md          # Global Claude Code instructions
 ├── statusline.sh      # Bash script for custom status line
+├── keybindings.json   # Custom keyboard shortcuts
+├── plugins/           # Plugin configs (cache/data gitignored)
+│   ├── .gitignore
+│   ├── installed_plugins.json
+│   ├── blocklist.json
+│   └── known_marketplaces.json
 ├── agents/            # Custom subagents for Task tool
 │   ├── code-reviewer.md
 │   └── kubectl-log-fetcher.md
