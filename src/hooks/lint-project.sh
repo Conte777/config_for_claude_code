@@ -3,11 +3,12 @@ set -euo pipefail
 
 input=$(cat)
 
-workspace=$(echo "$input" | jq -r '.session.workspace // empty')
+workspace=$(echo "$input" | jq -r '
+  .session.workspace // .session.cwd // .cwd // empty
+')
 
 if [[ -z "$workspace" ]]; then
-  echo '{"continue": true}'
-  exit 0
+  workspace="$PWD"
 fi
 
 find_project_root() {
@@ -32,7 +33,7 @@ if [[ -n "$go_module_root" ]]; then
   if ! command -v golangci-lint &>/dev/null; then
     messages+=("⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/")
   else
-    go_output=$(cd "$go_module_root" && golangci-lint run --timeout=90s ./... 2>&1) && go_exit=0 || go_exit=$?
+    go_output=$(cd "$go_module_root" && golangci-lint run --timeout=120s ./... 2>&1) && go_exit=0 || go_exit=$?
     go_output=$(echo "$go_output" | grep -v '^level=warning' || true)
 
     if [[ $go_exit -eq 0 ]]; then

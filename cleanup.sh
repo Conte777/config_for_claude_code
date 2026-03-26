@@ -26,6 +26,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/statusline.sh"
     "$TARGET_DIR/plugins"
     "$TARGET_DIR/keybindings.json"
+    "$TARGET_DIR/rules"
 )
 
 # Header

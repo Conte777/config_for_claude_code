@@ -20,6 +20,7 @@ The repository uses symbolic links to connect the standard Claude Code configura
 - `~/.claude/hooks` → `src/hooks`
 - `~/.claude/plugins` → `src/plugins`
 - `~/.claude/keybindings.json` → `src/keybindings.json`
+- `~/.claude/rules` → `src/rules`
 
 This allows editing files in `src/` while Claude Code reads from the standard locations.
 
@@ -41,20 +42,34 @@ src/
 │   ├── code-reviewer.md
 │   └── kubectl-log-fetcher.md
 ├── hooks/             # Hook scripts for tool events
-│   ├── lint-file.sh
+│   ├── format-and-lint.sh
 │   └── lint-project.sh
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
 │   ├── commit.md      # Commit with ticket ID from branch
 │   └── fix-ci.md      # CI/CD trace analysis
+├── rules/             # Language-specific coding rules (shared across skills)
+│   ├── common.md
+│   ├── golang/
+│   │   ├── patterns.md
+│   │   ├── uber-fx.md
+│   │   └── clean-architecture.md
+│   ├── java/
+│   │   ├── patterns.md
+│   │   └── spring.md
+│   └── python/
+│       ├── patterns.md
+│       └── fastapi.md
 └── skills/            # Skill packages (see Skills section)
+    ├── check-di/
     ├── code-review/
     ├── commit-msg/
     ├── command-development/
     ├── go-microservice/
     ├── hook-development/
     ├── mcp-integration/
-    └── skill-development/
+    ├── skill-development/
+    └── verify/
 ```
 
 ## Setup and Cleanup
@@ -83,6 +98,16 @@ Run `cleanup.sh` to remove symbolic links:
 - **sequential-thinking**: NPX-based advanced reasoning tool
 - **db-view-mcp**: Stdio-based database access tool via npx @conte777/db-view-mcp (query, schema, performance analysis)
 
+### Rules (src/rules/)
+
+Language-specific coding rules shared across skills. Contains patterns, anti-patterns, and best practices organized by language:
+- **common.md** — Security, race conditions, resource management, error handling, performance
+- **golang/** — Go patterns, Uber FX patterns, Clean Architecture/DDD layers
+- **java/** — Java patterns, Spring Framework patterns
+- **python/** — Python patterns, FastAPI patterns
+
+Referenced by `code-review` and `go-microservice` skills via relative paths.
+
 ### Custom Commands (src/commands/)
 
 - **branch.md**: Creates git branch from Jira ticket ID
@@ -105,10 +130,12 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 - **hook-development**: Creating Claude Code hooks (PreToolUse, PostToolUse, etc.)
 - **mcp-integration**: Integrating MCP servers into plugins
 - **skill-development**: Creating new skills for Claude Code plugins
+- **verify**: Multi-language project verification (tests + static analysis + DI validation for Go/Python/Java)
+- **check-di**: Uber FX dependency injection graph validation for Go projects
 
 ### Hooks (src/hooks/)
 
-- **lint-file.sh**: PostToolUse hook triggered on Edit/Write — runs language-specific linters on modified files (`golangci-lint` for `.go`, `uv run ruff check` for `.py`), finds the nearest project root automatically
+- **format-and-lint.sh**: PostToolUse hook triggered on Edit/Write — runs language-specific formatters then linters in a single script to guarantee execution order (`gofmt` + `golangci-lint` for `.go`, `uv run ruff format` + `uv run ruff check` for `.py`, `google-java-format` for `.java`), finds the nearest project root automatically
 - **lint-project.sh**: SubagentStart hook triggered on code-reviewer — runs project-wide linting before code review (`golangci-lint` for Go projects with `go.mod`, `ruff` for Python projects with `pyproject.toml`/`ruff.toml`)
 - **service-context.sh**: SessionStart hook triggered on startup — auto-detects microservice in `friday_releases/` monorepo, parses `env.dev.yaml` config, and injects context about gRPC deps, RabbitMQ exchanges, Kafka topics, TLS clients, exchange neighbors, and migrations
 

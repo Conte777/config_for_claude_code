@@ -2,6 +2,9 @@
 
 Паттерны и anti-patterns специфичные для Python.
 
+**See also:**
+- `fastapi.md` — FastAPI DI, async pitfalls, pydantic validation, security, performance
+
 ## GIL Implications
 
 ### 1. Threading for CPU-Bound Tasks

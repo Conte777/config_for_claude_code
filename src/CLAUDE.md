@@ -35,6 +35,15 @@ Good naming eliminates the need for most comments and makes code easier to maint
 
 Add comments only when the purpose or behavior cannot be conveyed through naming alone.
 
+### Coding Rules
+
+When writing or reviewing code, load the relevant rules from `~/.claude/rules/`:
+
+1. **Always:** `rules/common.md`
+2. **By language:** `rules/golang/patterns.md`, `rules/java/patterns.md`, or `rules/python/patterns.md`
+
+Each language file links to framework-specific rules (Uber FX, Spring, FastAPI, etc.) — follow those links as needed.
+
 ## Workflow
 
 ### Development Process

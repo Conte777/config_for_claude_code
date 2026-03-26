@@ -2,6 +2,9 @@
 
 Паттерны и anti-patterns специфичные для Java.
 
+**See also:**
+- `spring.md` — Spring DI, transactions, security, JPA, REST controllers
+
 ## Null Safety
 
 ### 1. Missing Null Checks
