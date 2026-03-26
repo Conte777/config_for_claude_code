@@ -70,7 +70,7 @@ For detailed file templates, consult `examples/new-domain-checklist.md`.
 | **Delivery gRPC** | OnStart/OnStop lifecycle | `lc.Append(fx.Hook{...})` |
 | **Workers** | fx.Lifecycle, graceful shutdown via channels | `ticker + done channel` |
 
-For detailed patterns and code examples, consult `references/layer-patterns.md`.
+For detailed patterns and code examples, consult `references/layer-patterns.md`. General Clean Architecture principles (without corporate dependencies) are in `../../rules/golang/clean-architecture.md`.
 
 ## Internal Packages Quick Reference
 
@@ -302,13 +302,25 @@ go mod download
 
 ## Additional Resources
 
+### General Coding Rules
+
+General principles shared across skills (no corporate dependencies):
+- **`../../rules/common.md`** — Security, race conditions, performance
+- **`../../rules/golang/patterns.md`** — Go patterns & anti-patterns
+- **`../../rules/golang/uber-fx.md`** — Uber FX patterns
+- **`../../rules/golang/clean-architecture.md`** — DDD/Clean Architecture
+- **`../../rules/golang/grpc.md`** — gRPC patterns
+- **`../../rules/golang/kafka.md`** — Kafka patterns
+- **`../../rules/golang/redis.md`** — Redis patterns
+- **`../../rules/golang/testing.md`** — Testing patterns
+
 ### Reference Files
 
-For detailed patterns and techniques, consult:
+For detailed patterns and techniques with corporate packages, consult:
 - **`references/template-structure.md`** - Complete file/folder structure with examples
 - **`references/internal-packages.md`** - Detailed package documentation
 - **`references/fx-patterns.md`** - Advanced FX DI patterns
-- **`references/layer-patterns.md`** - Layer rules with code examples
+- **`references/layer-patterns.md`** - Layer rules with code examples (corporate implementation)
 
 ### Example Files
 

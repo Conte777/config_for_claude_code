@@ -327,6 +327,132 @@ func NewWorker(lc fx.Lifecycle) *Worker {
 
 **Severity:** 🟠 HIGH
 
+## fx.Annotate & fx.As
+
+### 1. Interface Binding with fx.As
+
+**Проблема:** Конструктор возвращает конкретный тип, но потребителям нужен интерфейс. Без `fx.As` приходится менять сигнатуру конструктора.
+
+**Anti-pattern:**
+```go
+// BAD: Constructor returns interface — hides implementation details
+func NewRepository(db *sql.DB) deps.Repository {
+    return &repository{db: db}
+}
+```
+
+**Pattern:**
+```go
+// GOOD: Constructor returns concrete type, fx.As binds to interface
+func NewRepository(db *sql.DB) *Repository {
+    return &Repository{db: db}
+}
+
+var Module = fx.Module("order",
+    fx.Provide(
+        fx.Annotate(
+            NewRepository,
+            fx.As(new(deps.Repository)),
+        ),
+    ),
+)
+```
+
+**Severity:** 🟡 MEDIUM
+
+### 2. Named Dependencies with ResultTags/ParamTags
+
+**Проблема:** Несколько реализаций одного интерфейса — FX не может различить.
+
+**Anti-pattern:**
+```go
+// BAD: Two *redis.Client in container — ambiguous
+fx.Provide(NewCacheRedis, NewSessionRedis)
+
+func NewService(cache *redis.Client, session *redis.Client) *Service {
+    // Which is which?
+}
+```
+
+**Pattern:**
+```go
+// GOOD: Named dependencies via tags
+fx.Provide(
+    fx.Annotate(NewCacheRedis, fx.ResultTags(`name:"cache"`)),
+    fx.Annotate(NewSessionRedis, fx.ResultTags(`name:"session"`)),
+),
+
+type ServiceParams struct {
+    fx.In
+    Cache   *redis.Client `name:"cache"`
+    Session *redis.Client `name:"session"`
+}
+
+func NewService(p ServiceParams) *Service {
+    return &Service{cache: p.Cache, session: p.Session}
+}
+```
+
+**Severity:** 🟡 MEDIUM
+
+### 3. Parameter Objects with fx.In/fx.Out
+
+**Проблема:** Конструктор с 5+ аргументами — сложно читать и поддерживать.
+
+**Anti-pattern:**
+```go
+// BAD: Too many constructor arguments
+func NewService(
+    db *sql.DB,
+    cache *redis.Client,
+    logger *zap.Logger,
+    tracer trace.Tracer,
+    meter metric.Meter,
+    cfg *Config,
+) *Service {
+    // ...
+}
+```
+
+**Pattern:**
+```go
+// GOOD: Parameter object with fx.In
+type ServiceParams struct {
+    fx.In
+    DB     *sql.DB
+    Cache  *redis.Client
+    Logger *zap.Logger
+    Tracer trace.Tracer
+    Meter  metric.Meter
+    Cfg    *Config
+}
+
+func NewService(p ServiceParams) *Service {
+    return &Service{
+        db:     p.DB,
+        cache:  p.Cache,
+        logger: p.Logger,
+    }
+}
+
+// GOOD: Result object with fx.Out
+type ServiceResult struct {
+    fx.Out
+    Service    *Service
+    HealthCheck health.Checker `group:"health"`
+}
+
+func NewService(p ServiceParams) ServiceResult {
+    svc := &Service{db: p.DB}
+    return ServiceResult{
+        Service:     svc,
+        HealthCheck: svc, // implements health.Checker
+    }
+}
+```
+
+**Severity:** 🟡 MEDIUM
+
 ## Testing
 
 ### 1. fx.Test Usage
