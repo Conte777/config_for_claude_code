@@ -2,6 +2,11 @@
 
 Общие проверки, применимые ко всем языкам. Примеры даны в псевдокоде.
 
+**Language-specific rules:**
+- Go: `golang/patterns.md`
+- Java: `java/patterns.md`
+- Python: `python/patterns.md`
+
 ## Security Patterns
 
 ### 1. Input Validation

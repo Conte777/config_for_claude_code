@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_NEW_INIT": "1"
+  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
@@ -80,8 +83,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/lint-file.sh",
-            "timeout": 30
+            "command": "bash $HOME/.claude/hooks/format-and-lint.sh",
+            "timeout": 40
           }
         ]
       }
@@ -95,8 +98,7 @@
     "gopls-lsp@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true,
     "clangd-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true
   },
   "language": "Russian",
   "sandbox": {

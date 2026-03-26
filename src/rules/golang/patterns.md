@@ -2,6 +2,14 @@
 
 Паттерны и anti-patterns специфичные для Go.
 
+**See also:**
+- `uber-fx.md` — Uber FX lifecycle, DI, modules, graceful shutdown
+- `clean-architecture.md` — DDD layers: entities, DTO, deps, repository, usecase, delivery, workers
+- `grpc.md` — gRPC server, client, interceptors, error mapping, metadata
+- `kafka.md` — Kafka consumer, producer, outbox pattern, idempotency
+- `redis.md` — Redis caching, distributed locks, pipelines
+- `testing.md` — Mockery, testify, table tests, integration tests
+
 ## Goroutine Leaks
 
 ### 1. Unbuffered Channel Without Receiver
@@ -491,6 +499,69 @@ func process(ctx context.Context) <-chan int {
         }
     }()
     return ch
+}
+```
+
+**Severity:** 🟠 HIGH
+
+## Worker Patterns
+
+### Worker Pattern (Ticker-Based Background Loop)
+
+**Проблема:** `time.Sleep` в горутине без graceful shutdown — воркер не останавливается при завершении приложения, sleep не прерывается контекстом.
+
+**Anti-pattern:**
+```go
+// BAD: time.Sleep — no graceful shutdown, goroutine leaks
+func startWorker() {
+    go func() {
+        for {
+            doWork()
+            time.Sleep(30 * time.Second) // Can't interrupt, leaks on shutdown
+        }
+    }()
+}
+```
+
+**Pattern:**
+```go
+// GOOD: Ticker + context + lifecycle hooks
+func NewWorker(lc fx.Lifecycle, logger *zap.Logger, svc *Service) {
+    var cancel context.CancelFunc
+
+    lc.Append(fx.Hook{
+        OnStart: func(ctx context.Context) error {
+            var runCtx context.Context
+            runCtx, cancel = context.WithCancel(context.Background())
+
+            go func() {
+                ticker := time.NewTicker(30 * time.Second)
+                defer ticker.Stop()
+
+                // Run immediately on start
+                if err := svc.DoWork(runCtx); err != nil {
+                    logger.Error("worker iteration failed", zap.Error(err))
+                }
+
+                for {
+                    select {
+                    case <-ticker.C:
+                        if err := svc.DoWork(runCtx); err != nil {
+                            logger.Error("worker iteration failed", zap.Error(err))
+                        }
+                    case <-runCtx.Done():
+                        logger.Info("worker stopped")
+                        return
+                    }
+                }
+            }()
+            return nil
+        },
+        OnStop: func(ctx context.Context) error {
+            cancel()
+            return nil
+        },
+    })
 }
 ```
 
