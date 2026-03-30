@@ -38,18 +38,18 @@ allowed-tools: Bash, Read, Grep, Glob, LSP, WebFetch, WebSearch, mcp__context7__
 
 Загрузи соответствующие reference файлы и примени проверки:
 
-1. **Всегда:** `../../rules/common.md` — security, race conditions, performance
+1. **Всегда:** `../coding-rules/references/common.md` — security, race conditions, performance
 2. **По языку:**
-   - Go: `../../rules/golang/patterns.md`
-   - Go + FX: `../../rules/golang/uber-fx.md`
-   - Go (архитектура): `../../rules/golang/clean-architecture.md`
-   - Java: `../../rules/java/patterns.md`
-   - Java + Spring: `../../rules/java/spring.md`
-   - Python: `../../rules/python/patterns.md`
-   - Python + FastAPI: `../../rules/python/fastapi.md`
-   - Go + gRPC: `../../rules/golang/grpc.md`
-   - Go + Kafka: `../../rules/golang/kafka.md`
-   - Go + Redis: `../../rules/golang/redis.md`
+   - Go: `../coding-rules/references/golang/patterns.md`
+   - Go + FX: `../coding-rules/references/golang/uber-fx.md`
+   - Go (архитектура): `../coding-rules/references/golang/clean-architecture.md`
+   - Java: `../coding-rules/references/java/patterns.md`
+   - Java + Spring: `../coding-rules/references/java/spring.md`
+   - Python: `../coding-rules/references/python/patterns.md`
+   - Python + FastAPI: `../coding-rules/references/python/fastapi.md`
+   - Go + gRPC: `../coding-rules/references/golang/grpc.md`
+   - Go + Kafka: `../coding-rules/references/golang/kafka.md`
+   - Go + Redis: `../coding-rules/references/golang/redis.md`
 
 ### Step 3: Generate Report
 
@@ -126,15 +126,15 @@ allowed-tools: Bash, Read, Grep, Glob, LSP, WebFetch, WebSearch, mcp__context7__
 ## Additional Resources
 
 Детальные паттерны и anti-patterns находятся в:
-- `../../rules/common.md` — общие проверки
-- `../../rules/golang/patterns.md` — Go специфика
-- `../../rules/golang/uber-fx.md` — Uber FX паттерны
-- `../../rules/golang/clean-architecture.md` — DDD/Clean Architecture (Go)
-- `../../rules/golang/grpc.md` — gRPC паттерны
-- `../../rules/golang/kafka.md` — Kafka паттерны
-- `../../rules/golang/redis.md` — Redis паттерны
-- `../../rules/java/patterns.md` — Java специфика
-- `../../rules/java/spring.md` — Spring паттерны
-- `../../rules/python/patterns.md` — Python специфика
-- `../../rules/python/fastapi.md` — FastAPI паттерны
+- `../coding-rules/references/common.md` — общие проверки
+- `../coding-rules/references/golang/patterns.md` — Go специфика
+- `../coding-rules/references/golang/uber-fx.md` — Uber FX паттерны
+- `../coding-rules/references/golang/clean-architecture.md` — DDD/Clean Architecture (Go)
+- `../coding-rules/references/golang/grpc.md` — gRPC паттерны
+- `../coding-rules/references/golang/kafka.md` — Kafka паттерны
+- `../coding-rules/references/golang/redis.md` — Redis паттерны
+- `../coding-rules/references/java/patterns.md` — Java специфика
+- `../coding-rules/references/java/spring.md` — Spring паттерны
+- `../coding-rules/references/python/patterns.md` — Python специфика
+- `../coding-rules/references/python/fastapi.md` — FastAPI паттерны
 - `examples/review-report-template.md` — шаблон отчёта

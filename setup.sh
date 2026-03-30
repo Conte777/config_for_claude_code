@@ -29,7 +29,6 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/statusline.sh"
     "$TARGET_DIR/plugins"
     "$TARGET_DIR/keybindings.json"
-    "$TARGET_DIR/rules"
 )
 
 declare -a LINK_SOURCES=(
@@ -42,7 +41,6 @@ declare -a LINK_SOURCES=(
     "$SRC_DIR/statusline.sh"
     "$SRC_DIR/plugins"
     "$SRC_DIR/keybindings.json"
-    "$SRC_DIR/rules"
 )
 
 # Rollback on error

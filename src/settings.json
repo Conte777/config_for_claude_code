@@ -39,7 +39,6 @@
     "ask": [
       "Bash(git push:*)",
       "Bash(git reset:*)",
-      "Bash(git commit:*)",
       "Bash(git rebase:*)",
       "Bash(rm:*)",
       "Bash(Remove-Item:*)",
@@ -108,5 +107,9 @@
   "alwaysThinkingEnabled": true,
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
-  "defaultMode": "plan"
+  "defaultMode": "plan",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  }
 }
