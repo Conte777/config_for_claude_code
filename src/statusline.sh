@@ -16,190 +16,166 @@ Yellow='\033[38;2;255;200;76m'
 Red='\033[38;2;204;100;100m'
 Reset='\033[0m'
 
-# Extract JSON fields via grep/sed
-extractJson() {
-    echo "$inputJson" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*:[[:space:]]*"\([^"]*\)"/\1/' | head -1
+# Render Unicode progress bar: █ for filled, ░ for empty
+render_progress_bar() {
+    local percent="${1:-0}"
+    local width="${2:-10}"
+    local filled=$(( percent * width / 100 ))
+    local empty=$(( width - filled ))
+    local bar=""
+    local i=0
+    while [ "$i" -lt "$filled" ]; do
+        bar="${bar}$(printf '\xe2\x96\x88')"
+        i=$(( i + 1 ))
+    done
+    i=0
+    while [ "$i" -lt "$empty" ]; do
+        bar="${bar}$(printf '\xe2\x96\x91')"
+        i=$(( i + 1 ))
+    done
+    echo "$bar"
 }
 
-extractJsonNumber() {
-    echo "$inputJson" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*[0-9.]*" | sed 's/.*:[[:space:]]*//' | head -1
+# Return ANSI color based on usage percentage
+color_for_percent() {
+    local percent="${1:-0}"
+    if [ "$percent" -lt 40 ] 2>/dev/null; then
+        echo "$Green"
+    elif [ "$percent" -lt 70 ] 2>/dev/null; then
+        echo "$Yellow"
+    else
+        echo "$Red"
+    fi
 }
 
-# Model
-modelId=$(extractJson "id")
-if [ -z "$modelId" ]; then
-    modelId="Unknown"
+# Format reset timestamp as relative time
+format_reset_time() {
+    local resetTimestamp="$1"
+    if [ "$resetTimestamp" -le 0 ] 2>/dev/null; then return; fi
+    local now
+    now=$(date +%s)
+    local diff=$(( resetTimestamp - now ))
+    if [ "$diff" -le 0 ]; then echo "now"; return; fi
+    local h=$(( diff / 3600 ))
+    local m=$(( (diff % 3600) / 60 ))
+    if [ "$h" -gt 0 ]; then
+        echo "${h}h${m}m"
+    else
+        echo "${m}m"
+    fi
+}
+
+# Parse all fields from stdin JSON via python3
+eval "$(echo "$inputJson" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+cw=d.get('context_window',{}) or {}
+rl=d.get('rate_limits',{}) or {}
+fh=rl.get('five_hour',{}) or {}
+sd=rl.get('seven_day',{}) or {}
+m=d.get('model',{}) or {}
+print(f'contextPercent={int(cw.get(\"used_percentage\",0) or 0)}')
+print(f'contextSize={cw.get(\"context_window_size\",200000)}')
+print(f'usage5h={int(fh.get(\"used_percentage\",0) or 0)}')
+print(f'usage5hResets={int(fh.get(\"resets_at\",0) or 0)}')
+print(f'usage7d={int(sd.get(\"used_percentage\",0) or 0)}')
+print(f'usage7dResets={int(sd.get(\"resets_at\",0) or 0)}')
+mid=m.get('id','unknown')
+print(f'modelId={mid}')
+mdisp=m.get('display_name','')
+print(f'modelDisplay={mdisp}')
+" 2>/dev/null)" || true
+
+# Fallbacks
+contextPercent="${contextPercent:-0}"
+contextSize="${contextSize:-200000}"
+usage5h="${usage5h:-0}"
+usage5hResets="${usage5hResets:-0}"
+usage7d="${usage7d:-0}"
+usage7dResets="${usage7dResets:-0}"
+modelId="${modelId:-unknown}"
+
+# Model display name with version extracted from modelId
+# e.g. claude-sonnet-4-6 → "Sonnet 4.6", claude-opus-4-6 → "Opus 4.6"
+if [ -n "$modelDisplay" ]; then
+    modelName="$modelDisplay"
+else
+    case "$modelId" in
+        *sonnet*) modelName="Sonnet" ;;
+        *opus*)   modelName="Opus" ;;
+        *haiku*)  modelName="Haiku" ;;
+        *)        modelName="${modelId%%-*}" ;;
+    esac
 fi
 
-case "$modelId" in
-    *sonnet*) modelName="Sonnet" ;;
-    *opus*)   modelName="Opus" ;;
-    *haiku*)  modelName="Haiku" ;;
-    *)        modelName="${modelId%%-*}" ;;
-esac
+# Append version from modelId (e.g. claude-opus-4-6 → 4.6, claude-haiku-4-5-20251001 → 4.5)
+# Strip trailing suffixes: [1m], -YYYYMMDD
+cleanId=$(echo "$modelId" | sed 's/\[.*\]$//' | sed 's/-[0-9]\{8,\}$//')
+modelVersion=$(echo "$cleanId" | sed -n 's/.*-\([0-9]\{1,\}\)-\([0-9]\{1,\}\)$/\1.\2/p')
+if [ -z "$modelVersion" ]; then
+    modelVersion=$(echo "$cleanId" | sed -n 's/.*-\([0-9]\{1,\}\)$/\1/p')
+fi
+[ -n "$modelVersion" ] && modelName="${modelName} ${modelVersion}"
 
-# Path — use $PWD (script runs from project root, immune to cd in session)
-currentDir="$PWD"
-displayPath=$(basename "$currentDir")
+# Append context window size if 1M+
+if [ "$contextSize" -ge 1000000 ] 2>/dev/null; then
+    contextM=$(( contextSize / 1000000 ))
+    modelName="${modelName} (${contextM}M)"
+fi
+
+# Path
+displayPath=$(basename "$PWD")
 
 # Git branch
 gitBranch=""
-if [ -d "$currentDir/.git" ] || git -C "$currentDir" rev-parse --git-dir >/dev/null 2>&1; then
-    branch=$(git -C "$currentDir" symbolic-ref --short HEAD 2>/dev/null)
+if [ -d "$PWD/.git" ] || git -C "$PWD" rev-parse --git-dir >/dev/null 2>&1; then
+    branch=$(git -C "$PWD" symbolic-ref --short HEAD 2>/dev/null)
     if [ -z "$branch" ]; then
-        branch=$(git -C "$currentDir" rev-parse --short HEAD 2>/dev/null)
-        if [ -n "$branch" ]; then
-            branch="detached:$branch"
-        fi
+        branch=$(git -C "$PWD" rev-parse --short HEAD 2>/dev/null)
+        [ -n "$branch" ] && branch="detached:$branch"
     fi
     gitBranch="$branch"
-fi
-
-# Context window
-usedPercentage=$(extractJsonNumber "used_percentage")
-contextSize=$(extractJsonNumber "context_window_size")
-usedPercentage="${usedPercentage:-0}"
-contextSize="${contextSize:-200000}"
-
-# Calculate tokens (integer math)
-contextPercent="${usedPercentage%%.*}"
-contextPercent="${contextPercent:-0}"
-currentTokens=$(( ${contextSize%%.*} * ${contextPercent} / 100 ))
-
-if [ "$currentTokens" -ge 1000 ]; then
-    tokensK=$((currentTokens / 1000))
-    tokensRemainder=$(( (currentTokens % 1000) / 100 ))
-    if [ "$tokensRemainder" -gt 0 ]; then
-        tokensFormatted="${tokensK}.${tokensRemainder}K"
-    else
-        tokensFormatted="${tokensK}K"
-    fi
-else
-    tokensFormatted="$currentTokens"
-fi
-
-# Context color
-if [ "$contextPercent" -lt 50 ]; then
-    contextColor="$Green"
-elif [ "$contextPercent" -lt 80 ]; then
-    contextColor="$Yellow"
-else
-    contextColor="$Red"
-fi
-
-# 5-hour usage limit (cached with 60s TTL)
-usageCacheFile="/tmp/claude-statusline-usage.json"
-usageRemaining=""
-cacheTTL=60
-
-fetchUsage() {
-    local oauthToken
-    oauthToken=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
-    if [ -z "$oauthToken" ]; then
-        return 1
-    fi
-
-    # Extract accessToken from the credentials JSON
-    local accessToken
-    accessToken=$(echo "$oauthToken" | grep -o '"accessToken"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:[[:space:]]*"\([^"]*\)"/\1/' | head -1)
-    if [ -z "$accessToken" ]; then
-        return 1
-    fi
-
-    local response
-    response=$(curl -s --max-time 3 \
-        -H "Authorization: Bearer ${accessToken}" \
-        "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
-    if [ -z "$response" ]; then
-        return 1
-    fi
-
-    echo "$response" > "$usageCacheFile"
-}
-
-getUsageRemaining() {
-    local needFetch=true
-
-    if [ -f "$usageCacheFile" ]; then
-        local cacheAge
-        if [[ "$OSTYPE" == darwin* ]]; then
-            local fileModTime
-            fileModTime=$(stat -f "%m" "$usageCacheFile" 2>/dev/null)
-            local now
-            now=$(date +%s)
-            cacheAge=$(( now - fileModTime ))
-        else
-            cacheAge=$(( $(date +%s) - $(stat -c "%Y" "$usageCacheFile" 2>/dev/null) ))
-        fi
-
-        if [ "$cacheAge" -lt "$cacheTTL" ]; then
-            needFetch=false
-        fi
-    fi
-
-    if $needFetch; then
-        fetchUsage
-    fi
-
-    if [ -f "$usageCacheFile" ]; then
-        local utilization
-        utilization=$(grep -o '"utilization"[[:space:]]*:[[:space:]]*[0-9.]*' "$usageCacheFile" | head -1 | sed 's/.*:[[:space:]]*//')
-        if [ -n "$utilization" ]; then
-            # utilization is 0.0-1.0, convert to remaining percentage
-            local utilizationInt
-            utilizationInt=$(echo "$utilization" | sed 's/0\.\([0-9]*\).*/\1/' | sed 's/^0*//')
-            # Use awk for floating point math
-            usageRemaining=$(awk "BEGIN { printf \"%d\", (1 - ${utilization}) * 100 }")
-        fi
-    fi
-}
-
-getUsageRemaining
-
-# Usage limit color
-usageLimitColor="$Green"
-if [ -n "$usageRemaining" ]; then
-    if [ "$usageRemaining" -lt 20 ]; then
-        usageLimitColor="$Red"
-    elif [ "$usageRemaining" -lt 50 ]; then
-        usageLimitColor="$Yellow"
-    fi
 fi
 
 # Nerd Font icons (UTF-8 encoded for bash 3.2 compatibility)
 userIcon=$(printf '\xee\xae\x99')
 folderIcon=$(printf '\xef\x81\xbb')
 gitBranchIcon=$(printf '\xee\x9c\xa5')
-contextIcon=$(printf '\xef\x80\xb7')
-batteryIcon=$(printf '\xf3\xb0\x84\xa5')
 
-# Build output — line 1: model + project folder
-line1="${TealBright}${userIcon} ${modelName}${Reset}"
-line1+=" on "
-line1+="${CyanLight}${folderIcon} ${displayPath}${Reset}"
+# Line 1: model + project folder
+line1="${TealBright}${userIcon} ${modelName}${Reset} on ${CyanLight}${folderIcon} ${displayPath}${Reset}"
 
-# Build output — line 2: branch + context + usage limit
+# Line 2: branch + context progress bar
 line2=""
-
 if [ -n "$gitBranch" ]; then
-    line2+="${TealDark}${gitBranchIcon}${gitBranch}${Reset}"
+    line2="${TealDark}${gitBranchIcon}${gitBranch}${Reset}"
 fi
 
-if [ "$currentTokens" -gt 0 ]; then
-    if [ -n "$line2" ]; then
-        line2+=" "
-    fi
-    line2+="${contextColor}${contextIcon} ${tokensFormatted} (${contextPercent}%)${Reset}"
+contextBar=$(render_progress_bar "$contextPercent" 10)
+contextColor=$(color_for_percent "$contextPercent")
+if [ -n "$line2" ]; then
+    line2+=" | "
 fi
+line2+="Context ${contextColor}${contextBar} ${contextPercent}%${Reset}"
 
-if [ -n "$usageRemaining" ]; then
-    if [ -n "$line2" ]; then
-        line2+=" "
-    fi
-    line2+="${usageLimitColor}${batteryIcon} ${usageRemaining}%${Reset}"
+# Line 3: usage 5h + 7d with progress bars
+line3=""
+if [ "$usage5h" -gt 0 ] 2>/dev/null; then
+    bar5h=$(render_progress_bar "$usage5h" 10)
+    color5h=$(color_for_percent "$usage5h")
+    resetStr=$(format_reset_time "$usage5hResets")
+    line3+="5h ${color5h}${bar5h} ${usage5h}%${Reset}"
+    [ -n "$resetStr" ] && line3+=" (${resetStr})"
+fi
+if [ "$usage7d" -gt 0 ] 2>/dev/null; then
+    [ -n "$line3" ] && line3+=" | "
+    bar7d=$(render_progress_bar "$usage7d" 10)
+    color7d=$(color_for_percent "$usage7d")
+    line3+="7d ${color7d}${bar7d} ${usage7d}%${Reset}"
 fi
 
 printf '%b\n' "$line1"
-if [ -n "$line2" ]; then
-    printf '%b\n' "$line2"
+printf '%b\n' "$line2"
+if [ -n "$line3" ]; then
+    printf '%b\n' "$line3"
 fi
