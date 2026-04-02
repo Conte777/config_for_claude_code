@@ -2,6 +2,10 @@
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1"
   },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
@@ -97,8 +101,12 @@
     "gopls-lsp@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true,
     "clangd-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true
   },
+  "extraKnownMarketplaces": {},
   "language": "Russian",
   "sandbox": {
     "enabled": true,
@@ -107,9 +115,5 @@
   "alwaysThinkingEnabled": true,
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
-  "defaultMode": "plan",
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  }
+  "defaultMode": "plan"
 }
