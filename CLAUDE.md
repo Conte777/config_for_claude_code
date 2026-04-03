@@ -45,11 +45,11 @@ src/
 │   └── lint-project.sh
 ├── commands/          # Custom slash commands
 │   ├── branch.md      # Create branch from ticket ID
-│   ├── commit.md      # Commit with ticket ID from branch
 │   └── fix-ci.md      # CI/CD trace analysis
 └── skills/            # Skill packages (see Skills section)
     ├── check-di/
     ├── code-review/
+    ├── commit/
     ├── commit-msg/
     ├── command-development/
     ├── go-microservice/
@@ -88,7 +88,6 @@ Run `cleanup.sh` to remove symbolic links:
 ### Custom Commands (src/commands/)
 
 - **branch.md**: Creates git branch from Jira ticket ID
-- **commit.md**: Creates commit using commit-msg skill for message generation
 - **fix-ci.md**: Analyzes CI/CD trace output to identify failing stages and provide fixing plans
 
 ### Skills (src/skills/)
@@ -101,6 +100,7 @@ Skills are modular packages extending Claude's capabilities with specialized kno
 
 **Available skills:**
 - **code-review**: Code review for Go, Java, Python with framework-specific checks (Uber FX, Spring, FastAPI)
+- **commit**: Pre-commit validation (staging, protected branch checks) with hook-based git context collection and commit-msg skill invocation
 - **commit-msg**: Generates Conventional Commits messages with ticket ID extraction
 - **command-development**: Guidance for creating Claude Code slash commands
 - **go-microservice**: Go microservice development with Uber FX, DDD patterns

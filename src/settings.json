@@ -56,6 +56,18 @@
     "defaultMode": "plan"
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/skills/commit/scripts/collect-git-context.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "startup",
@@ -76,6 +88,18 @@
             "type": "command",
             "command": "bash $HOME/.claude/hooks/lint-project.sh",
             "timeout": 150
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/skills/commit/scripts/collect-git-context.sh",
+            "timeout": 15
           }
         ]
       }
