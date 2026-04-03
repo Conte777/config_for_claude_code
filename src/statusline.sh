@@ -56,9 +56,12 @@ format_reset_time() {
     now=$(date +%s)
     local diff=$(( resetTimestamp - now ))
     if [ "$diff" -le 0 ]; then echo "now"; return; fi
-    local h=$(( diff / 3600 ))
+    local d=$(( diff / 86400 ))
+    local h=$(( (diff % 86400) / 3600 ))
     local m=$(( (diff % 3600) / 60 ))
-    if [ "$h" -gt 0 ]; then
+    if [ "$d" -gt 0 ]; then
+        echo "${d}d${h}h"
+    elif [ "$h" -gt 0 ]; then
         echo "${h}h${m}m"
     else
         echo "${m}m"
@@ -172,6 +175,8 @@ if [ "$usage7d" -gt 0 ] 2>/dev/null; then
     bar7d=$(render_progress_bar "$usage7d" 10)
     color7d=$(color_for_percent "$usage7d")
     line3+="7d ${color7d}${bar7d} ${usage7d}%${Reset}"
+    resetStr7d=$(format_reset_time "$usage7dResets")
+    [ -n "$resetStr7d" ] && line3+=" (${resetStr7d})"
 fi
 
 printf '%b\n' "$line1"
