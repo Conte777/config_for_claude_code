@@ -2,7 +2,7 @@
 set -euo pipefail
 
 input=$(cat)
-user_prompt=$(echo "$input" | jq -r '.user_prompt // empty')
+user_prompt=$(echo "$input" | jq -r '.prompt // empty')
 session_id=$(echo "$input" | jq -r '.session_id // empty')
 
 ticket_id=$(echo "$user_prompt" | grep -oE '[A-Z]+-[0-9]+' | head -1 || true)
