@@ -1,0 +1,1 @@
+../../commit-msg/references/branch-conventions.md

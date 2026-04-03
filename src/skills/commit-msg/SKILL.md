@@ -1,7 +1,7 @@
 ---
 name: commit-msg
 description: Use this skill when the user wants to generate a commit message. Contains workflow for branch checking, ticket ID extraction, and message formatting.
-allowed-tools: Bash(git branch *), Bash(git diff *), Read
+allowed-tools: Read
 ---
 
 # Commit Message Generator
@@ -10,17 +10,20 @@ This skill generates commit messages with proper ticket ID extraction and format
 
 ## When to Use
 
-- User runs `/commit` command (called by commit command)
+- User runs `/commit` command (called by commit skill)
 - User asks to generate a commit message
 - User needs help with commit message format
 
 ## Workflow Steps
 
-### Step 1: Get Branch Name
+### Step 1: Parse Git Context
 
-```bash
-git branch --show-current
-```
+Read git context from PreToolUse hook output (visible in conversation) or from conversation context (if called from another skill like `commit`).
+
+**Extract:**
+- **Branch** — current branch name
+- **Ticket ID** — extracted CUS-XXXX or `none`
+- **Staged Diff** — diff of staged changes
 
 ### Step 2: Extract Ticket ID
 
@@ -33,11 +36,7 @@ Examples:
 
 ### Step 3: Analyze Changes
 
-Review the staged changes:
-
-```bash
-git diff --staged
-```
+Review the staged diff from context.
 
 Identify:
 1. Type of change (new feature or bug fix)
