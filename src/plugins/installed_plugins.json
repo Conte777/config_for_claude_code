@@ -67,6 +67,25 @@
         "installedAt": "2026-04-02T21:05:49.425Z",
         "lastUpdated": "2026-04-02T21:05:49.425Z"
       }
+    ],
+    "context7@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/context7/unknown",
+        "version": "unknown",
+        "installedAt": "2026-04-08T21:48:26.159Z",
+        "lastUpdated": "2026-04-08T21:48:26.159Z"
+      }
+    ],
+    "notion@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/notion/0.1.0",
+        "version": "0.1.0",
+        "installedAt": "2026-04-08T21:49:53.249Z",
+        "lastUpdated": "2026-04-08T21:49:53.249Z",
+        "gitCommitSha": "9847f2aa1a15f25df35ed1fb7b4557dbb60cd651"
+      }
     ]
   }
 }
