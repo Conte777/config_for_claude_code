@@ -2,7 +2,6 @@
 description: Create and switch to a new branch from ticket ID
 allowed-tools: Bash(git switch:*), Bash(git diff:*), Bash(git status:*)
 argument-hint: <ticket-id>
-model: Haiku
 ---
 
 ## Task
