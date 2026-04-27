@@ -47,7 +47,7 @@
         "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/security-guidance/unknown",
         "version": "unknown",
         "installedAt": "2026-04-02T21:02:43.942Z",
-        "lastUpdated": "2026-04-02T21:02:43.942Z"
+        "lastUpdated": "2026-04-21T11:06:55.544Z"
       }
     ],
     "skill-creator@claude-plugins-official": [
@@ -56,7 +56,7 @@
         "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/skill-creator/unknown",
         "version": "unknown",
         "installedAt": "2026-04-02T21:03:46.048Z",
-        "lastUpdated": "2026-04-02T21:03:46.048Z"
+        "lastUpdated": "2026-04-21T11:06:55.547Z"
       }
     ],
     "mcp-server-dev@claude-plugins-official": [
@@ -65,7 +65,7 @@
         "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/mcp-server-dev/unknown",
         "version": "unknown",
         "installedAt": "2026-04-02T21:05:49.425Z",
-        "lastUpdated": "2026-04-02T21:05:49.425Z"
+        "lastUpdated": "2026-04-21T11:06:55.542Z"
       }
     ],
     "context7@claude-plugins-official": [
@@ -74,7 +74,7 @@
         "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/context7/unknown",
         "version": "unknown",
         "installedAt": "2026-04-08T21:48:26.159Z",
-        "lastUpdated": "2026-04-08T21:48:26.159Z"
+        "lastUpdated": "2026-04-21T11:06:55.545Z"
       }
     ],
     "notion@claude-plugins-official": [
@@ -85,6 +85,25 @@
         "installedAt": "2026-04-08T21:49:53.249Z",
         "lastUpdated": "2026-04-08T21:49:53.249Z",
         "gitCommitSha": "9847f2aa1a15f25df35ed1fb7b4557dbb60cd651"
+      }
+    ],
+    "code-simplifier@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/code-simplifier/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-04-27T19:39:09.316Z",
+        "lastUpdated": "2026-04-27T19:39:09.316Z"
+      }
+    ],
+    "ralph-skills@ralph-marketplace": [
+      {
+        "scope": "user",
+        "installPath": "/Users/conte/.claude/plugins/cache/ralph-marketplace/ralph-skills/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-04-27T20:01:58.612Z",
+        "lastUpdated": "2026-04-27T20:01:58.612Z",
+        "gitCommitSha": "6c53cb0b831ebe8739c6a003e22af14902d8b0b5"
       }
     ]
   }

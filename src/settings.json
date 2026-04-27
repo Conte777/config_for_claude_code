@@ -37,7 +37,25 @@
       "mcp__gitlab__get_merge_request_note",
       "mcp__gitlab__mr_discussions",
       "mcp__gitlab__get_draft_note",
-      "mcp__gitlab__list_draft_notes"
+      "mcp__gitlab__list_draft_notes",
+      "mcp__plugin_Notion_notion__notion-search",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-query-database-view",
+      "mcp__db-view-mcp__list_tables",
+      "mcp__db-view-mcp__describe_table",
+      "mcp__grafana__query_loki_stats",
+      "mcp__grafana__query_loki_patterns",
+      "mcp__grafana__query_loki_logs",
+      "mcp__plugin_Notion_notion__notion-query-database-view",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "Bash(uv run *)",
+      "mcp__grafana__search_dashboards",
+      "mcp__grafana__list_datasources",
+      "mcp__grafana__get_dashboard_panel_queries",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
     ],
     "deny": [],
     "ask": [
@@ -130,12 +148,22 @@
     "skill-creator@claude-plugins-official": true,
     "mcp-server-dev@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "notion@claude-plugins-official": true
+    "notion@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "ralph-skills@ralph-marketplace": true
   },
-  "extraKnownMarketplaces": {},
+  "extraKnownMarketplaces": {
+    "ralph-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "snarktank/ralph"
+      }
+    }
+  },
   "language": "Russian",
   "alwaysThinkingEnabled": true,
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
+  "skipAutoPermissionPrompt": true,
   "defaultMode": "plan"
 }
