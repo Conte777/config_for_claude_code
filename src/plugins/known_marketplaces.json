@@ -5,7 +5,7 @@
       "repo": "anthropics/claude-plugins-official"
     },
     "installLocation": "/Users/conte/.claude/plugins/marketplaces/claude-plugins-official",
-    "lastUpdated": "2026-04-17T10:54:22.117Z"
+    "lastUpdated": "2026-04-27T21:49:09.942Z"
   },
   "anthropic-agent-skills": {
     "source": {
@@ -14,5 +14,13 @@
     },
     "installLocation": "/Users/conte/.claude/plugins/marketplaces/anthropic-agent-skills",
     "lastUpdated": "2026-02-19T06:21:18.867Z"
+  },
+  "ralph-marketplace": {
+    "source": {
+      "source": "github",
+      "repo": "snarktank/ralph"
+    },
+    "installLocation": "/Users/conte/.claude/plugins/marketplaces/ralph-marketplace",
+    "lastUpdated": "2026-04-27T20:01:30.549Z"
   }
 }
