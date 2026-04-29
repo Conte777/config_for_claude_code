@@ -165,6 +165,32 @@ Will verify in US-015.
 
 ---
 
+## US-014 verification (2026-04-29)
+
+Full broken-link audit across `src/skills/go-microservice/` and `src/skills/coding-rules/`. **Result: zero broken links, zero fixes required.**
+
+**Reproducible commands** (all from repo root):
+
+| # | Command | Expected | Actual |
+|---|---------|----------|--------|
+| 1 | `grep -rnE '\[[^]]+\]\([^)]+\.md[^)]*\)' src/skills/go-microservice` | 0 matches | 0 ✓ |
+| 2 | `grep -rnE '\[[^]]+\]\([^)]+\.md[^)]*\)' src/skills/coding-rules` | 0 matches | 0 ✓ |
+| 3 | `grep -rnE '\[[^]]+\]\([^)]+\)' src/skills` | only Go-generic false positives + `commit{,-msg}/SKILL.md` real `.md` links | 4 real links — all targets exist |
+| 4 | `grep -rohE 'golang/[a-z-]+\.md' src/skills/go-microservice \| sort -u` | 13 unique targets | 12 exist + 1 documented TODO (`security.md`) |
+| 5 | `grep -rohE 'references/[a-z-]+\.md' src/skills/go-microservice \| sort -u` | 7 unique targets | all 7 exist ✓ |
+| 6 | `coding-rules/SKILL.md` references audit | 17 files | all 17 exist ✓ |
+
+**Notes:**
+
+- **Scope of "broken link":** any inline reference (markdown link `[text](url)` OR inline code-span `\`X.md\``) whose path target does not exist on disk. External URLs (e.g. `https://opentelemetry.io/...`, `https://github.com/guregu/null`) are treated as out of scope — the audit is for relative/local paths only.
+- **The `golang/security.md` exception** (5 occurrences in `api-gateway-pattern.md`, lines 211, 245, 349, 427, 823): each is wrapped with the canonical "TODO: extract … to coding-rules → golang/security.md once that file is created" note (per US-011 convention). These are intentional forward references, not broken links.
+- **Real markdown link syntax** (`[text](url)` for `.md` files) appears only in `src/skills/commit/SKILL.md:71-72` and `src/skills/commit-msg/SKILL.md:91-92` — both link to `./references/{message-format,branch-conventions}.md`, all four files exist. The rest of the skills repo uses the inline-code-span + `→` arrow convention.
+- **Orphan file**: `src/skills/go-microservice/examples/new-domain-checklist.md` has no inbound references after US-007 SKILL.md update. Not a broken link — just dead code; cleanup is out of scope for US-014.
+
+**False-positive trap to remember:** the regex `\]\([^)]+\)` matches Go generic syntax (`Foo[T any](...)`, `Convert[Foo](bar)`). Always tighten to `\[[^]]+\]\([^)]+\.<ext>\)` (or scope to `.md`) when auditing markdown files that contain Go code samples.
+
+---
+
 ## Story → file impact summary
 
 | Story | Files to edit | Files to create |
