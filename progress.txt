@@ -1,0 +1,31 @@
+# Ralph Progress Log — sync-skills-with-backend-core
+
+## Codebase Patterns
+
+- Skill files referenced from PRD live under `src/skills/{go-microservice,coding-rules}/`. There is no `golang/` subdirectory directly under `coding-rules/`; the actual path is `coding-rules/references/golang/*.md`. PRD wording "src/skills/coding-rules/golang/*.md" is shorthand for that path.
+- Real backend_core service layout (verified by `order_service`):
+  - Entities at `internal/entity/` (not `internal/domain/{name}/entities/`).
+  - One flat `internal/domain/fx.go` per service with all `fx.Provide` calls (NOT one fx.go per aggregate).
+  - External service clients live in `internal/infrastructure/<external_service>/{client.go,fx.go}` and are gRPC (NOT `repository/http_clients/`).
+  - Workers at `internal/infrastructure/worker/` and/or `internal/domain/<svc>/worker/` (singular, no `s`).
+  - Side-modules (`outbox.Module`, `worker.Module`, `email.Module`, `audit.Module`) are sibling `fx.Module`s to `domain.Module`.
+  - Module name in `go.mod` is kebab-case service name (e.g. `order-service`, `auth-gateway`).
+- gRPC is primary transport across all 17 services. HTTP exists only in `auth_gateway` (fasthttp + fasthttp/router + grpc-gateway proxy to 11 services).
+- Most services (in PRD scope) speak: gRPC server (dual external/internal), Kafka consumer/producer with `shared/outbox` for guaranteed delivery, optional Redis, optional Postgres.
+- Audit results saved to `tasks/audit-notes.md`. Future stories should consult that file for exact line→fix mapping rather than re-reading source files.
+- Branch `ralph/sync-skills-with-backend-core` created from `main` at start of run.
+
+## [2026-04-29 ~10:30 UTC] - US-001
+- Read all required skill files: `src/skills/go-microservice/SKILL.md`, `src/skills/go-microservice/references/{template-structure,layer-patterns,internal-packages}.md`, and listed `src/skills/coding-rules/references/golang/*.md`.
+- Read `~/Work/friday_releases/cryptoprocessing/backend_core/CLAUDE.md` and per-service CLAUDE.md for `order_service/`, `auth_gateway/`. Spot-checked `order_service/internal/{domain/fx.go,domain/service/{outbox,worker,usecase}/,infrastructure/{grpc/,kafka/}}` to verify real layout.
+- Ran corporate-leak grep across `src/skills/coding-rules/` per US-002 acceptance grep; recorded matches and verdict (keep generic / move to corp / generalise) in audit-notes.
+- Files changed: created `tasks/audit-notes.md` (read-only audit artifact, allowed by US-001 AC: "saved as a comment in audit-notes.md or in the agent's notes"). No edits to skill files.
+- Confirmed: `src/skills/go-microservice/references/new-domain-checklist.md` and `examples/new-domain-checklist.md` do **not** exist yet — US-007 will create the reference path.
+- Confirmed: MEMORY.md does not exist at standard path — US-015 will note no changes needed.
+- **Learnings for future iterations:**
+  - When acceptance criteria says "no file edits" but allows `audit-notes.md`, that artifact lives under `tasks/` (see PRD `tasks/prd-sync-skills-with-backend-core.md`), not inside `src/`.
+  - PRD US-007 references `internal/domain/{name}/usecase/buissines/` — that typo exists in current `template-structure.md:200` and must be fixed to `business/`. Real `order_service` does NOT use `business/` at all — it uses flat `usecase/{order,payout,transaction,wallet,masspay,callbacks,common,adapter}/` per feature. Story US-007 acceptance allows both forms ("usecase/business/ + flat usecase/ for simple domains"). Don't enforce `business/` if a real service doesn't use it.
+  - Many path corrections cascade: changing `entities/entities.go` location affects template-structure.md, layer-patterns.md, new-domain-checklist.md, and SKILL.md examples. Future stories should grep all skill files for the old form before patching.
+  - Outdated GitLab paths in `internal-packages.md` (`git.bwg-io.site/...`, `gl.dteam.site/...`) — real path is `git.itcrew.info/Fri_releases/cryptoprocessing/shared/...`. Fix all in US-006.
+  - `redsync` is used only in `auth_gateway`. Move generic-side mention from `coding-rules/redis.md` to `go-microservice/references/api-gateway-pattern.md` (US-002 + US-010).
+---
