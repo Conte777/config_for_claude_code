@@ -30,8 +30,8 @@
         "Markdown relative links resolve (no broken links)"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "AC grep returns 0 matches (verified: exit code 1). Edits in: SKILL.md (framework table & reference summary), common.md (decimal lib mention), clean-architecture.md (decimal imports + OutboxPublisher rename), kafka.md (Outbox Pattern → Transactional Event Publication; CDC section words updated), redis.md (section 9 entirely rewritten as generic Redlock guidance, no library mentioned), grpc.md (1-line wording), patterns.md (1-line see-also), postgres.md (1-line wording), http.md (removed fasthttp row + heuristic mention; rewrote fiber description). SKILL.md structure preserved. No broken markdown relative links (none exist in coding-rules). No generic material from go-microservice moved in this story — that work is scheduled for US-003..US-011 per the audit's story→file impact summary."
     },
     {
       "id": "US-003",

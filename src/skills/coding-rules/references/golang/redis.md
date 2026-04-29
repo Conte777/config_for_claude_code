@@ -316,9 +316,9 @@ l.redis.SetNX(ctx, "lock:order:123", owner, 30*time.Second)
 
 **Severity:** 🟠 HIGH
 
-### 9. Use `go-redsync` Instead of Hand-rolled Locks
+### 9. Use a Battle-Tested Redlock Library Instead of Hand-rolled Locks
 
-**Проблема:** Свой distributed lock через `SET NX EX` + Lua-скрипт легко написать с ошибками: рандомный owner недостаточно энтропийный, Lua-скрипт релиза не покрывает edge cases (TTL истёк во время handler-а, retry-логика отсутствует, нет lock extension). Каноничный путь — использовать `github.com/go-redsync/redsync/v4` — реализацию Redlock.
+**Проблема:** Свой distributed lock через `SET NX EX` + Lua-скрипт легко написать с ошибками: рандомный owner недостаточно энтропийный, Lua-скрипт релиза не покрывает edge cases (TTL истёк во время handler-а, retry-логика отсутствует, нет lock extension). Каноничный путь — использовать готовую реализацию алгоритма Redlock (Antirez), упакованную в библиотеку с тестами и retry-семантикой.
 
 **Anti-pattern:**
 ```go
@@ -328,31 +328,22 @@ if !ok { return ErrLockHeld }
 defer r.redis.Eval(ctx, releaseLua, ...) // только если не забыли
 ```
 
-**Pattern:**
+**Pattern (псевдокод поверх типичного Redlock-API):**
 ```go
-import (
-    "github.com/go-redsync/redsync/v4"
-    redsyncgoredis "github.com/go-redsync/redsync/v4/redis/goredis/v9"
-    "github.com/redis/go-redis/v9"
-)
-
-// Конструктор: один Redsync на приложение
-func NewRedsync(client *redis.Client) *redsync.Redsync {
-    pool := redsyncgoredis.NewPool(client)
-    return redsync.New(pool)
-}
+// Конструктор: один Redlock-клиент на приложение, поверх *redis.Client.
+func NewLocker(client *redis.Client) Locker { /* ... */ }
 
 // Использование:
 func (uc *UseCase) ProcessOrder(ctx context.Context, orderID uuid.UUID) error {
-    mutex := uc.rs.NewMutex(
+    mutex := uc.locker.NewMutex(
         fmt.Sprintf("lock:order:%s", orderID),
-        redsync.WithExpiry(30*time.Second),     // TTL lock-а
-        redsync.WithTries(5),                    // retry-попыток получить lock
-        redsync.WithRetryDelay(100*time.Millisecond),
+        WithExpiry(30*time.Second),     // TTL lock-а
+        WithTries(5),                    // retry-попыток получить lock
+        WithRetryDelay(100*time.Millisecond),
     )
 
     if err := mutex.LockContext(ctx); err != nil {
-        if errors.Is(err, redsync.ErrFailed) {
+        if errors.Is(err, ErrLockContended) {
             return ErrLockContention
         }
         return fmt.Errorf("acquire lock: %w", err)
@@ -369,13 +360,19 @@ func (uc *UseCase) ProcessOrder(ctx context.Context, orderID uuid.UUID) error {
 
 **Типичные ошибки и как их обрабатывать:**
 
-| Ошибка                   | Причина                                          | Реакция                                     |
-|--------------------------|--------------------------------------------------|---------------------------------------------|
-| `redsync.ErrFailed`      | Не удалось взять lock после `Tries` попыток       | Вернуть бизнес-ошибку (`ErrLockContention`) — обычно не повторяем сами |
-| `mutex.UnlockContext` returns `false` | Lock истёк по TTL до Unlock — handler работал дольше TTL | Лог + alert — данные уже могут быть изменены другим владельцем |
-| Сетевая ошибка при Lock  | Redis недоступен                                  | Поднять выше — обычно не игнорируем          |
+| Ошибка                                | Причина                                                   | Реакция                                     |
+|---------------------------------------|-----------------------------------------------------------|---------------------------------------------|
+| Lock contended (после `Tries` попыток) | Не удалось взять lock в отведённое число retry            | Вернуть бизнес-ошибку (`ErrLockContention`) — обычно не повторяем сами |
+| `UnlockContext` returns `false`       | Lock истёк по TTL до Unlock — handler работал дольше TTL  | Лог + alert — данные уже могут быть изменены другим владельцем |
+| Сетевая ошибка при Lock               | Redis недоступен                                           | Поднять выше — обычно не игнорируем          |
 
-**Long-running handler:** если операция может превысить TTL, использовать `mutex.ExtendContext(ctx)` периодически в фоне, либо увеличить `WithExpiry`. Без extend — lock истечёт во время handler-а, и второй владелец возьмёт его параллельно.
+**Long-running handler:** если операция может превысить TTL, использовать `Extend(ctx)` периодически в фоне, либо увеличить `WithExpiry`. Без extend — lock истечёт во время handler-а, и второй владелец возьмёт его параллельно.
+
+**Что должна давать библиотека:**
+- криптостойкий random owner per-mutex
+- атомарный release через Lua (`GET` + `DEL` за одну операцию)
+- настраиваемые `tries` / `retryDelay` (с jitter)
+- API расширения TTL (`Extend`) без релиза
 
 **Severity:** 🟠 HIGH
 

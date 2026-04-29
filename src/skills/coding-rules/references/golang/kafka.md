@@ -284,7 +284,7 @@ func (c *Consumer) process(ctx context.Context, msg kafka.Message) error {
 
 **Severity:** 🟠 HIGH
 
-## Outbox Pattern
+## Transactional Event Publication
 
 ### 8. Dual Write Without Transactional Guarantee
 
@@ -304,24 +304,23 @@ func (uc *UseCase) CreateOrder(ctx context.Context, order *Order) error {
 
 **Pattern:**
 ```go
-// GOOD: Outbox pattern — write event to DB in same transaction
+// GOOD: Transactional event log — write event to DB in same transaction
 func (uc *UseCase) CreateOrder(ctx context.Context, order *Order) error {
     return uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
         if err := uc.repo.SaveTx(ctx, tx, order); err != nil {
             return err
         }
-        event := outbox.Event{
+        event := events.Record{
             AggregateID:   order.ID,
             AggregateType: "order",
             EventType:     "order.created",
             Payload:       toJSON(order),
         }
-        return uc.outbox.StoreTx(ctx, tx, event)
+        return uc.events.StoreTx(ctx, tx, event)
     })
 }
 
-// Relay worker polls outbox table and sends to Kafka
-// See shared/outbox package for implementation
+// Relay worker polls the events table and publishes to Kafka.
 ```
 
 **Severity:** 🟠 HIGH
@@ -649,18 +648,18 @@ func (l *OrderListener) Handle(ctx context.Context, msg kafka.Message) error {
 
 **Severity:** 🟡 MEDIUM
 
-### 12.3 Outbox Variants: App-side Polling vs CDC
+### 12.3 Transactional Event Log: App-side Polling vs CDC
 
-**Проблема:** Section 8 описала classic outbox: приложение пишет в `outbox`-таблицу в той же транзакции, фоновый воркер опрашивает её и публикует в Kafka. Это работает, но имеет недостатки: лишние SELECT-нагрузки на БД, latency = poll-interval, дополнительный код для воркера. В крупных проектах часто заменяют app-side polling на **Change Data Capture** через Debezium/Kafka Connect — он читает WAL/binlog Postgres/MySQL и публикует изменения сразу.
+**Проблема:** Section 8 описала classic transactional event log: приложение пишет в служебную таблицу событий в той же транзакции, фоновый воркер опрашивает её и публикует в Kafka. Это работает, но имеет недостатки: лишние SELECT-нагрузки на БД, latency = poll-interval, дополнительный код для воркера. В крупных проектах часто заменяют app-side polling на **Change Data Capture** через Debezium/Kafka Connect — он читает WAL/binlog Postgres/MySQL и публикует изменения сразу.
 
 **Сравнение вариантов:**
 
 | Аспект                     | App-side polling          | CDC (Debezium)                                |
 |----------------------------|---------------------------|-----------------------------------------------|
-| Сколько кода писать        | Воркер + транзакция в outbox | Конфиг Debezium-коннектора + обработчик в consumer-е |
+| Сколько кода писать        | Воркер + транзакция в таблицу событий | Конфиг Debezium-коннектора + обработчик в consumer-е |
 | Latency                    | poll interval (1–5s типично) | sub-second (читает WAL realtime)             |
 | Инфраструктура             | ничего сверху Postgres       | Kafka Connect + Debezium                     |
-| Семантика гарантий         | "at least once" с явным offset в `outbox.published_at` | "at least once", offset хранит Debezium      |
+| Семантика гарантий         | "at least once" с явным offset в `events.published_at` | "at least once", offset хранит Debezium      |
 | Эволюция схемы событий     | Полный контроль формата events.json | Формат привязан к таблице — нужны view-таблицы или transforms |
 | Отказоустойчивость         | Простое: воркер падает → restart, polling продолжает | Сложнее: нужен мониторинг Debezium-кластера   |
 
@@ -672,7 +671,7 @@ func (l *OrderListener) Handle(ctx context.Context, msg kafka.Message) error {
 **Когда CDC:**
 - уже есть Kafka Connect / Debezium в инфраструктуре
 - критична низкая latency (sub-second)
-- много таблиц/событий, дублировать outbox-механику в каждом сервисе накладно
+- много таблиц/событий, дублировать механику событий в каждом сервисе накладно
 - готовы инвестировать в мониторинг и schema-registry
 
 **Pattern (CDC consumer):**
@@ -707,7 +706,7 @@ func (h *OrderCDCListener) Handle(ctx context.Context, msg kafka.Message) error 
 **Замечания:**
 - идемпотентность всё равно нужна: Debezium тоже даёт "at least once"
 - топики Debezium именуются `<server>.<schema>.<table>` — нужно учитывать в consumer group naming
-- НЕ публиковать раздел между app-side outbox и CDC одновременно для одной таблицы — два источника событий на один поток
+- НЕ публиковать раздел между app-side polling и CDC одновременно для одной таблицы — два источника событий на один поток
 
 **Severity:** 🟡 MEDIUM (архитектурный выбор)
 

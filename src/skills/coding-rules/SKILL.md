@@ -51,8 +51,8 @@ Check imports, config files, and annotations for framework indicators:
 | DDD layers, `internal/domain/` | Go + Clean Architecture | `references/golang/clean-architecture.md` |
 | `google.golang.org/grpc`, `.proto` | Go + gRPC | `references/golang/grpc.md` |
 | `segmentio/kafka-go` | Go + Kafka | `references/golang/kafka.md` |
-| `go-redis/redis`, `go-redsync/redsync` | Go + Redis | `references/golang/redis.md` |
-| `chi`, `echo`, `gin`, `fiber`, `fasthttp` | Go + HTTP | `references/golang/http.md` |
+| `go-redis/redis` | Go + Redis | `references/golang/redis.md` |
+| `chi`, `echo`, `gin`, `fiber` | Go + HTTP | `references/golang/http.md` |
 | `pgx`, `sqlx`, `database/sql` | Go + Postgres | `references/golang/postgres.md` |
 | `zap`, `prometheus/client_golang`, `otel` | Go + Observability | `references/golang/observability.md` |
 | `goose`, `golang-migrate` | Go + Migrations | `references/golang/migrations.md` |
@@ -86,8 +86,8 @@ references/
 │   ├── uber-fx.md         # DI: fx.Module, fx.Provide, fx.As, config decomposition
 │   ├── clean-architecture.md  # DDD layers, dependency rule, generic pagination, DTO/Entity boundary
 │   ├── grpc.md            # Error mapping, interceptors, metadata, idempotency, proto-mapping
-│   ├── kafka.md           # Consumer idempotency, outbox, DLQ, handler registry, listener pattern
-│   ├── redis.md           # Cache invalidation, redsync distributed locks, key naming
+│   ├── kafka.md           # Consumer idempotency, transactional event log, DLQ, handler registry, listener pattern
+│   ├── redis.md           # Cache invalidation, distributed locks (Redlock), key naming
 │   ├── http.md            # Frameworks (chi/echo/gin/fiber), middleware, error response, validation
 │   ├── postgres.md        # pgx/sqlx, transactions, prepared statements, pool tuning, error mapping
 │   ├── observability.md   # zap structured logging, Prometheus metrics, OpenTelemetry tracing

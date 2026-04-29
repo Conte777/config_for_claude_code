@@ -330,7 +330,7 @@ return WithTx(ctx, db, func(tx *sqlx.Tx) error {
 - Внутри транзакции — только БД-операции
 - Внешние вызовы — снаружи
 - Оптимистичная блокировка через `WHERE status='pending'` или version-column
-- Saga-паттерн или outbox-pattern для координации
+- Saga-паттерн или транзакционный лог событий для координации
 
 **Severity:** 🔴 CRITICAL
 
