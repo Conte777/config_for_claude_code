@@ -1,0 +1,269 @@
+{
+  "project": "config_for_claude_code",
+  "branchName": "ralph/sync-skills-with-backend-core",
+  "description": "Синхронизация skills go-microservice (обёртка) и coding-rules (база) с реальной архитектурой backend_core: gRPC-first нарратив, плоский domain/fx.go, исправление путей, новые reference-файлы (grpc-delivery, outbox-pattern, api-gateway-pattern), очистка corporate-специфики из coding-rules.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Прочитать существующие reference-файлы skills и сверить с backend_core",
+      "description": "As a skills developer, I want to audit the current state of all skill files and canonical backend_core services so I know exactly which formulations to change.",
+      "acceptanceCriteria": [
+        "Read all files src/skills/go-microservice/SKILL.md and src/skills/go-microservice/references/*.md",
+        "Read all files src/skills/coding-rules/golang/*.md",
+        "Read ~/Work/friday_releases/cryptoprocessing/backend_core/CLAUDE.md, order_service/CLAUDE.md, auth_gateway/CLAUDE.md",
+        "Produce a list of exact current formulations to change in each file (saved as a comment in audit-notes.md or in the agent's notes)",
+        "No file edits in this story — read-only fact-checking phase"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Audit results in tasks/audit-notes.md. Read all four skill files, three CLAUDE.md sources, and verified real layout via order_service/internal/. Confirmed several paths in skills are wrong (entities location, http_clients, workers vs worker, per-aggregate fx.go). Grep for corporate leaks in coding-rules captured. No skill files modified."
+    },
+    {
+      "id": "US-002",
+      "title": "Очистить coding-rules от corporate-специфики",
+      "description": "As an opensource skills user, I want coding-rules to remain a generic base with no mentions of corporate libraries or shared packages.",
+      "acceptanceCriteria": [
+        "grep -rE 'shared/|pgconnector|kafkaconnector|squirrel|shopspring/decimal|redsync|access_level_guard|fasthttp|timetools.FrontendTime|outbox' src/skills/coding-rules/ returns 0 matches",
+        "Generic material accidentally living in go-microservice (general clean architecture, generic DDD, naming without library references) is moved to coding-rules or deleted as duplicate",
+        "Allowed generic additions only: 'money via arbitrary-precision library, not float' (without shopspring/decimal mention), 'typed errors preferred over sentinel-only'",
+        "src/skills/coding-rules/SKILL.md basic structure NOT changed",
+        "Markdown relative links resolve (no broken links)"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Переписать SKILL.md под gRPC-first нарратив",
+      "description": "As a skill user, I want to see gRPC as primary transport and HTTP only in API gateway context, so I do not get wrong recommendations when creating new services.",
+      "acceptanceCriteria": [
+        "src/skills/go-microservice/SKILL.md replaces HTTP-first narrative with gRPC-first",
+        "Removed mentions of 'one aggregate = one fx.go'",
+        "Canonical domain/fx.go pattern fixed: flat assembly + side-modules",
+        "Added cross-references to api-gateway-pattern.md, outbox-pattern.md, grpc-delivery.md (these files may not yet exist — references resolve once created in later stories)",
+        "Markdown without broken relative links (excluding refs to files yet-to-be-created)"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Переписать template-structure.md под реальную раскладку backend_core",
+      "description": "As a developer creating a new service, I want template-structure to match order_service 1-to-1 so following the skill produces the correct directory layout.",
+      "acceptanceCriteria": [
+        "internal/entity/ fixed at internal/ level (not inside domain)",
+        "internal/infrastructure/ rewritten: grpc/{server,clients/{...}}/, kafka/{consumer,producer}/, worker/, outbox/, optional http/server/, optional postgres/",
+        "module <service-name> (kebab-case) and Go 1.25+ explicitly stated",
+        "Table 'Pattern X across Y services' with examples from 7 services (side-vs-core split)",
+        "domain/fx.go section shows flat fx.Provide for all use-cases of main domain",
+        "Side-modules section (audit/email/outbox/worker) with real-service examples",
+        "Migrations section describes both db/ and migrations/",
+        "Configs section indicates .local.env + k8s values",
+        "Dockerfile, Makefile, README.md, docker-compose.yml, docs/swagger.* marked optional",
+        "Each major section starts with 'Generic basis:' link to coding-rules + 'Corporate delta:' content",
+        "Markdown relative links resolve"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Переписать layer-patterns.md под gRPC-first и реальные паттерны",
+      "description": "As a developer, I want layer-patterns to describe gRPC-first delivery, repository/usecase/errors with corporate specifics, and explicit service start/stop sequence.",
+      "acceptanceCriteria": [
+        "Delivery section: gRPC primary + Kafka + HTTP (gateway-only subsection)",
+        "Repository section: pgconnector.IDB.Do(ctx) + db.WithTx + squirrel/goqu builders",
+        "UseCase section: logger.ILogger.InfowCtx, shopspring/decimal for money",
+        "Errors section: gRPC mapping (MapError → status.Error(codes.*)) primary, HTTP moved to gateway reference",
+        "Workers section: claim pattern (ClaimPendingReports style) + multi-instance (ResumeWithdrawOrderWorker × 3)",
+        "Separate 'Service start/stop sequence' section: observability → DB/Redis → external gRPC clients → domain → kafka consumer → workers → gRPC/HTTP servers → healthcheck",
+        "DTO section: Validate() without mutation, ApplyDefaults() separate",
+        "Each section starts with 'Generic basis:' link to coding-rules/golang/*.md",
+        "Markdown relative links resolve"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Обновить internal-packages.md под реальные shared-зависимости",
+      "description": "As a developer, I want to see the precise list of shared packages from backend_core and correct infrastructure client paths (gRPC, not HTTP).",
+      "acceptanceCriteria": [
+        "Removed all mentions of repository/http_clients/",
+        "Added infrastructure/grpc/clients/{service}/ pattern with per-client fx.go and fx.Annotate(NewClient, fx.As(new(deps.XClient)))",
+        "shared packages table verified against actual go.mod imports of 5 services",
+        "Redis section: shared/redisconnector single source, redsync mentioned only in gateway-pattern",
+        "Kafka section: shared/kafkaconnector, AddSimpleJSONHandler, late handler registration",
+        "Observability section: loggerfx.LoggerFx, tracerfx.TracerFx, meterfx.MeterFx + OTel conventions",
+        "External integrations section: go.uber.org/ratelimit, go-resty/resty/v2 for exchange-services",
+        "Each section starts with 'Generic basis:' link to coding-rules",
+        "Markdown relative links resolve"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Обновить new-domain-checklist.md под реальные пути и gRPC",
+      "description": "As a developer adding a new domain, I want a checklist that leads to the right place — no typos, gRPC handlers, single domain/fx.go rule.",
+      "acceptanceCriteria": [
+        "usecase/buissines/ fixed to usecase/business/ (+ flat usecase/ for simple domains)",
+        "Entities moved to internal/entity/ level",
+        "HTTP-handlers checklist replaced with gRPC-handlers checklist",
+        "Explicit rule: new use case in main domain → fx.Provide added to existing internal/domain/fx.go, no new file created",
+        "Side-module indicators listed (when separate {X}/fx.go is needed)",
+        "Optional outbox step added for domains with external events",
+        "Canonical worker example: worker/ (no 's')",
+        "Markdown relative links resolve"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Создать references/grpc-delivery.md",
+      "description": "As a gRPC-service developer, I want a detailed reference for gRPC delivery layer with real corporate patterns.",
+      "acceptanceCriteria": [
+        "File src/skills/go-microservice/references/grpc-delivery.md created",
+        "'Generic basis' section links to coding-rules/golang/grpc.md (or notes 'TODO: extract generic part to coding-rules' if file doesn't exist)",
+        "'Corporate delta' section: access_level_guard, dual external/internal services, corporate mapError → codes.*",
+        "Server lifecycle via fx.Invoke and fx.Hook{OnStart,OnStop} described",
+        "delivery/grpc/handlers.go structure with handler example",
+        "Server registration patterns documented",
+        "Cross-reference to order_service example",
+        "Markdown relative links resolve"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Создать references/outbox-pattern.md",
+      "description": "As a developer of services with external events (order_service, exchange_service, auth_gateway), I want to understand outbox CDC structure and shared/outbox integration.",
+      "acceptanceCriteria": [
+        "File src/skills/go-microservice/references/outbox-pattern.md created",
+        "Structure internal/domain/{...}/outbox/{notify,netpublisher}/ described",
+        "Repository integration: write to outbox table inside db.WithTx",
+        "Outbox worker described (reads table, publishes to Kafka)",
+        "PRODUCER_OUTBOX_* config parameters listed",
+        "Distinction internal/infrastructure/outbox/ vs internal/domain/.../outbox/ explained",
+        "Cross-reference to order_service example",
+        "Markdown relative links resolve"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Создать references/api-gateway-pattern.md",
+      "description": "As a developer, I want to understand API gateway specifics (auth_gateway) — a separate architectural class from gRPC microservices.",
+      "acceptanceCriteria": [
+        "File src/skills/go-microservice/references/api-gateway-pattern.md created",
+        "internal/infrastructure/grpc/proxy/ described (HTTP-to-gRPC reverse proxy to 11 backend services)",
+        "Stack described: fasthttp + fasthttp/router + 3 middleware groups",
+        "References to pkg/jwtutil, pkg/secure",
+        "Gateway-only libraries described: fernet/fernet-go, golang-jwt/jwt/v5, pquerna/otp, go-redsync/redsync/v4",
+        "Swagger pipeline described (swaggo/swag, swag init)",
+        "Note that HTTP utils (pkg/httputil.WriteResponse) live only here",
+        "Cross-reference to auth_gateway example",
+        "Markdown relative links resolve"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Применить delta-структуру ко всем reference-файлам go-microservice",
+      "description": "As a skill reader, I want a unified 'Generic basis → Corporate delta' structure in every reference file so I understand what is universal and what is backend_core-specific.",
+      "acceptanceCriteria": [
+        "In layer-patterns.md, internal-packages.md, template-structure.md, new-domain-checklist.md, grpc-delivery.md, outbox-pattern.md, api-gateway-pattern.md every major section starts with 'Generic basis: see coding-rules/golang/{X}.md'",
+        "'Corporate delta' subsection contains only what differs from generic",
+        "Any duplicate generic material from coding-rules removed",
+        "Mapping table from PRD applied to all file pairs",
+        "Markdown relative links resolve"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Mental dry-run: создание нового домена по обновлённому checklist'у",
+      "description": "As a skill QA, I want to mentally walk through new-domain-checklist.md to confirm it leads to the correct location.",
+      "acceptanceCriteria": [
+        "Mental dry-run executed: 'create new domain in order_service' following the new checklist",
+        "Each checklist step verified against real order_service/internal/domain/{order,masspay,...}/ structure",
+        "Discrepancies (if any) recorded and fixed in new-domain-checklist.md",
+        "Result documented as a short note in the agent's progress"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Cross-check на mailer_service и auth_gateway",
+      "description": "As a skill QA, I want to verify updated template-structure.md and layer-patterns.md match not only order_service but also a simple service (mailer_service) and gateway (auth_gateway).",
+      "acceptanceCriteria": [
+        "template-structure.md compared with mailer_service/ (simple Kafka-consumer)",
+        "api-gateway-pattern.md compared with auth_gateway/",
+        "Discrepancies (if any) recorded and fixed in the relevant skill files",
+        "Result documented as a short note in the agent's progress"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Проверить linter-нейтральность markdown skills",
+      "description": "As a user, I want all skill markdown files to have no broken relative links.",
+      "acceptanceCriteria": [
+        "All relative links between go-microservice reference files verified",
+        "Links from go-microservice → coding-rules verified",
+        "Broken links (if any) fixed",
+        "Used a script or grep to confirm: every `](...)` link target exists"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Обновить MEMORY.md если содержит затронутые утверждения",
+      "description": "As a skill process, I want to remove outdated memory records that contradict the new understanding of backend_core architecture.",
+      "acceptanceCriteria": [
+        "MEMORY.md read (if exists)",
+        "Statements about per-aggregate fx.go, HTTP-first, deps/dep.go, buissines spelling, http_clients pattern updated or removed",
+        "If new memory records are needed, added via Write following the memory frontmatter format",
+        "If MEMORY.md does not exist or has no relevant entries, story passes with a note explaining no changes needed"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Финальный git diff review",
+      "description": "As a skills developer, before committing I want to verify by eye that no useful generic explanations were deleted, only specialized for backend_core.",
+      "acceptanceCriteria": [
+        "git diff src/skills/ reviewed line-by-line",
+        "No deleted generic explanation that does not have a counterpart in coding-rules",
+        "All edits only specialize, not throw away",
+        "Commit created via the commit skill (Conventional Commits format with ticket ID)"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
