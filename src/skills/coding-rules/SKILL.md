@@ -12,7 +12,11 @@ Auto-loaded when writing, modifying, planning, or reviewing code.
 
 ### Step 1: Always Load Common Rules
 
-Load `references/common.md` for every code-related task. It covers:
+You **MUST** load `references/common.md` and the language-specific `patterns.md`
+**BEFORE** writing or modifying any code — even for one-line changes, typo fixes,
+or quick experiments. This is non-negotiable.
+
+`common.md` covers:
 - Security (input validation, injection, secrets, path traversal)
 - Race conditions & concurrency (shared state, deadlocks, TOCTOU)
 - Resource management (leaks, cleanup, connection pools)
@@ -46,8 +50,13 @@ Check imports, config files, and annotations for framework indicators:
 | `fx.New`, `fx.Module`, `fx.Provide` | Go + Uber FX | `references/golang/uber-fx.md` |
 | DDD layers, `internal/domain/` | Go + Clean Architecture | `references/golang/clean-architecture.md` |
 | `google.golang.org/grpc`, `.proto` | Go + gRPC | `references/golang/grpc.md` |
-| `segmentio/kafka-go`, `kafkaconnector` | Go + Kafka | `references/golang/kafka.md` |
-| `go-redis/redis`, `redisconnector` | Go + Redis | `references/golang/redis.md` |
+| `segmentio/kafka-go` | Go + Kafka | `references/golang/kafka.md` |
+| `go-redis/redis`, `go-redsync/redsync` | Go + Redis | `references/golang/redis.md` |
+| `chi`, `echo`, `gin`, `fiber`, `fasthttp` | Go + HTTP | `references/golang/http.md` |
+| `pgx`, `sqlx`, `database/sql` | Go + Postgres | `references/golang/postgres.md` |
+| `zap`, `prometheus/client_golang`, `otel` | Go + Observability | `references/golang/observability.md` |
+| `goose`, `golang-migrate` | Go + Migrations | `references/golang/migrations.md` |
+| `go-playground/validator` | Go + Validation | `references/golang/validation.md` |
 | `testing`, `testify`, `_test.go` | Go + Testing | `references/golang/testing.md` |
 | `@SpringBootApplication`, `@RestController` | Java + Spring | `references/java/spring.md` |
 | `FastAPI`, `@app.get`, `@router` | Python + FastAPI | `references/python/fastapi.md` |
@@ -73,12 +82,17 @@ Check imports, config files, and annotations for framework indicators:
 references/
 ├── common.md              # Cross-language: security, concurrency, performance
 ├── golang/
-│   ├── patterns.md        # Go idioms, error handling, context, goroutines
-│   ├── uber-fx.md         # DI patterns: fx.Module, fx.Provide, fx.Invoke
-│   ├── clean-architecture.md  # DDD layers, dependency rule, boundaries
-│   ├── grpc.md            # Error mapping, interceptors, metadata, lifecycle
-│   ├── kafka.md           # Consumer idempotency, outbox, DLQ, partitioning
-│   ├── redis.md           # Cache invalidation, distributed locks, key naming
+│   ├── patterns.md        # Go idioms, error handling, context, goroutines, generics, backoff, shutdown
+│   ├── uber-fx.md         # DI: fx.Module, fx.Provide, fx.As, config decomposition
+│   ├── clean-architecture.md  # DDD layers, dependency rule, generic pagination, DTO/Entity boundary
+│   ├── grpc.md            # Error mapping, interceptors, metadata, idempotency, proto-mapping
+│   ├── kafka.md           # Consumer idempotency, outbox, DLQ, handler registry, listener pattern
+│   ├── redis.md           # Cache invalidation, redsync distributed locks, key naming
+│   ├── http.md            # Frameworks (chi/echo/gin/fiber), middleware, error response, validation
+│   ├── postgres.md        # pgx/sqlx, transactions, prepared statements, pool tuning, error mapping
+│   ├── observability.md   # zap structured logging, Prometheus metrics, OpenTelemetry tracing
+│   ├── migrations.md      # goose/golang-migrate, expand-contract, idempotent migrations
+│   ├── validation.md      # go-playground/validator: tags, struct-level, custom validators
 │   └── testing.md         # Table tests, mocks, integration tests, fixtures
 ├── java/
 │   ├── patterns.md        # Null safety, streams, resources, synchronized

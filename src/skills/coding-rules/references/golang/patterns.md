@@ -313,6 +313,295 @@ if errors.As(err, &target) {
 
 **Severity:** 🟡 MEDIUM
 
+### 4. Dual Error Handling: Sentinel + Typed
+
+**Проблема:** При обработке ошибок встречаются два сценария: (1) "проверить факт" (ошибка просто наступила — `not found`, `unauthorized`); (2) "извлечь данные" (ошибка содержит контекст — `field name`, `validation message`). Использование только sentinel-ошибок теряет контекст; только типизированных — раздувает API ради тривиальных проверок. Идиоматичный подход — комбинировать.
+
+**Pattern:**
+```go
+// Sentinel — для безусловных фактов "случилось/не случилось"
+var (
+    ErrNotFound      = errors.New("not found")
+    ErrAlreadyExists = errors.New("already exists")
+    ErrUnauthorized  = errors.New("unauthorized")
+)
+
+// Typed — когда нужен контекст ошибки
+type ValidationError struct {
+    Field string
+    Msg   string
+}
+
+func (e *ValidationError) Error() string {
+    return fmt.Sprintf("validation failed for %s: %s", e.Field, e.Msg)
+}
+
+type ConflictError struct {
+    Resource string
+    Reason   string
+}
+
+func (e *ConflictError) Error() string {
+    return fmt.Sprintf("conflict on %s: %s", e.Resource, e.Reason)
+}
+
+// Использование:
+// errors.Is — для sentinel
+if errors.Is(err, ErrNotFound) {
+    return status.Error(codes.NotFound, err.Error())
+}
+
+// errors.As — для typed (получаем доступ к полям)
+var ve *ValidationError
+if errors.As(err, &ve) {
+    return fmt.Errorf("invalid %s: %s", ve.Field, ve.Msg)
+}
+```
+
+**Правило выбора:**
+- проверка факта без дополнительных данных (`is this NotFound?`) → sentinel + `errors.Is`
+- нужен контекст ошибки (имя поля, ID ресурса, сообщение) → typed + `errors.As`
+- НЕ выбирать sentinel ради "лёгкости" — если потребитель хочет показать сообщение пользователю, ему нужен typed
+
+**Severity:** 🟡 MEDIUM
+
+## Generics
+
+### 1. Type-Safe Context Helpers
+
+**Проблема:** Хранение значений в `context.Context` через `context.WithValue` требует ручного `type assertion` на каждом извлечении. Опечатка в типе → runtime panic; изменение типа значения → ничего не подскажет компилятор.
+
+**Anti-pattern:**
+```go
+// BAD: ручной type assertion на каждом извлечении
+type ctxKey string
+const userKey ctxKey = "user"
+
+func GetUser(ctx context.Context) *User {
+    v := ctx.Value(userKey)
+    if v == nil {
+        return nil
+    }
+    return v.(*User) // panic если положили что-то другое
+}
+```
+
+**Pattern:**
+```go
+// GOOD: generic helper, тип фиксируется на месте вызова
+func ValueFromCtx[T any](ctx context.Context, key any) (T, bool) {
+    v, ok := ctx.Value(key).(T)
+    return v, ok
+}
+
+func MustValueFromCtx[T any](ctx context.Context, key any) T {
+    v, ok := ctx.Value(key).(T)
+    if !ok {
+        var zero T
+        panic(fmt.Sprintf("ctx key %v: expected %T, got %T", key, zero, ctx.Value(key)))
+    }
+    return v
+}
+
+// Использование:
+type ctxKey struct{ name string }
+var userKey = ctxKey{"user"}
+
+ctx = context.WithValue(ctx, userKey, &User{ID: "42"})
+
+user, ok := ValueFromCtx[*User](ctx, userKey)
+if !ok {
+    return ErrUnauthorized
+}
+```
+
+**Преимущества:**
+- тип проверяется компилятором при вызове `ValueFromCtx[*User]`
+- нельзя случайно положить `string`, а извлекать `*User`
+- ключи лучше делать пустой структурой `struct{ name string }` — это исключает коллизии с другими пакетами, использующими `string`-ключи
+
+**Severity:** 🟡 MEDIUM
+
+## Retry & Backoff
+
+### Exponential Backoff with Jitter
+
+**Проблема:** Линейный retry (`time.Sleep(retryDelay)`) перегружает downstream-сервис при массовых сбоях — все клиенты повторяют одновременно. Без jitter синхронизируются волны; без cap backoff растёт неограниченно; без max attempts retry бесконечный.
+
+**Anti-pattern:**
+```go
+// BAD: фиксированная задержка, бесконечный retry
+for {
+    err := callService()
+    if err == nil {
+        return nil
+    }
+    time.Sleep(time.Second) // все клиенты бьют синхронно
+}
+```
+
+**Pattern:**
+```go
+import (
+    "math/rand/v2"
+    "time"
+)
+
+const (
+    baseDelay   = 100 * time.Millisecond
+    maxBackoff  = 30 * time.Second
+    maxAttempts = 5
+)
+
+func withBackoff(ctx context.Context, fn func() error) error {
+    var err error
+    for attempt := 0; attempt < maxAttempts; attempt++ {
+        err = fn()
+        if err == nil {
+            return nil
+        }
+        if !isRetryable(err) {
+            return err // не имеет смысла повторять
+        }
+
+        // exponential: 100ms, 200ms, 400ms, 800ms, ...
+        backoff := baseDelay << attempt
+        if backoff > maxBackoff {
+            backoff = maxBackoff
+        }
+        // jitter ±25%, чтобы клиенты не синхронизировались
+        jitter := time.Duration(rand.Int64N(int64(backoff / 4)))
+        delay := backoff/2 + jitter + backoff/4
+
+        select {
+        case <-time.After(delay):
+        case <-ctx.Done():
+            return ctx.Err()
+        }
+    }
+    return fmt.Errorf("after %d attempts: %w", maxAttempts, err)
+}
+```
+
+**Правила:**
+- ВСЕГДА cap на `maxBackoff` (30s — типичный потолок)
+- ВСЕГДА jitter (хотя бы ±25%) — иначе rebalance/restart перезапустит всех одновременно
+- Не повторять non-retryable ошибки (`InvalidArgument`, `Unauthorized`, `NotFound`)
+- Учитывать `ctx.Done()` в `time.After`-ожидании, иначе shutdown будет ждать backoff
+- Готовые библиотеки: `cenkalti/backoff/v4` — даёт `ExponentialBackoff` из коробки, плюс retry-helpers
+
+**Severity:** 🟠 HIGH
+
+## Graceful Shutdown
+
+### Signal Handling with Timeout
+
+**Проблема:** `os.Exit(0)` при SIGTERM обрывает in-flight запросы, открытые транзакции, неотправленные Kafka-сообщения. Без явного timeout shutdown может зависнуть навсегда (например, если БД не отвечает).
+
+**Anti-pattern:**
+```go
+// BAD: жёсткое завершение
+func main() {
+    runApp()
+    // SIGTERM → процесс убит, in-flight запросы оборваны
+}
+
+// BAD: ожидание без timeout
+sig := make(chan os.Signal, 1)
+signal.Notify(sig, syscall.SIGTERM)
+<-sig
+db.Close() // если зависнет — застрянем навсегда
+```
+
+**Pattern:**
+```go
+import (
+    "context"
+    "os/signal"
+    "syscall"
+    "time"
+)
+
+func main() {
+    // signal.NotifyContext: отменяет ctx при SIGINT/SIGTERM
+    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+    defer stop()
+
+    app, err := newApp(ctx)
+    if err != nil {
+        log.Fatalf("init: %v", err)
+    }
+
+    if err := app.Run(ctx); err != nil {
+        log.Printf("run: %v", err)
+    }
+
+    // явный timeout на shutdown — останавливаем всё, но не ждём дольше N секунд
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    if err := app.Shutdown(shutdownCtx); err != nil {
+        log.Printf("shutdown: %v", err)
+    }
+}
+```
+
+**Правила:**
+- `signal.NotifyContext` — Go 1.16+ идиома вместо ручного `signal.Notify` + select
+- ВСЕГДА использовать **отдельный** контекст с timeout для shutdown — нельзя переиспользовать отменённый родительский ctx
+- Типичный timeout: 5–30 секунд (зависит от тяжести fini-операций: HTTP graceful shutdown, Kafka flush, DB close)
+- Если приложение под FX — `signal.NotifyContext` обычно не нужен, FX сам слушает сигналы; но shutdown timeout всё равно настраивается через `fx.StartTimeout`/`fx.StopTimeout`
+
+**Severity:** 🟠 HIGH
+
+## Null Handling
+
+### Choosing Between Pointers and `null.*` Wrappers
+
+**Проблема:** В Go нет встроенного `Optional[T]`. Для nullable полей используют либо указатели (`*string`, `*int64`), либо `database/sql.NullString`, либо `guregu/null/v6.String`. У каждого свой trade-off; типичная ошибка — выбрать указатель там, где нужен явный `null`-маркер при JSON-сериализации.
+
+**Сравнение:**
+
+| Тип                | JSON `null` vs `missing`     | DB-сериализация | Удобство в коде                |
+|--------------------|------------------------------|-----------------|--------------------------------|
+| `*string`          | `null` ↔ `nil`, missing ↔ `nil` (неразличимы при `omitempty`) | OK через `sql.Scanner` обёртки | разыменование требует nil-check |
+| `sql.NullString`   | сериализуется как объект `{String:"x", Valid:true}` — некрасиво для API | нативная для `database/sql` | `.Valid`/`.String` поля |
+| `null.String` ([guregu/null/v6](https://github.com/guregu/null)) | `null` ↔ Valid=false, отсутствие ↔ при `omitempty` пропускается | реализует `sql.Scanner`/`Valuer` | `.Valid`/`.String` + чистый JSON |
+
+**Правила выбора:**
+- API DTO, где важен `null` vs `missing` для PATCH-семантики → `null.String` / `null.Int`
+- Внутренние структуры, не пересекающиеся с JSON → `*T` (короче синтаксис)
+- Entity-структуры под `database/sql` без сложных JSON-выходов → `sql.NullString` приемлем
+- Никогда не использовать `sql.NullString` в DTO — JSON-формат `{String, Valid}` ломает фронт
+
+**Anti-pattern:**
+```go
+// BAD: указатель в API DTO теряет различие null vs missing при PATCH
+type UpdateUserRequest struct {
+    Bio *string `json:"bio,omitempty"` // null и отсутствие — одинаково
+}
+```
+
+**Pattern:**
+```go
+import "github.com/guregu/null/v6"
+
+// GOOD: null.String различает null (set bio = NULL) и missing (don't update)
+type UpdateUserRequest struct {
+    Bio null.String `json:"bio"` // .Valid=false → null; не пришло → zero-value
+}
+
+func (uc *UseCase) UpdateUser(ctx context.Context, req *UpdateUserRequest) error {
+    if req.Bio.Valid {
+        // явное обновление: либо строка, либо явный null
+        // ...
+    }
+    return nil
+}
+```
+
+**Severity:** 🟡 MEDIUM
+
 ## Context Patterns
 
 ### 1. Missing Context

@@ -35,6 +35,31 @@ Good naming eliminates the need for most comments and makes code easier to maint
 
 Add comments only when the purpose or behavior cannot be conveyed through naming alone.
 
+## Coding Rules (Mandatory)
+
+Before writing, modifying, or reviewing any Go, Java, or Python code, you MUST load
+the `coding-rules` skill. This is non-negotiable — even for one-line changes,
+typo fixes in code, or quick experiments.
+
+Order of loading:
+1. `coding-rules/references/common.md` (always)
+2. Language-specific `patterns.md` (Go/Java/Python — based on the file you touch)
+3. Framework/library references that match the project (fx, gRPC, kafka, redis,
+   http, postgres, observability, migrations, validation, testing, etc.)
+
+If you find yourself writing code without having loaded coding-rules first,
+stop and load them.
+
+## Commits (Mandatory)
+
+All commits MUST be created through the `commit` skill (full pre-commit workflow:
+staging checks, protected branch validation, message generation) or, when only a
+commit message is needed, through the `commit-msg` skill.
+
+Never craft commit messages manually or run `git commit` directly without invoking
+one of these skills — they ensure ticket ID extraction, Conventional Commits format,
+and project-specific validation.
+
 ## Workflow
 
 ### Development Process
