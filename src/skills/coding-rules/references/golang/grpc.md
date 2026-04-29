@@ -787,6 +787,81 @@ func IdempotencyInterceptor(store IdempotencyStore, codec Codec) grpc.UnaryServe
 
 **Severity:** 🟠 HIGH
 
+## Streaming vs Unary
+
+### 18. Streaming Used for Small Single-Message Payloads
+
+**Проблема:** `rpc Get(...) returns (stream Bytes)` объявлен для payload-а, который целиком умещается в одно сообщение. Сервер делает единственный `Send()` за всю стрим-сессию, клиент собирает результат в `bytes.Buffer` через `for { recv() }`. Streaming усложняет жизнь без причины: лишний boilerplate с `for/recv`, более сложная обработка ошибок (ошибки могут прийти как в установлении стрима, так и в любом `Recv`), сложнее retry, дороже трассировка. Unary RPC с тем же payload-ом проще и эквивалентен по сетевым характеристикам.
+
+**Anti-pattern:**
+```protobuf
+// BAD: streaming для маленького ответа, который всегда влезает в одно сообщение
+service ConfigService {
+    rpc GetConfig(GetConfigRequest) returns (stream ConfigChunk);
+}
+```
+
+```go
+// сервер: единственный Send за весь стрим
+func (s *Server) GetConfig(req *pb.GetConfigRequest, stream pb.ConfigService_GetConfigServer) error {
+    cfg, err := s.uc.Get(stream.Context(), req.Id)
+    if err != nil {
+        return mapToGRPCError(err)
+    }
+    return stream.Send(&pb.ConfigChunk{Data: cfg.Bytes()}) // один и единственный Send
+}
+
+// клиент: ради одного сообщения тащим recv-loop и буфер
+stream, err := client.GetConfig(ctx, req)
+if err != nil { /* ... */ }
+
+var buf bytes.Buffer
+for {
+    chunk, err := stream.Recv()
+    if errors.Is(err, io.EOF) {
+        break
+    }
+    if err != nil { /* ... */ }
+    buf.Write(chunk.Data)
+}
+```
+
+**Pattern:**
+```protobuf
+// GOOD: unary по умолчанию
+service ConfigService {
+    rpc GetConfig(GetConfigRequest) returns (Config);
+}
+```
+
+```go
+// сервер
+func (s *Server) GetConfig(ctx context.Context, req *pb.GetConfigRequest) (*pb.Config, error) {
+    cfg, err := s.uc.Get(ctx, req.Id)
+    if err != nil {
+        return nil, mapToGRPCError(err)
+    }
+    return cfg.ToProto(), nil
+}
+
+// клиент — одна строка
+cfg, err := client.GetConfig(ctx, req)
+```
+
+**Когда streaming оправдан:**
+- payload **гарантированно** превышает gRPC max message size (по умолчанию 4 MiB; можно поднять, но это симптом, что unary не подходит)
+- бесконечный или потенциально длинный поток событий (subscribe/notification API)
+- полу- или полный дуплекс (chat-like обмен, bi-directional sync)
+- большой файл, который сервер генерирует или передаёт по чанкам — **с явной логикой чанкования** на стороне отправителя (`chunk_size`, `offset`, оффсетные подтверждения), а не одним `Send`
+
+**Признаки в коде:**
+- `stream` в `.proto` без логики чанкования (один `Send` за сессию)
+- handler читает весь стрим в `bytes.Buffer` в одну переменную — payload явно мал
+- размер ответа known-bounded (single config, single record, small response object)
+- нет subscribe/notification-семантики
+
+**Severity:** 🟡 MEDIUM
+
 ## Proto ↔ Domain Mapping
 
 ### Where Mapping Methods Live
@@ -908,3 +983,135 @@ func loggingClientInterceptor(
 ```
 
 **Severity:** 🟡 MEDIUM
+
+## Cross-Cutting Operations
+
+### 18. Payload Size Limits Coordinate Across Layers
+
+**Проблема:** Поднятие максимального размера запроса/ответа меняется одновременно в нескольких слоях стека. Типичный кейс — увеличили максимальный размер логотипа с 1 МБ до 5 МБ: подняли `client_max_body_size` на ingress, забыли gRPC default 4 МБ — клиенты получают `ResourceExhausted: trying to send message larger than max (X vs 4194304)` сразу после ingress. Аналогично — ответ упирается в `MaxCallRecvMsgSize` клиента, BLOB-колонка в БД, multipart-upload в S3.
+
+**Anti-pattern:**
+```go
+// BAD: правка только на одном слое
+// nginx/ingress: client_max_body_size 5m;  ← подняли
+// сервер gRPC и клиент остались на default 4MiB
+srv := grpc.NewServer() // default MaxRecvMsgSize == 4 MiB
+```
+
+**Pattern:**
+```go
+// GOOD: согласовать лимиты на всех слоях
+
+// 1) gRPC server
+const maxMsgSize = 8 * 1024 * 1024 // 8 MiB
+srv := grpc.NewServer(
+    grpc.MaxRecvMsgSize(maxMsgSize),
+    grpc.MaxSendMsgSize(maxMsgSize),
+)
+
+// 2) gRPC client
+conn, err := grpc.NewClient(addr,
+    grpc.WithDefaultCallOptions(
+        grpc.MaxCallRecvMsgSize(maxMsgSize),
+        grpc.MaxCallSendMsgSize(maxMsgSize),
+    ),
+    // ...
+)
+```
+
+**Чек-лист при росте payload:**
+
+| Слой | Что править | Признак, что забыли |
+|------|-------------|---------------------|
+| Ingress / reverse proxy | `client_max_body_size`, `proxy_request_buffering` | `413 Request Entity Too Large` до сервиса |
+| gRPC сервер | `grpc.MaxRecvMsgSize` / `MaxSendMsgSize` | `ResourceExhausted: trying to send message larger than max` в логах сервера |
+| gRPC клиент (вызывающий) | `grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize/MaxCallSendMsgSize)` | `ResourceExhausted` на клиенте при чтении ответа |
+| HTTP-server (если есть) | `MaxRequestBodySize`, `ReadTimeout` | Truncated body, EOF при чтении |
+| Storage (БД/S3) | column type/`bytea` size, S3 multipart-part-size | Insert падает с `value too long`; S3 — truncate |
+| Клиент (загрузчик) | upload chunking, retry на больших файлах | TLS-таймаут на медленной сети |
+
+**Признаки в коде:**
+- Размер увеличен в одном месте — нет соответствующих правок в других
+- В тестах проверяется загрузка ровно одного "достаточно большого" файла, а не на границе нового лимита
+- Документация payload-эндпоинта не указывает максимальный размер
+- В incident-postmortem повторяется `ResourceExhausted` после изменения ingress
+
+**Severity:** 🟠 HIGH
+
+### 19. Proto Breaking Changes Hygiene
+
+**Проблема:** Proto-файлы редактируются "на одно поле" — переименовали, перенумеровали, удалили без `reserved`, поменяли тип. Wire-формат gRPC зависит от номеров полей: переиспользование номера старого поля под новый тип ломает потребителей, которые уже задеплоены и читают старую схему. Обнаружится при rolling-deploy: половина подов работает на новой схеме, половина — на старой, расходящаяся сериализация портит данные.
+
+**Anti-pattern:**
+```protobuf
+// v1 — задеплоено
+message Order {
+  string id = 1;
+  string status = 2;
+  int64 amount = 3;
+}
+
+// v2 — переименование без reserved
+message Order {
+  string id = 1;
+  OrderStatus status = 2; // ТИП ИЗМЕНИЛСЯ! номер 2 теперь enum, а не string
+  int64 amount = 3;
+}
+```
+
+**Pattern:**
+```protobuf
+// v2 — корректное breaking change с reserved
+message Order {
+  string id = 1;
+  reserved 2;                     // старый status: string — больше не используется
+  reserved "status";              // имя тоже зарезервировано
+  OrderStatus status_enum = 4;    // новое поле с новым номером
+  int64 amount = 3;
+}
+```
+
+**Регламент изменений:**
+
+1. **CI-проверка:** `buf breaking` на proto-репозитории, сравнение с base-веткой:
+   ```yaml
+   # buf.yaml
+   breaking:
+     use:
+       - FILE
+   ```
+   ```bash
+   buf breaking --against '.git#branch=main'
+   ```
+
+2. **Запреты без `reserved`:**
+   - переименование поля
+   - перенумерация поля
+   - удаление поля
+   - смена типа поля при том же номере
+
+3. **Commit-сообщение:** префикс `BREAKING(<service>):` + список потребителей в теле:
+   ```
+   BREAKING(order-service): rename status to status_enum
+
+   Affected consumers:
+   - payment-service (uses Order.status)
+   - notification-service (uses Order.status)
+   - reporting-service (uses Order.status)
+
+   Migration: v2.x → reads OrderStatus enum, falls back to legacy string field.
+   ```
+
+4. **Версионирование:**
+   - non-breaking changes (новое поле с новым номером) — minor bump
+   - breaking changes — major bump или новый proto-package с суффиксом `/v2`
+
+5. **Список потребителей в описании MR** — кому нужно обновиться, есть ли feature flag.
+
+**Признаки в коде:**
+- `buf breaking` не настроен в CI proto-репозитория
+- Удалённые поля без `reserved <number>` / `reserved "<name>"`
+- Commit "rename field" без префикса `BREAKING:` и без списка зависимых сервисов
+- Один proto-пакет содержит несколько версий схемы без выделения `/v2`
+
+**Severity:** 🔴 CRITICAL

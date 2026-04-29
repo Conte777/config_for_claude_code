@@ -80,6 +80,185 @@ func NewDB(lc fx.Lifecycle, cfg *Config) *sql.DB {
 
 **Severity:** 🟠 HIGH
 
+### 3. fx.Invoke for One-Shot Side Effects, Not Long-Running Components
+
+**Проблема:** `fx.Invoke` выполняется один раз при старте контейнера и подходит для side effects, выполнимых "под занавес" сборки графа: warm-up cache, регистрация router-ов, валидация графа, запуск миграций. Если в `fx.Invoke` стартует **долгоживущий** компонент (HTTP/gRPC-сервер, consumer, ticker, scheduler) без регистрации в `fx.Lifecycle`, FX не знает о его существовании — graceful shutdown такой компонент не остановит, ресурсы утекут, in-flight запросы оборвутся.
+
+**Anti-pattern:**
+```go
+// BAD: fx.Invoke запускает фоновый процесс без lifecycle hook
+fx.Invoke(func(s *Server) {
+    go s.Run() // FX ничего не знает; SIGTERM → горутина продолжает работать
+})
+
+// BAD: запуск consumer без OnStop
+fx.Invoke(func(c *Consumer) {
+    go c.Consume(context.Background()) // shutdown не отменит этот ctx
+})
+```
+
+**Pattern:**
+```go
+// GOOD: long-running компонент регистрируется через lc.Append
+fx.Invoke(func(lc fx.Lifecycle, s *Server) {
+    lc.Append(fx.Hook{
+        OnStart: s.OnStart,   // не блокирует — старт в горутине внутри
+        OnStop:  s.OnStop,    // GracefulStop / cancel + Wait
+    })
+})
+
+// GOOD: fx.Invoke для one-shot side effects
+fx.Invoke(func(r *router.Router, h *Handlers) {
+    h.RegisterRoutes(r) // одноразовый side effect, никаких goroutine
+})
+
+fx.Invoke(func(cache *Cache) error {
+    return cache.WarmUp(context.Background()) // одноразовая инициализация
+})
+
+fx.Invoke(func(m *Migrator) error {
+    return m.RunPendingMigrations(context.Background()) // одноразово на старте
+})
+```
+
+**Признаки в коде:**
+- `fx.Invoke(...)` запускает горутины, серверы, consumer-ы, тикеры
+- В `fx.Invoke` присутствует `go ...`/`for {}`/`time.NewTicker`/`Serve`
+- При SIGTERM в логах компонент не сообщает об остановке (нет `OnStop`-хендлера)
+- `OnStop` для компонента отсутствует или находится в другом месте графа
+
+**Правило:** если функция запускает что-то, что должно жить пока живёт приложение — она обязана зарегистрировать `fx.Hook{OnStart, OnStop}`. `fx.Invoke` без `lc.Append` допустим только для строго одноразовой работы.
+
+**Severity:** 🟠 HIGH
+
+### 4. Methods on Type for Stateful Components
+
+**Проблема:** Когда компонент имеет состояние (listener, ticker, базовый сервер, handler-registry), вынос lifecycle в inline-замыкание внутри FX-конструктора раздувает код, заставляет тащить замыкания над `var listener net.Listener`/`var cancel context.CancelFunc`, плодит boilerplate и затрудняет тесты — состояние живёт в захваченных переменных, а не в полях типа.
+
+Этот паттерн — обобщение `grpc.md → 3. Stateful Server: Methods on Type vs Lifecycle Functions` на любые long-running компоненты (workers, consumer-pools, scheduler-ы, HTTP-серверы, kafka-консьюмеры).
+
+**Anti-pattern:**
+```go
+// BAD: state в захваченных переменных, lifecycle в одном большом замыкании
+func NewWorker(lc fx.Lifecycle, log Logger, svc Service) {
+    var (
+        cancel context.CancelFunc
+        ticker *time.Ticker
+        wg     sync.WaitGroup
+    )
+    lc.Append(fx.Hook{
+        OnStart: func(_ context.Context) error {
+            var runCtx context.Context
+            runCtx, cancel = context.WithCancel(context.Background())
+            ticker = time.NewTicker(30 * time.Second)
+            wg.Add(1)
+            go func() {
+                defer wg.Done()
+                for {
+                    select {
+                    case <-runCtx.Done():
+                        return
+                    case <-ticker.C:
+                        if err := svc.DoWork(runCtx); err != nil {
+                            log.Errorw("iteration failed", "err", err)
+                        }
+                    }
+                }
+            }()
+            return nil
+        },
+        OnStop: func(ctx context.Context) error {
+            cancel()
+            ticker.Stop()
+            done := make(chan struct{})
+            go func() { wg.Wait(); close(done) }()
+            select {
+            case <-done:
+                return nil
+            case <-ctx.Done():
+                return ctx.Err()
+            }
+        },
+    })
+}
+```
+
+**Pattern:**
+```go
+// GOOD: state — поля типа, OnStart/OnStop — методы; FX-wiring в одну строку
+type Worker struct {
+    log    Logger
+    svc    Service
+    period time.Duration
+
+    cancel context.CancelFunc
+    ticker *time.Ticker
+    wg     sync.WaitGroup
+}
+
+func NewWorker(log Logger, svc Service, cfg *Config) *Worker {
+    return &Worker{log: log, svc: svc, period: cfg.Period}
+}
+
+func (w *Worker) OnStart(_ context.Context) error {
+    runCtx, cancel := context.WithCancel(context.Background())
+    w.cancel = cancel
+    w.ticker = time.NewTicker(w.period)
+    w.wg.Add(1)
+    go w.loop(runCtx)
+    return nil
+}
+
+func (w *Worker) loop(ctx context.Context) {
+    defer w.wg.Done()
+    for {
+        select {
+        case <-ctx.Done():
+            return
+        case <-w.ticker.C:
+            if err := w.svc.DoWork(ctx); err != nil {
+                w.log.Errorw("iteration failed", "err", err)
+            }
+        }
+    }
+}
+
+func (w *Worker) OnStop(ctx context.Context) error {
+    w.cancel()
+    w.ticker.Stop()
+    done := make(chan struct{})
+    go func() { w.wg.Wait(); close(done) }()
+    select {
+    case <-done:
+        return nil
+    case <-ctx.Done():
+        return ctx.Err()
+    }
+}
+
+// FX-wiring — одна строка
+var Module = fx.Module("worker",
+    fx.Provide(NewWorker),
+    fx.Invoke(func(lc fx.Lifecycle, w *Worker) {
+        lc.Append(fx.Hook{OnStart: w.OnStart, OnStop: w.OnStop})
+    }),
+)
+```
+
+**Преимущества:**
+- состояние явно живёт в полях, а не в захваченных переменных
+- `Worker.OnStart`/`OnStop` тестируются напрямую без поднятия FX-контейнера
+- логика цикла вынесена в `(w *Worker).loop` — короче и читаемее
+- inline-bootstrap не дублируется между конструкторами разных компонентов
+
+**Признаки в коде:**
+- FX-конструктор > 30 строк, большая часть — тело `OnStart`-замыкания
+- `var listener net.Listener` / `var cancel context.CancelFunc` объявлены в lifecycle-замыкании
+- Похожий inline-bootstrap дублируется в 2+ конструкторах
+- В тестах нельзя вызвать lifecycle компонента без `fxtest.New`
+
+**Severity:** 🟡 MEDIUM (читаемость + тестируемость)
+
 ## Dependency Injection
 
 ### 1. Circular Dependencies
@@ -144,7 +323,47 @@ fx.New(
 
 **Severity:** 🔴 CRITICAL (app won't start)
 
-### 3. Optional Dependencies
+### 3. No Redundant Nil-Checks for FX-Injected Deps
+
+**Проблема:** В FX-конструкторе для обязательной зависимости (`Logger`, `*Config`, `Repository`) пишется `if log == nil { return nil, errors.New("log is nil") }`. Это шум: если зависимость не предоставлена, FX упадёт на этапе сборки графа с понятным сообщением "missing type *zap.Logger" — раньше, чем выполнится конструктор. Nil-check ловит то, что граф уже ловит, и засоряет код.
+
+**Anti-pattern:**
+```go
+// BAD: defensive nil-checks для обязательных deps
+func NewGeneratorWorker(log *zap.Logger, repo deps.Repository, cfg *Config) (*Worker, error) {
+    if log == nil {
+        return nil, errors.New("log is nil")
+    }
+    if repo == nil {
+        return nil, errors.New("repo is nil")
+    }
+    if cfg == nil {
+        return nil, errors.New("cfg is nil")
+    }
+    return &Worker{log: log, repo: repo, cfg: cfg}, nil
+}
+```
+
+**Pattern:**
+```go
+// GOOD: полагаемся на FX-валидацию графа
+func NewGeneratorWorker(log *zap.Logger, repo deps.Repository, cfg *Config) *Worker {
+    return &Worker{log: log, repo: repo, cfg: cfg}
+}
+```
+
+**Когда nil-check нужен:**
+- зависимость объявлена `optional:"true"` — FX вернёт `nil`, и обработать это надо явно (см. секцию `3. Optional Dependencies → Optional Dependencies`)
+- конструктор используется и вне FX (тесты передают зависимости вручную, есть путь без DI) — но даже там лучше падать с `panic`, чем городить ветви ошибок
+
+**Признаки в коде:**
+- В FX-конструкторе с обязательными аргументами есть `if x == nil` без `optional:"true"`
+- Конструктор возвращает `(T, error)` только ради `errors.New("X is nil")`
+- В тестах нет кейса `X == nil`, но nil-check всё равно есть
+
+**Severity:** 🟡 MEDIUM (засоряет код и ловит то, что граф ловит на старте)
+
+### 4. Optional Dependencies
 
 **Anti-pattern:**
 ```go
@@ -247,6 +466,68 @@ fx.Provide(LoadConfigFromEnv)
 ```
 
 **Severity:** 💡 INFO
+
+### 3. No `fx.Module` for Stateless Utilities
+
+**Проблема:** `fx.Module` — обёртка для логически связанной группы провайдеров и lifecycle-хуков. Если пакет содержит чистые функции/парсер/билдер запроса без `Lifecycle`, без shared state и без зависимостей друг от друга, оборачивать его в `fx.Module("name", fx.Provide(NewParser))` бессмысленно: модуль ничего не агрегирует, импортирующему сервису всё равно нужно решать, как этим пользоваться. Получается слой косвенности без выгоды — в `app.go` появляется `pagination.Module`, но из самого пакета нельзя вызвать функцию иначе, как через FX.
+
+**Anti-pattern:**
+```go
+// BAD: модуль для чистых функций
+package pagination
+
+import "go.uber.org/fx"
+
+type Parser struct{}
+
+func NewParser() *Parser { return &Parser{} }
+
+func (p *Parser) Parse(r *http.Request) (Request, error) { /* pure */ }
+
+var Module = fx.Module("pagination", fx.Provide(NewParser))
+```
+
+```go
+// в app.go — каждый импортёр обязан подключать модуль
+fx.New(pagination.Module, ...)
+```
+
+**Pattern:**
+```go
+// GOOD: экспортируем чистые функции/struct, без FX-обёртки
+package pagination
+
+type Parser struct{}
+
+func NewParser() *Parser { return &Parser{} }
+
+func (p *Parser) Parse(r *http.Request) (Request, error) { /* pure */ }
+```
+
+```go
+// импортирующий сервис сам решает, нужно ли заворачивать
+package order
+
+var Module = fx.Module("order",
+    fx.Provide(pagination.NewParser),
+    fx.Provide(NewUseCase),
+    // ...
+)
+```
+
+**Когда `fx.Module` оправдан:**
+- пакет регистрирует `lc.Append` (Lifecycle-зависимый компонент)
+- несколько провайдеров логически связаны (репозиторий + use case + handler)
+- есть `fx.Invoke` для side effects на старте
+- пакет экспортирует interface bindings через `fx.Annotate` + `fx.As`
+
+**Признаки в коде:**
+- `fx.Module` содержит ровно один `fx.Provide` без `Lifecycle`/`Invoke`
+- Пакет — чистые helper-функции, никакого shared state
+- В тестах функцию приходится вызывать вручную, FX-граф не используется
+- `Module`-переменная импортируется только в `app.go`, нигде больше
+
+**Severity:** 🟡 MEDIUM
 
 ## Graceful Shutdown
 

@@ -262,3 +262,153 @@ ru_translations.RegisterDefaultTranslations(v, trans)
 ```
 
 **Severity:** 🟡 MEDIUM
+
+---
+
+## Pure `Validate()`: No Mutation, No Defaults
+
+**Проблема:** Метод `Validate()` под "проверочным" именем мутирует поля Request — нормализует регистр, обрезает пробелы, перезаписывает `Limit`/`Offset` дефолтами. Вызывающий код передаёт указатель в `r.Validate()` ради проверки и не ожидает, что после вызова содержимое объекта изменилось. Это скрытый side effect: ошибка валидации может ничего не вернуть, но запрос уже отличается от пришедшего по сети, и трассировку "что прислал клиент" уже не восстановить.
+
+**Anti-pattern:**
+```go
+// BAD: Validate мутирует Request — defaults и нормализация спрятаны под "проверкой"
+type Request struct {
+    Limit  int    `json:"limit"`
+    Offset int    `json:"offset"`
+    Sort   string `json:"sort"`
+}
+
+func (r *Request) Validate() error {
+    if r.Limit <= 0 || r.Limit > 100 {
+        r.Limit = 20 // тихий defaults
+    }
+    if r.Offset < 0 {
+        r.Offset = 0 // и здесь
+    }
+    r.Sort = strings.ToLower(strings.TrimSpace(r.Sort)) // нормализация
+    if r.Sort != "" && r.Sort != "asc" && r.Sort != "desc" {
+        return fmt.Errorf("invalid sort: %q", r.Sort)
+    }
+    return nil
+}
+```
+
+**Pattern:**
+```go
+// GOOD: Validate только проверяет, defaults — отдельный метод
+type Request struct {
+    Limit  int    `json:"limit"`
+    Offset int    `json:"offset"`
+    Sort   string `json:"sort"`
+}
+
+func (r *Request) Validate() error {
+    if r.Limit < 0 || r.Limit > 100 {
+        return fmt.Errorf("limit must be in [0, 100], got %d", r.Limit)
+    }
+    if r.Offset < 0 {
+        return fmt.Errorf("offset must be >= 0, got %d", r.Offset)
+    }
+    if r.Sort != "" && r.Sort != "asc" && r.Sort != "desc" {
+        return fmt.Errorf("invalid sort: %q", r.Sort)
+    }
+    return nil
+}
+
+func (r *Request) ApplyDefaults(cfg *Config) {
+    if r.Limit == 0 {
+        r.Limit = cfg.DefaultLimit
+    }
+    // ...
+}
+
+// в handler:
+if err := req.Validate(); err != nil {
+    return badRequest(w, err)
+}
+req.ApplyDefaults(h.cfg)
+```
+
+**Правила:**
+- `Validate()` — read-only по объекту; единственный side effect — возвращаемая ошибка
+- defaults задавать в конструкторе DTO (`NewListRequest(...)`), `ApplyDefaults(cfg)` или при unmarshal через JSON-теги/`envDefault`
+- нормализацию (trim/case) делать в отдельном `Normalize()` — отдельный метод, чтобы тесты валидации не зависели от формы входа
+- если по бизнес-причине значение надо переписать — назвать метод явно: `Normalize`, `Sanitize`, `WithDefaults`
+
+**Признаки в коде:**
+- В теле `Validate()` есть присвоения полям receiver-а (`r.X = ...`)
+- Тесты валидации ожидают, что после `Validate()` поля изменились
+- Имя метода — `Validate`, но в коде он используется как `r.Validate(); h.uc.Do(&r)` для сидинга defaults
+- При повторном вызове `Validate()` объект отличается от первого вызова
+
+**Severity:** 🟠 HIGH (скрытый side effect, маскированный под проверочное имя — ломает ожидания вызывающих и затрудняет трассировку входа)
+
+---
+
+## Validate Values Against Config, Not Just Key Existence
+
+**Проблема:** Whitelist для фильтрации/сортировки/поиска часто реализуется как `map[string]struct{}` — "разрешённые колонки". Проверяется только наличие ключа, операторы (`$gt`, `$lt`, `$in`, `$like`) — нет. Атакующий или некорректный клиент пишет `status=$gt:5` и получает поведение, которое для этой колонки никогда не задумывалось: сравнение enum-строки числовым оператором, подзапрос со скрытыми побочными эффектами, full-scan по индексу.
+
+**Anti-pattern:**
+```go
+// BAD: проверка только наличия колонки, операторы игнорируются
+type FilterableColumns map[string]struct{}
+
+var allowed = FilterableColumns{
+    "status":     {},
+    "created_at": {},
+    "amount":     {},
+}
+
+func ValidateFilter(col, op string) error {
+    if _, ok := allowed[col]; !ok {
+        return fmt.Errorf("column %s not filterable", col)
+    }
+    return nil // оператор не проверяется
+}
+
+// $gt для status пройдёт — но смысла не имеет
+ValidateFilter("status", "$gt") // → nil
+```
+
+**Pattern:**
+```go
+// GOOD: whitelist хранит {Column, разрешённые Ops}
+type ColumnConfig struct {
+    Ops []string // "$eq", "$ne", "$gt", "$lt", "$in", "$like"
+}
+
+type FilterableColumns map[string]ColumnConfig
+
+var allowed = FilterableColumns{
+    "status":     {Ops: []string{"$eq", "$ne", "$in"}},
+    "created_at": {Ops: []string{"$eq", "$gt", "$lt", "$gte", "$lte"}},
+    "amount":     {Ops: []string{"$eq", "$gt", "$lt", "$gte", "$lte"}},
+}
+
+func ValidateFilter(col, op string) error {
+    cfg, ok := allowed[col]
+    if !ok {
+        return fmt.Errorf("column %s not filterable", col)
+    }
+    if !slices.Contains(cfg.Ops, op) {
+        return fmt.Errorf("operator %s not allowed for %s; got %v", op, col, cfg.Ops)
+    }
+    return nil
+}
+
+ValidateFilter("status", "$gt") // → "operator $gt not allowed for status"
+```
+
+**Расширения:**
+- whitelist значений для enum-колонок: `Values: []string{"pending", "completed"}` — если op = `$eq`/`$in`, проверять и значение
+- ограничение длины строкового значения для `$like` — иначе full-scan через `'%' || huge_string || '%'`
+- разные whitelist'ы для разных ролей (admin/user) — структура `{Ops, ValuesByRole}`
+
+**Признаки в коде:**
+- Whitelist — `map[string]struct{}` или `[]string`, без `Ops`/`Values`
+- Тесты проверяют только "колонка не из списка → error"; нет кейса "оператор не из списка"
+- Парсер фильтра принимает любые `$op` и передаёт их в SQL, надеясь на валидацию выше
+- Есть инциденты "почему `$gt` для status вернул странный результат"
+
+**Severity:** 🟠 HIGH

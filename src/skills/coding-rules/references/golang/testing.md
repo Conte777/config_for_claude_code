@@ -492,3 +492,171 @@ func TestConfigValidation(t *testing.T) {
 ```
 
 **Severity:** 🟡 MEDIUM
+
+## Race Detector & Test Hygiene
+
+### 13. Run Tests with `-race` on CI
+
+**Проблема:** `go test ./...` без `-race` пропускает data-race-ы — тесты зеленеют, гонка ловится только в проде, под нагрузкой. Race detector (`-race`) добавляет инструментацию: замедляет тесты в 2-10× и поднимает потребление памяти, но ловит большинство гонок прямо в CI.
+
+**Anti-pattern:**
+```yaml
+# BAD: CI без -race
+test:
+  script:
+    - go test ./...
+```
+
+**Pattern:**
+```yaml
+# GOOD: отдельный шаг с -race
+test:
+  script:
+    - go test ./...
+    - go test -race -count=1 ./... # или make test-race
+
+# Makefile:
+.PHONY: test test-race
+test:
+	go test ./...
+test-race:
+	go test -race -count=1 ./...
+```
+
+**Локально:**
+- `pre-push` hook запускает `go test -race ./...` на изменённых пакетах
+- IDE-конфиг "Run with race" — отдельный launch profile
+- `t.Parallel()` без `-race` — почти бесполезен; включать обязательно
+
+**Когда `-race` стоит выключать:**
+- интеграционные тесты с testcontainers (медленно поднимаются — race-edition утроит время)
+- benchmark-тесты (`go test -bench` без `-race`)
+- e2e в отдельной job, после быстрых unit/race-тестов
+
+**Признаки в коде:**
+- `Makefile` содержит только `go test`, нет `test-race`
+- В CI-конфиге `-race` отсутствует
+- Тесты используют горутины/`t.Parallel`, но никогда не запускались с race-detector
+- В incident-postmortem встречается "data race, который тесты не ловили"
+
+**Severity:** 🟠 HIGH
+
+### 14. Validators Must Have at Least One Invalid Test Case
+
+**Проблема:** Таблица тестов из одних valid-кейсов компилятор пропустит — функция, которая возвращает `true` на любом входе, проходит. После рефактора `if !ticker.ValidateAmount(amount)` стал инверсией реального условия (см. `patterns.md → Boolean-Returning Validators`) — юнит-тесты остались зелёными, потому что нет ни одного кейса, где валидация **должна** упасть. Баг уезжает в прод.
+
+**Anti-pattern:**
+```go
+// BAD: только happy path
+func TestValidateAmount(t *testing.T) {
+    tests := []struct {
+        name   string
+        amount decimal.Decimal
+    }{
+        {"valid 100", decimal.NewFromInt(100)},
+        {"valid 500", decimal.NewFromInt(500)},
+        {"valid max", decimal.NewFromInt(999)},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            require.NoError(t, ValidateAmount(tt.amount))
+        })
+    }
+}
+// Если функция станет всегда возвращать nil — тесты пройдут.
+```
+
+**Pattern:**
+```go
+// GOOD: invalid-кейсы с явным ErrIs / require.Error
+func TestValidateAmount(t *testing.T) {
+    tests := []struct {
+        name    string
+        amount  decimal.Decimal
+        wantErr error
+    }{
+        {"valid mid",   decimal.NewFromInt(100), nil},
+        {"valid max",   decimal.NewFromInt(999), nil},
+        {"too small",   decimal.NewFromInt(0),   ErrAmountTooSmall},
+        {"negative",    decimal.NewFromInt(-1),  ErrAmountTooSmall},
+        {"too large",   decimal.NewFromInt(1e9), ErrAmountTooLarge},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            err := ValidateAmount(tt.amount)
+            if tt.wantErr != nil {
+                require.ErrorIs(t, err, tt.wantErr)
+                return
+            }
+            require.NoError(t, err)
+        })
+    }
+}
+```
+
+**Правила:**
+- для каждого `Validate*` — минимум один кейс, где `wantErr != nil`
+- использовать `require.ErrorIs(t, err, ErrFoo)` — кросс-проверка типа ошибки, а не её существования
+- crypto/decimal/uuid-валидаторы тестировать на boundary: 0, MAX, NaN/Inf, пустая строка
+
+**Признаки в коде:**
+- Все строки в таблице тестов — happy path
+- `wantErr bool` всегда `false`
+- Имя теста `TestValidate*_Valid` без парного `_Invalid`
+- Покрытие `Validate*` высокое, но мутационные тесты (`gremlins`/`go-mutesting`) ловят инверсию
+
+**Severity:** 🟡 MEDIUM
+
+### 15. Tests Must Reproduce Shadowing/Log-Payload Bugs at the Boundary
+
+**Проблема:** Variable shadowing (см. `patterns.md → Variable Shadowing Across Log/Error Sites`) приводит к тому, что в лог при ошибке попадает не исходное значение (строка), а распарсенный объект (`uuid.Nil`/`time.Time{}`/`0`). Юнит-тест на возврат ошибки этот баг не ловит — функция корректно возвращает err, контракт не нарушен. Защититься можно тестированием **аргументов лога** через перехватываемый logger / observer.
+
+**Anti-pattern:**
+```go
+// BAD: тест проверяет только err, не log-payload
+func TestHandle_BadID(t *testing.T) {
+    err := w.handle(ctx, "not-a-uuid")
+    require.Error(t, err)
+    // лог при этом мог записать id=00000000-0000-0000-0000-000000000000
+    // вместо "not-a-uuid" — никто не заметит
+}
+```
+
+**Pattern:**
+```go
+// GOOD: zaptest/observer перехватывает лог-поля
+import (
+    "go.uber.org/zap"
+    "go.uber.org/zap/zaptest/observer"
+)
+
+func TestHandle_BadID_LogsRawInput(t *testing.T) {
+    core, recorded := observer.New(zap.ErrorLevel)
+    log := zap.New(core)
+
+    w := &Worker{log: log}
+    err := w.handle(context.Background(), "not-a-uuid")
+    require.Error(t, err)
+
+    // проверяем содержимое лог-поля
+    entries := recorded.FilterMessage("parse id failed").All()
+    require.Len(t, entries, 1)
+    fields := entries[0].ContextMap()
+    require.Equal(t, "not-a-uuid", fields["rawID"]) // исходная строка, не uuid.Nil
+}
+```
+
+**Применимо к:**
+- handler-ам, парсящим параметры из request (uuid, time, decimal)
+- worker-ам с `Parse(rawX)` в начале
+- адаптерам proto/HTTP DTO → entity
+
+**Когда `observer` избыточен:** простые helper-функции без логирования — там достаточно `require.ErrorIs`. Паттерн нужен на **границе** (handler/worker/adapter), где исходный ввод теряется при парсинге.
+
+**Признаки в коде:**
+- Лог-сообщения "X failed" не содержат kvfields с исходным значением
+- Handler/worker делает `Parse(input)` без сохранения исходного `input` в локальную переменную с другим именем
+- Тесты ошибочного парсинга проверяют только `err != nil`
+- Нет ни одного теста с `zaptest/observer` или его аналогом
+
+**Severity:** 🟡 MEDIUM

@@ -37,18 +37,25 @@ Add comments only when the purpose or behavior cannot be conveyed through naming
 
 ## Coding Rules (Mandatory)
 
-Before writing, modifying, or reviewing any Go, Java, or Python code, you MUST load
-the `coding-rules` skill. This is non-negotiable — even for one-line changes,
-typo fixes in code, or quick experiments.
+Before planning, writing, modifying, or reviewing any Go, Java, or Python code, you
+MUST load the `coding-rules` skill. This is non-negotiable — it applies to design
+discussions, implementation plans, one-line changes, typo fixes in code, or quick
+experiments alike.
+
+This includes any planning activity that produces concrete code-shape decisions:
+sketching APIs/signatures, choosing patterns or libraries, drafting implementation
+plans (including in plan mode), or proposing refactors — load the rules before
+making such recommendations, not after.
 
 Order of loading:
 1. `coding-rules/references/common.md` (always)
-2. Language-specific `patterns.md` (Go/Java/Python — based on the file you touch)
+2. Language-specific `patterns.md` (Go/Java/Python — based on the file you touch
+   or the language being planned for)
 3. Framework/library references that match the project (fx, gRPC, kafka, redis,
    http, postgres, observability, migrations, validation, testing, etc.)
 
-If you find yourself writing code without having loaded coding-rules first,
-stop and load them.
+If you find yourself planning or writing code without having loaded coding-rules
+first, stop and load them.
 
 ## Commits (Mandatory)
 
