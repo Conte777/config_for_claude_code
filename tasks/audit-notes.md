@@ -191,6 +191,31 @@ Full broken-link audit across `src/skills/go-microservice/` and `src/skills/codi
 
 ---
 
+## US-015 verification
+
+**Goal:** Update or remove outdated MEMORY.md statements about per-aggregate `fx.go`, HTTP-first, `deps/dep.go`, `buissines` spelling, `http_clients` pattern.
+
+**Result:** No MEMORY.md exists for project `config_for_claude_code`. Story passes by AC branch #4 ("If MEMORY.md does not exist or has no relevant entries, story passes with a note explaining no changes needed"). No file edits in skills/.
+
+**Reproducible verification:**
+
+| # | Command | Result | Verdict |
+|---|---|---|---|
+| 1 | `ls -la /Users/conte/.claude/projects/-Users-conte-Projects-config-for-claude-code/memory/` | only `.` and `..` (empty dir) | no MEMORY.md ✓ |
+| 2 | `ls -la /Users/conte/.claude/memory/` | path does not exist | no global MEMORY.md ✓ |
+| 3 | `find /Users/conte/.claude -maxdepth 4 -name MEMORY.md -type f` | 3 files in unrelated projects (mailer-service, ton-algo, xrp-algo) | none belong to config_for_claude_code scope ✓ |
+| 4 | `grep -lE 'fx\.go\|HTTP-first\|deps/dep\.go\|buissines\|http_clients' <those 3 files>` | 1 hit (mailer-service line about `kafka.fx.go` in OnStart hook ordering) | false positive — correct content, unrelated to skill scope ✓ |
+
+**Notes:**
+
+- **Scope:** US-015 targets the MEMORY.md of the *current* project (`config_for_claude_code`). MEMORY.md files of sibling projects in `~/.claude/projects/` are not auto-loaded into the current session and editing them is out of scope.
+- **mailer-service `kafka.fx.go` mention** (Race Condition Fix entry, 2026-02-06) describes the correct fx-OnStart-hook ordering pattern — *opposite* of the stale "per-aggregate fx.go" claim US-015 cares about. False positive — leave as-is.
+- **Why no new memory records:** canonical backend_core architectural patterns produced in US-001..US-014 (flat `internal/domain/fx.go`, gRPC-first delivery, `internal/entity/`, `infrastructure/grpc/clients/<svc>/`, outbox pattern, gateway pattern) live in `src/skills/go-microservice/references/*.md`. They auto-load via skill triggers ("создать микросервис", "добавить домен", "имплементировать фичу", etc.), so they are reachable in any future session that needs them. Duplicating them into `config_for_claude_code/memory/` would only surface them when working on this config repo itself — not when working on backend_core projects, which is where they actually matter.
+- **Empty `memory/` directory ≠ misconfigured project**: a fresh `memory/` dir without MEMORY.md is the normal starting state until first auto-memory write. No system warning fires for the absence.
+- **AC mapping**: AC #1 (read attempt made) ✓, AC #2 (no outdated entries to fix) ✓, AC #3 (no new entries needed) ✓, AC #4 (note documented here and in `progress.txt`) ✓.
+
+---
+
 ## Story → file impact summary
 
 | Story | Files to edit | Files to create |
