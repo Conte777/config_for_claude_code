@@ -6,7 +6,7 @@
 - `uber-fx.md` — Uber FX lifecycle, DI, modules, graceful shutdown
 - `clean-architecture.md` — DDD layers: entities, DTO, deps, repository, usecase, delivery, workers
 - `grpc.md` — gRPC server, client, interceptors, error mapping, metadata
-- `kafka.md` — Kafka consumer, producer, outbox pattern, idempotency
+- `kafka.md` — Kafka consumer, producer, transactional event log, idempotency
 - `redis.md` — Redis caching, distributed locks, pipelines
 - `testing.md` — Mockery, testify, table tests, integration tests
 
