@@ -395,6 +395,76 @@ func NewService(p ServiceParams) *Service {
 
 **Severity:** 🟡 MEDIUM
 
+### 2.1 Typed Config Wrappers vs Named Tags
+
+**Проблема:** Когда нужно различать **несколько инстансов конфига одного типа** (например, `*config.GRPCClientConfig` для ledger, balance, autowithdraw), соблазн использовать `name:"..."`-теги. Но строковые имена не проверяются компилятором: опечатка в `name:"balanceServiceConfig"` → паника на старте FX, а не ошибка билда. Для конфигов лучше типизированные обёртки — каждый клиент получает свой конкретный тип.
+
+**Anti-pattern:**
+```go
+// BAD: строковые имена для разных gRPC-клиентов одного типа конфига
+type Config struct {
+    Ledger          *GRPCClientConfig `name:"ledgerServiceConfig"`
+    Balance         *GRPCClientConfig `name:"balanceServiceConfig"`
+    Autowithdraw    *GRPCClientConfig `name:"autowithdrawServiceConfig"`
+}
+
+// в пакете balance:
+type Params struct {
+    fx.In
+    Config *config.GRPCClientConfig `name:"balanceServiceConfig"` // опечатка → runtime panic
+    Logger logger.ILogger
+}
+
+// в провайдере конфига:
+fx.Provide(
+    fx.Annotate(loadBalanceCfg, fx.ResultTags(`name:"balanceServiceConfig"`)),
+    fx.Annotate(loadLedgerCfg,  fx.ResultTags(`name:"ledgerServiceConfig"`)),
+)
+```
+
+**Pattern:**
+```go
+// GOOD: типизированная обёртка на каждый клиент
+package balance
+
+type Config struct {
+    *config.GRPCClientConfig // inline
+    // можно добавить специфичные поля при необходимости
+}
+
+type Params struct {
+    fx.In
+    Config *Config            // компилятор проверит тип
+    Logger logger.ILogger
+}
+
+// в config.go:
+type Config struct {
+    Ledger       LedgerClientConfig
+    Balance      BalanceClientConfig
+    Autowithdraw AutowithdrawClientConfig
+}
+
+type BalanceClientConfig struct {
+    GRPCClientConfig // env tags наследуются
+}
+
+// в провайдере: разные типы → FX автоматически роутит по типу,
+// никаких ResultTags/ParamTags не нужно.
+fx.Provide(
+    func(c *Config) *BalanceClientConfig { return &c.Balance },
+    func(c *Config) *LedgerClientConfig  { return &c.Ledger },
+)
+```
+
+**Когда `name:"..."` всё-таки уместен:**
+- разные инстансы внешней библиотеки одного типа, который нельзя обернуть (`*redis.Client`, `*sql.DB` для двух разных БД) — там типизированная обёртка добавляет лишнюю прослойку без смысла
+- конфиги команды разделены по доменам и типы уже отдельные → `name` не нужен
+
+**Правило:** если ты пишешь `name:"<x>ServiceConfig"` несколько раз на разные клиенты — заменяй на типизированные обёртки. Для случайных коллизий *чужих* типов — оставляй теги.
+
+**Severity:** 🟡 MEDIUM (надёжность + проверка компилятором)
+
 ### 3. Parameter Objects with fx.In/fx.Out
 
 **Проблема:** Конструктор с 5+ аргументами — сложно читать и поддерживать.
@@ -546,3 +616,180 @@ func TestWithMocks(t *testing.T) {
 ```
 
 **Severity:** 💡 INFO
+
+## Multiple Interface Bindings
+
+### Single Constructor → Several Interfaces
+
+**Проблема:** Одна реализация удовлетворяет нескольким узким интерфейсам (например, кэш реализует и `OrderCache`, и `UserCache`, и `health.Checker`). Без `fx.As` приходится либо плодить отдельные конструкторы, либо менять сигнатуру `New` так, чтобы возвращался самый "широкий" интерфейс — тогда теряется доступ к остальным методам типа.
+
+**Pattern:**
+```go
+// Конструктор остаётся возвращающим конкретный тип
+type RedisCache struct { /* ... */ }
+
+func NewRedisCache(cfg *Config) *RedisCache { /* ... */ }
+
+func (c *RedisCache) GetOrder(ctx context.Context, id string) (*Order, error) { /* ... */ }
+func (c *RedisCache) GetUser(ctx context.Context, id string) (*User, error)   { /* ... */ }
+func (c *RedisCache) Check(ctx context.Context) error                          { /* ... */ }
+
+// fx.Annotate с несколькими fx.As — один провайдер регистрирует несколько интерфейсов
+var Module = fx.Module("cache",
+    fx.Provide(
+        fx.Annotate(
+            NewRedisCache,
+            fx.As(new(deps.OrderCache)),
+            fx.As(new(deps.UserCache)),
+            fx.As(new(health.Checker)),
+        ),
+    ),
+)
+```
+
+**Когда применять:**
+- инфраструктурный компонент (БД, кэш, MQ-коннектор) удовлетворяет 2+ узким интерфейсам разных доменов
+- хочется избежать дублирования провайдера (`NewOrderCache`, `NewUserCache` поверх одного `*RedisCache`)
+- альтернатива через возврат интерфейса теряет доступ к специфичным методам типа
+
+**Severity:** 🟡 MEDIUM
+
+## Config Decomposition
+
+### Splitting a Monolithic Config into Domain-Scoped Sub-Configs
+
+**Проблема:** Большое приложение часто заводит один `*Config` со всеми полями (DB, Redis, Kafka, gRPC-клиенты, фичи). Любой провайдер, которому нужна одна строка из конфига, начинает зависеть от всего `*Config` — тестам приходится конструировать монолит, изменения в `Config` каскадом ломают сигнатуры провайдеров.
+
+**Anti-pattern:**
+```go
+// BAD: каждый провайдер берёт *Config целиком
+type Config struct {
+    DB    DBConfig
+    Redis RedisConfig
+    Kafka KafkaConfig
+}
+
+func NewDB(cfg *Config) *sql.DB     { /* uses cfg.DB */ }
+func NewRedis(cfg *Config) *redis.Client { /* uses cfg.Redis */ }
+// каждый знает про весь Config — тестировать сложно
+```
+
+**Pattern:**
+```go
+import "github.com/caarlos0/env/v10" // или sethvargo/go-envconfig
+
+// Корневой конфиг с env-prefix-ами
+type Config struct {
+    DB    DBConfig    `envPrefix:"DB_"`
+    Redis RedisConfig `envPrefix:"REDIS_"`
+    Kafka KafkaConfig `envPrefix:"KAFKA_"`
+}
+
+type DBConfig struct {
+    DSN          string        `env:"DSN,required"`
+    MaxConns     int32         `env:"MAX_CONNS"     envDefault:"10"`
+    MaxConnLifetime time.Duration `env:"MAX_CONN_LIFETIME" envDefault:"30m"`
+}
+
+func LoadConfig() (*Config, error) {
+    cfg := &Config{}
+    return cfg, env.Parse(cfg)
+}
+
+// Распаковка sub-конфигов в отдельные провайдеры
+var ConfigModule = fx.Module("config",
+    fx.Provide(
+        LoadConfig,
+        func(c *Config) *DBConfig    { return &c.DB },
+        func(c *Config) *RedisConfig { return &c.Redis },
+        func(c *Config) *KafkaConfig { return &c.Kafka },
+    ),
+)
+
+// Провайдеры зависят только от своего sub-конфига
+func NewDB(cfg *DBConfig) (*sql.DB, error)        { /* ... */ }
+func NewRedis(cfg *RedisConfig) (*redis.Client, error) { /* ... */ }
+```
+
+**Преимущества:**
+- `NewDB` тестируется без знания про `RedisConfig`/`KafkaConfig`
+- изменение `RedisConfig.MaxIdleConns` не трогает сигнатуру провайдера БД
+- env-теги наследуются через `envPrefix` — единообразный формат `DB_DSN`, `REDIS_ADDR`
+
+**Когда стоит:** домен > 3–4 sub-конфигов, или когда тестирование одного провайдера тянет загрузку всего `Config`. Для маленьких приложений монолит приемлем.
+
+**Severity:** 🟡 MEDIUM
+
+## Module Composition by Domains
+
+### Per-Domain `fx.Module` Files
+
+**Проблема:** Сборка контейнера в одном файле `internal/app/app.go` со всеми `fx.Provide` приводит к гигантскому списку и слабой инкапсуляции — добавление нового домена требует правки центрального файла, а не только домена.
+
+**Pattern:**
+```
+internal/
+├── app/
+│   └── app.go              // root: fx.New(ConfigModule, InfraModule, OrderModule, ...)
+├── infrastructure/
+│   ├── db/fx.go            // DBModule
+│   ├── redis/fx.go         // RedisModule
+│   └── kafka/fx.go         // KafkaModule
+└── domain/
+    ├── order/
+    │   ├── fx.go           // OrderModule = fx.Module("order", repo + uc + handler)
+    │   ├── repository/postgres/repository.go
+    │   ├── usecase/usecase.go
+    │   └── delivery/grpc/handler.go
+    └── user/
+        ├── fx.go           // UserModule
+        └── ...
+```
+
+```go
+// internal/domain/order/fx.go
+package order
+
+import (
+    "go.uber.org/fx"
+    "project/internal/domain/order/delivery/grpc"
+    "project/internal/domain/order/deps"
+    "project/internal/domain/order/repository/postgres"
+    "project/internal/domain/order/usecase"
+)
+
+var Module = fx.Module("order",
+    fx.Provide(
+        fx.Annotate(postgres.NewRepository, fx.As(new(deps.OrderRepository))),
+        usecase.NewUseCase,
+        grpc.NewHandler,
+    ),
+)
+```
+
+```go
+// internal/app/app.go
+package app
+
+import (
+    "go.uber.org/fx"
+    "project/internal/domain/order"
+    "project/internal/domain/user"
+    "project/internal/infrastructure/db"
+    "project/internal/infrastructure/redis"
+)
+
+var Module = fx.Module("app",
+    db.Module,
+    redis.Module,
+    order.Module,
+    user.Module,
+)
+```
+
+**Преимущества:**
+- добавить домен — добавить одну строку в `app.go`, остальное в `domain/<X>/fx.go`
+- `Module`-переменная домена импортируется и тестируется как единое целое
+- root-файл остаётся коротким и читаемым
+
+**Severity:** 🟡 MEDIUM

@@ -1033,6 +1033,161 @@ func (w *ExpiredOrdersWorker) process(ctx context.Context) {
 
 ---
 
+## Splitting `deps/` into Multiple Files
+
+**Проблема:** Один файл `deps/dep.go` с 10+ интерфейсами быстро превращается в свалку: storage-интерфейсы перемешаны с cache, integration-clients, event-producer-ами. Понять, "какие зависимости нужны use case-у", становится сложнее, а ревью diff-ов — мутным.
+
+**Когда стоит разделять:** домен > ~10 интерфейсов, либо когда чётко видны группы по типу зависимости.
+
+**Pattern:**
+```
+internal/domain/order/deps/
+├── storage_deps.go       # OrderRepository, OrderItemRepository
+├── cache_deps.go         # OrderCache
+├── integration_deps.go   # PaymentClient, NotificationClient, ShippingClient
+└── event_deps.go         # EventProducer, OutboxPublisher
+```
+
+```go
+// storage_deps.go
+package deps
+
+type OrderRepository interface {
+    Create(ctx context.Context, o *entities.Order) error
+    GetByID(ctx context.Context, id uuid.UUID) (*entities.Order, error)
+    // ...
+}
+
+// integration_deps.go
+package deps
+
+type PaymentClient interface {
+    ProcessPayment(ctx context.Context, orderID uuid.UUID, amount decimal.Decimal) (*PaymentResult, error)
+}
+```
+
+**Правила:**
+- все файлы в одном пакете `deps` — внешний потребитель импортирует один и тот же `deps.OrderRepository`
+- файлы группируются по **роли в архитектуре** (storage, cache, integration, events), не по сущности (`order_deps.go`, `user_deps.go`)
+- если домен маленький — оставить `dep.go` единым
+- НЕ создавать sub-packages внутри `deps/` (например `deps/storage/`) — это ломает простоту import-а
+
+---
+
+## Generic Pagination
+
+**Проблема:** Большинство `List*Response` DTO одинаковы по форме: `Items []T`, `Total int`, плюс `Limit`/`Offset`. Без обобщения этот контракт повторяется 5–10 раз — и каждый раз чуть отличается (`Total int` vs `int64`, разные имена полей в JSON, etc.).
+
+**Pattern:**
+```go
+package pagination
+
+type Page[T any] struct {
+    Items  []T   `json:"items"`
+    Total  int64 `json:"total"`
+    Limit  int   `json:"limit"`
+    Offset int   `json:"offset"`
+}
+
+func New[T any](items []T, total int64, limit, offset int) Page[T] {
+    return Page[T]{Items: items, Total: total, Limit: limit, Offset: offset}
+}
+
+// Map конвертирует Page[A] в Page[B] через функцию-маппер
+func Map[A, B any](p Page[A], fn func(A) B) Page[B] {
+    out := make([]B, len(p.Items))
+    for i, item := range p.Items {
+        out[i] = fn(item)
+    }
+    return Page[B]{Items: out, Total: p.Total, Limit: p.Limit, Offset: p.Offset}
+}
+```
+
+**Использование на границе repository → use case:**
+```go
+// repository возвращает entity-страницу
+type OrderRepository interface {
+    List(ctx context.Context, filter *OrderFilter, limit, offset int) (pagination.Page[entities.Order], error)
+}
+
+// use case конвертирует в DTO
+func (uc *UseCase) ListOrders(ctx context.Context, req *dto.ListOrdersRequest) (*dto.ListOrdersResponse, error) {
+    page, err := uc.repo.List(ctx, req.Filter, req.Limit, req.Offset)
+    if err != nil {
+        return nil, err
+    }
+
+    dtoPage := pagination.Map(page, func(o entities.Order) dto.OrderResponse {
+        return mapOrderToDTO(&o)
+    })
+
+    return &dto.ListOrdersResponse{
+        Orders: dtoPage.Items,
+        Total:  dtoPage.Total,
+        Limit:  dtoPage.Limit,
+        Offset: dtoPage.Offset,
+    }, nil
+}
+```
+
+**Преимущества:**
+- единый формат пагинации — клиенты получают предсказуемый JSON
+- `Map` устраняет дублирование `for i, x := range items { dtos[i] = mapper(x) }` в каждом use case-е
+- легко добавить cursor-pagination варианту: `CursorPage[T]` с `NextCursor *string`
+
+**Severity:** 💡 INFO
+
+---
+
+## DTO vs Entity Boundary
+
+**Проблема:** Граница "что entity, что DTO" размывается, когда:
+- entity-структуры используются как DTO (попадают в JSON-выдачу с `db:"..."`-тегами в response)
+- DTO импортируется в `repository/postgres` (репозиторий начинает зависеть от транспортного слоя)
+- `proto.Order` или `*pb.Order` встречается в `usecase/` (transport-слой протекает в бизнес-логику)
+
+Любой из этих случаев ломает dependency rule: **внутренние слои не знают о внешних**.
+
+**Anti-pattern:**
+```go
+// BAD: entity протекает в HTTP-ответ → frontend получает db-имена
+func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
+    order, _ := h.uc.GetOrder(r.Context(), id) // returns *entities.Order
+    json.NewEncoder(w).Encode(order)            // имена полей через json:"snake_case"
+}
+
+// BAD: DTO в repository — repository знает про DTO
+func (r *Repository) ListByFilter(ctx context.Context, req *dto.ListOrdersRequest) (...)
+
+// BAD: proto в usecase — нельзя вызвать UC из HTTP/Kafka/CLI без proto-знания
+func (uc *UseCase) Create(ctx context.Context, req *pb.CreateOrderRequest) (*pb.Order, error)
+```
+
+**Pattern:**
+```
+domain/order/
+├── entities/order.go          // только entity. Знает про БД через db-теги, но не знает про DTO/proto.
+├── dto/order.go               // request/response DTO. Знает про json/validate-теги.
+├── deps/                      // интерфейсы. Знают про entity (returns), не про DTO.
+├── repository/postgres/       // знает про entity и SQL. НЕ знает про DTO.
+├── usecase/                   // знает про deps и entity. Принимает/возвращает DTO. НЕ знает про proto.
+└── delivery/
+    ├── grpc/                  // знает про proto и DTO. Маппит proto ↔ DTO.
+    └── http/                  // знает про json и DTO. Прямо передаёт DTO в JSON.
+```
+
+**Правила:**
+- entity ↔ DTO mapping живёт **в use case** (или в `mapping.go` рядом с use case-ом)
+- proto ↔ DTO mapping живёт **в delivery/grpc** (см. `grpc.md`)
+- repository принимает фильтры в виде domain-типа (`*OrderFilter` в `dto`-пакете — допустимый компромисс, если фильтр сам по себе бизнес-понятие, а не транспортный объект; альтернатива — отдельный `entities.OrderFilter`)
+- entity НЕ имеет `validate:"..."`-тегов (они для DTO)
+- DTO НЕ имеет `db:"..."`-тегов (они для entity)
+- если структуры одинаковы по форме — это нормально, не нужно их объединять
+
+**Severity:** 🟠 HIGH (нарушение приводит к каскадным изменениям при эволюции схемы)
+
+---
+
 ## Domain Errors
 
 **Location:** `pkg/errors/`

@@ -486,7 +486,232 @@ registry.AddHandler("payments.completed", "payment-processor", paymentHandler, 1
 
 **Severity:** 🟡 MEDIUM
 
-### 12. Producer with OTel Tracing
+### 12.1 Handler Registry Pattern
+
+**Проблема:** Когда сервис подписан на 5+ топиков, отдельный consumer для каждого топика — boilerplate (отдельный reader, цикл, lifecycle hook). Это не только дублирование кода, но и сложность диагностики: каждый consumer пишет логи в своей логике, нет единой точки фильтрации/трейсинга.
+
+**Pattern:**
+```go
+// Handler — обработчик одного логического события
+type Handler interface {
+    Topic() string
+    GroupID() string
+    Handle(ctx context.Context, msg kafka.Message) error
+}
+
+// Registry собирает все handler-ы в один consumer-loop
+type Registry struct {
+    handlers []Handler
+    brokers  []string
+    logger   *zap.Logger
+}
+
+func (r *Registry) Register(h Handler) {
+    r.handlers = append(r.handlers, h)
+}
+
+func (r *Registry) Run(ctx context.Context) error {
+    var wg sync.WaitGroup
+    for _, h := range r.handlers {
+        wg.Add(1)
+        go func(h Handler) {
+            defer wg.Done()
+            r.runHandler(ctx, h)
+        }(h)
+    }
+    wg.Wait()
+    return nil
+}
+
+func (r *Registry) runHandler(ctx context.Context, h Handler) {
+    reader := kafka.NewReader(kafka.ReaderConfig{
+        Brokers: r.brokers,
+        GroupID: h.GroupID(),
+        Topic:   h.Topic(),
+    })
+    defer reader.Close()
+
+    for {
+        msg, err := reader.FetchMessage(ctx)
+        if err != nil {
+            if errors.Is(err, context.Canceled) {
+                return
+            }
+            r.logger.Error("fetch", zap.String("topic", h.Topic()), zap.Error(err))
+            continue
+        }
+        if err := h.Handle(ctx, msg); err != nil {
+            r.logger.Error("handle", zap.String("topic", h.Topic()), zap.Error(err))
+            continue // не коммитим, переобработаем
+        }
+        if err := reader.CommitMessages(ctx, msg); err != nil {
+            r.logger.Error("commit", zap.String("topic", h.Topic()), zap.Error(err))
+        }
+    }
+}
+```
+
+```go
+// Регистрация handler-ов в одной точке
+func RegisterHandlers(reg *Registry, oh *OrderHandler, ph *PaymentHandler, uh *UserHandler) {
+    reg.Register(oh)
+    reg.Register(ph)
+    reg.Register(uh)
+}
+
+// FX:
+var Module = fx.Module("kafka",
+    fx.Provide(NewRegistry),
+    fx.Invoke(RegisterHandlers),
+    fx.Invoke(func(lc fx.Lifecycle, reg *Registry) {
+        var cancel context.CancelFunc
+        lc.Append(fx.Hook{
+            OnStart: func(_ context.Context) error {
+                runCtx, fn := context.WithCancel(context.Background())
+                cancel = fn
+                go reg.Run(runCtx)
+                return nil
+            },
+            OnStop: func(_ context.Context) error {
+                cancel()
+                return nil
+            },
+        })
+    }),
+)
+```
+
+**Преимущества:**
+- единое место для cross-cutting concerns: tracing, metrics (`kafka_messages_processed_total{topic}`), DLQ-роутинг
+- добавление нового топика — одна строка `reg.Register(newHandler)`, не новый lifecycle hook
+- shutdown централизован — все consumer-ы реагируют на один `ctx.Done()`
+
+**Severity:** 🟡 MEDIUM
+
+### 12.2 Domain Event Listener (Thin Adapter)
+
+**Проблема:** Когда Kafka-handler обрастает бизнес-логикой (валидация, обращение к БД, сторонние вызовы), он превращается в use case со специфичным транспортом. Тестировать его становится сложно — нужно поднимать Kafka, мокать producer-ов, etc. Use case же привязывается к kafka-формату сообщений и теряет переносимость на другие транспорты (HTTP, scheduled job).
+
+**Anti-pattern:**
+```go
+// BAD: бизнес-логика в kafka-handler — нельзя дёрнуть из теста или другого транспорта
+type OrderEventHandler struct {
+    repo deps.OrderRepository
+    bus  deps.EventBus
+}
+
+func (h *OrderEventHandler) Handle(ctx context.Context, msg kafka.Message) error {
+    var event OrderCreatedEvent
+    if err := json.Unmarshal(msg.Value, &event); err != nil { /* ... */ }
+    // десятки строк бизнес-логики прямо тут
+    order, err := h.repo.GetByID(ctx, event.OrderID)
+    // ...
+    if err := h.bus.Publish(ctx, NewEvent{}); err != nil { /* ... */ }
+    return nil
+}
+```
+
+**Pattern:**
+```go
+// GOOD: listener — тонкий адаптер. Бизнес-логика — в use case.
+// internal/domain/order/delivery/kafka/listener.go
+package kafka
+
+import "project/internal/domain/order/usecase"
+
+type OrderListener struct {
+    uc *usecase.UseCase
+}
+
+func NewOrderListener(uc *usecase.UseCase) *OrderListener {
+    return &OrderListener{uc: uc}
+}
+
+func (l *OrderListener) Topic() string  { return "orders.created" }
+func (l *OrderListener) GroupID() string { return "order-processor" }
+
+func (l *OrderListener) Handle(ctx context.Context, msg kafka.Message) error {
+    var event OrderCreatedEvent
+    if err := json.Unmarshal(msg.Value, &event); err != nil {
+        return fmt.Errorf("unmarshal: %w", err)
+    }
+    // делегируем — никакой бизнес-логики в listener-е
+    return l.uc.HandleOrderCreated(ctx, event.ToDomain())
+}
+```
+
+**Правила:**
+- listener живёт в `delivery/kafka/` (не в `infrastructure/kafka/`)
+- задача listener-а: десериализовать → валидировать формат → конвертировать в domain-тип → вызвать use case
+- НЕ обращается напрямую к репозиторию, БД, другим внешним сервисам
+- use case обрабатывает событие так же, как обработал бы вызов от HTTP-handler-а или планировщика
+- инфраструктурный consumer (registry, reader, lifecycle) — отдельная сущность в `infrastructure/kafka/`
+
+**Severity:** 🟡 MEDIUM
+
+### 12.3 Outbox Variants: App-side Polling vs CDC
+
+**Проблема:** Section 8 описала classic outbox: приложение пишет в `outbox`-таблицу в той же транзакции, фоновый воркер опрашивает её и публикует в Kafka. Это работает, но имеет недостатки: лишние SELECT-нагрузки на БД, latency = poll-interval, дополнительный код для воркера. В крупных проектах часто заменяют app-side polling на **Change Data Capture** через Debezium/Kafka Connect — он читает WAL/binlog Postgres/MySQL и публикует изменения сразу.
+
+**Сравнение вариантов:**
+
+| Аспект                     | App-side polling          | CDC (Debezium)                                |
+|----------------------------|---------------------------|-----------------------------------------------|
+| Сколько кода писать        | Воркер + транзакция в outbox | Конфиг Debezium-коннектора + обработчик в consumer-е |
+| Latency                    | poll interval (1–5s типично) | sub-second (читает WAL realtime)             |
+| Инфраструктура             | ничего сверху Postgres       | Kafka Connect + Debezium                     |
+| Семантика гарантий         | "at least once" с явным offset в `outbox.published_at` | "at least once", offset хранит Debezium      |
+| Эволюция схемы событий     | Полный контроль формата events.json | Формат привязан к таблице — нужны view-таблицы или transforms |
+| Отказоустойчивость         | Простое: воркер падает → restart, polling продолжает | Сложнее: нужен мониторинг Debezium-кластера   |
+
+**Когда app-side polling:**
+- небольшой/средний сервис, нет инфраструктуры Kafka Connect
+- нужен полный контроль над форматом event-ов (custom envelope, version, etc.)
+- допустима latency 1–5 секунд
+
+**Когда CDC:**
+- уже есть Kafka Connect / Debezium в инфраструктуре
+- критична низкая latency (sub-second)
+- много таблиц/событий, дублировать outbox-механику в каждом сервисе накладно
+- готовы инвестировать в мониторинг и schema-registry
+
+**Pattern (CDC consumer):**
+```go
+// CDC-сообщения от Debezium имеют envelope: {before, after, op, source, ts_ms}
+type DebeziumEnvelope struct {
+    Before json.RawMessage `json:"before"`
+    After  json.RawMessage `json:"after"`
+    Op     string          `json:"op"` // "c", "u", "d", "r"
+    Source struct {
+        Table string `json:"table"`
+        TsMs  int64  `json:"ts_ms"`
+    } `json:"source"`
+}
+
+func (h *OrderCDCListener) Handle(ctx context.Context, msg kafka.Message) error {
+    var env DebeziumEnvelope
+    if err := json.Unmarshal(msg.Value, &env); err != nil {
+        return fmt.Errorf("unmarshal envelope: %w", err)
+    }
+    if env.Op != "c" { // нас интересуют только инсерты
+        return nil
+    }
+    var order entities.Order
+    if err := json.Unmarshal(env.After, &order); err != nil {
+        return fmt.Errorf("unmarshal order: %w", err)
+    }
+    return h.uc.HandleOrderCreated(ctx, &order)
+}
+```
+
+**Замечания:**
+- идемпотентность всё равно нужна: Debezium тоже даёт "at least once"
+- топики Debezium именуются `<server>.<schema>.<table>` — нужно учитывать в consumer group naming
+- НЕ публиковать раздел между app-side outbox и CDC одновременно для одной таблицы — два источника событий на один поток
+
+**Severity:** 🟡 MEDIUM (архитектурный выбор)
+
+### 13. Producer with OTel Tracing
 
 **Проблема:** Producer без трейсинга — trace context теряется между сервисами, distributed tracing разрывается.
 
