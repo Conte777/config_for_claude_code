@@ -399,7 +399,57 @@ catch Exception as e:
 
 ---
 
-### 2. Error Information Leak
+### 2. Silent Skip Business Condition
+
+**Проблема:** При невыполнении бизнес-условия use case возвращает дефолт/пустой результат вместо ошибки. Клиент получает успешный ответ там, где должен получить осмысленный fail — UI не покажет причину, метрики не зафиксируют сбой, поведение нельзя отличить от валидного "пустого" сценария.
+
+**Anti-pattern:**
+```
+function calculateMaxWithdrawal(account, direction):
+    if not directionAvailable(direction):
+        return 0          // клиент думает, что доступно 0 — а должен был узнать причину
+
+    if account.balance < minAmount:
+        return Result{}, nil  // пустой результат вместо ошибки
+
+    // ... корректная ветка
+```
+
+```
+function processOrder(order):
+    if not order.isEligible():
+        return            // тихий выход — нет ни ошибки, ни сигнала
+```
+
+**Pattern:**
+```
+// объявляем типизированные domain-ошибки
+ErrDirectionNotAvailable = new DomainError("direction not available")
+ErrAmountBelowMin        = new DomainError("amount below minimum")
+ErrOrderNotEligible      = new DomainError("order not eligible")
+
+function calculateMaxWithdrawal(account, direction):
+    if not directionAvailable(direction):
+        return null, ErrDirectionNotAvailable
+    if account.balance < minAmount:
+        return null, ErrAmountBelowMin
+    // ...
+
+// transport-слой маппит domain-ошибку в корректный код:
+//   gRPC FailedPrecondition / HTTP 409 / 400 в зависимости от семантики
+```
+
+**Признаки в коде:**
+- `if !cond { return default, nil }` или `return zeroValue, nil` в use case при невыполнении бизнес-условия
+- Пустой `else`-блок без error
+- HTTP 200 с пустым телом / нулями вместо явного 4xx
+- `continue` в цикле обработки batch-операции при невалидном элементе без сбора причин в результирующий отчёт
+
+**Severity:** 🟠 HIGH
+
+---
+
+### 3. Error Information Leak
 
 **Проблема:** Детали ошибок раскрываются пользователю.
 
@@ -424,6 +474,105 @@ catch DatabaseError as e:
 - Exception message в HTTP response
 - Stack trace в API response
 - Database errors в client-facing messages
+
+**Severity:** 🟠 HIGH
+
+---
+
+## Financial / Money Calculations
+
+### 1. Floating Point for Money
+
+**Проблема:** Денежные суммы на `float`/`double` теряют точность из-за бинарного представления. `0.1 + 0.2 ≠ 0.3`. Накопленная погрешность в финансовых расчётах превращается в реальные деньги — расхождение балансов, ошибки в комиссиях, неправильные конверсии.
+
+**Anti-pattern:**
+```
+balance: float64 = 0.1 + 0.2
+// balance == 0.30000000000000004 — расходится с ожидаемым 0.3
+
+fee: float64 = amount * 0.025
+// результат может потерять последние знаки после запятой
+```
+
+**Pattern:**
+```
+// Использовать decimal-тип с явной точностью
+// Go:     github.com/shopspring/decimal — Decimal
+// Java:   java.math.BigDecimal
+// Python: decimal.Decimal
+
+balance = Decimal("0.1") + Decimal("0.2")    // ровно 0.3
+fee     = amount.Mul(Decimal("0.025")).Round(scale)
+```
+
+**Признаки в коде:**
+- Поля `amount`, `balance`, `fee`, `price`, `total` имеют тип `float`/`double`
+- Парсинг суммы через `parseFloat`/`Atof`/`float()`
+- Сравнение денег через `==`/`!=` (в float-арифметике это ненадёжно)
+
+**Severity:** 🔴 CRITICAL
+
+---
+
+### 2. Different Money Concepts as One Type
+
+**Проблема:** В одной формуле смешиваются `total`, `available`, `reserved`, `balance` без различения типов. Компилятор не ловит перепутанные источники: `available - reserved` и `total - reserved` — разные семантические операции, но в коде неотличимы. В результате в формулу попадает поле, не относящееся к домену операции (например, замороженные средства учитываются в расчёте максимально доступной к выводу суммы).
+
+**Anti-pattern:**
+```
+function maxWithdrawal(acc):
+    // total включает зарезервированные средства, которые нельзя выводить
+    return acc.total - acc.fee
+
+// нет различия между "сколько лежит" и "сколько можно тратить"
+```
+
+**Pattern:**
+```
+// Разные виды сумм — разные типы; компилятор ловит перепутанные источники
+type Total      Decimal  // всё, что числится
+type Available  Decimal  // total минус reserved
+type Reserved   Decimal  // удержанные операции
+
+function maxWithdrawal(acc):
+    return acc.available - acc.fee   // available уже без reserved
+```
+
+**Признаки в коде:**
+- Поля `total`/`balance`/`available`/`reserved` имеют один и тот же тип `Decimal`/`BigDecimal`/`float`
+- Формулы вида `cfg.Total - cfg.Reserved` без явного типа результата
+- В одной функции `available` и `total` участвуют в одной арифметической операции
+
+**Severity:** 🟠 HIGH
+
+---
+
+### 3. Unexplained Operation Order
+
+**Проблема:** Финансовые расчёты с делением и округлением чувствительны к порядку операций: `(a-b)/c` ≠ `a/c - b/c` при ненулевой ошибке округления. Если порядок выбран случайно или скопирован, при изменении формулы легко получить расхождение копеек, которое накапливается на больших объёмах.
+
+**Anti-pattern:**
+```
+// порядок операций без обоснования; делим до округления промежуточных результатов
+fee = (amount * rate / 100).Round(2)
+net = amount - fee
+```
+
+**Pattern:**
+```
+// Формула сопровождается ссылкой на источник (тикет/спека) и пояснением порядка.
+// Где требуется — явный Round(scale) на каждом промежуточном шаге.
+
+// FEE_SCALE = 2 (копейки/центы); rate в долях единицы (0.025), не в процентах.
+// Источник: spec/finance/fees-v3.md, см. секцию "Order matters".
+fee = amount.Mul(rate).Round(FEE_SCALE)   // округляем комиссию первой
+net = amount.Sub(fee)                      // baseline остаётся точным
+```
+
+**Признаки в коде:**
+- Деление без явного `Round(scale)` после
+- Длинные цепочки `Mul/Div` без комментария про порядок
+- Отсутствие unit-тестов на граничные случаи: zero, exact match, scale boundary, negative, overflow
 
 **Severity:** 🟠 HIGH
 
