@@ -693,7 +693,7 @@ type Config struct {
 type Params struct {
     fx.In
     Config *config.GRPCClientConfig `name:"balanceServiceConfig"` // опечатка → runtime panic
-    Logger logger.ILogger
+    Logger *zap.Logger
 }
 
 // в провайдере конфига:
@@ -716,7 +716,7 @@ type Config struct {
 type Params struct {
     fx.In
     Config *Config            // компилятор проверит тип
-    Logger logger.ILogger
+    Logger *zap.Logger
 }
 
 // в config.go:
