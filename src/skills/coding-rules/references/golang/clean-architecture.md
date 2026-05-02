@@ -28,7 +28,8 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/shopspring/decimal"
+    // Money — произвольно-точный decimal-тип; конкретная библиотека выбирается проектом.
+    "example.com/internal/decimal"
 )
 
 // Entity with all common patterns
@@ -118,7 +119,8 @@ import (
     "time"
 
     "github.com/google/uuid"
-    "github.com/shopspring/decimal"
+    // Money — произвольно-точный decimal-тип; конкретная библиотека выбирается проектом.
+    "example.com/internal/decimal"
 )
 
 // === CREATE ===
@@ -1045,7 +1047,7 @@ internal/domain/order/deps/
 ├── storage_deps.go       # OrderRepository, OrderItemRepository
 ├── cache_deps.go         # OrderCache
 ├── integration_deps.go   # PaymentClient, NotificationClient, ShippingClient
-└── event_deps.go         # EventProducer, OutboxPublisher
+└── event_deps.go         # EventProducer, EventLogPublisher
 ```
 
 ```go
