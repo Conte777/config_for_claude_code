@@ -49,6 +49,7 @@ Check imports, config files, and annotations for framework indicators:
 |-----------|-----------|---------------------|
 | `fx.New`, `fx.Module`, `fx.Provide` | Go + Uber FX | `references/golang/uber-fx.md` |
 | DDD layers, `internal/domain/` | Go + Clean Architecture | `references/golang/clean-architecture.md` |
+| `internal/domain/`, `internal/infrastructure/`, `cmd/app/main.go` | Go microservice (DDD + FX + gRPC + Kafka) | `references/golang/microservice-template.md` |
 | `google.golang.org/grpc`, `.proto` | Go + gRPC | `references/golang/grpc.md` |
 | `segmentio/kafka-go` | Go + Kafka | `references/golang/kafka.md` |
 | `go-redis/redis` | Go + Redis | `references/golang/redis.md` |
@@ -85,6 +86,7 @@ references/
 │   ├── patterns.md        # Go idioms, error handling, context, goroutines, generics, backoff, shutdown
 │   ├── uber-fx.md         # DI: fx.Module, fx.Provide, fx.As, config decomposition
 │   ├── clean-architecture.md  # DDD layers, dependency rule, generic pagination, DTO/Entity boundary
+│   ├── microservice-template.md  # Top-level service template: layout, FX composition, outbox, workers, kafka delivery
 │   ├── grpc.md            # Error mapping, interceptors, metadata, idempotency, proto-mapping
 │   ├── kafka.md           # Consumer idempotency, transactional event log, DLQ, handler registry, listener pattern
 │   ├── redis.md           # Cache invalidation, distributed locks (Redlock), key naming

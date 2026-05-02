@@ -97,8 +97,8 @@ OnStop: func(ctx context.Context) error {
 type lifecycleParams struct {
     fx.In
     Lifecycle fx.Lifecycle
-    Config    *containers.GRPCServerConfig
-    Logger    logger.ILogger
+    Config    *GRPCServerConfig
+    Logger    *zap.SugaredLogger
     Server    *grpc.Server
 }
 
@@ -129,19 +129,21 @@ func RegisterLifecycle(p lifecycleParams) {
 ```go
 // GOOD: состояние и lifecycle — на типе Server
 type Server struct {
-    cfg     *containers.GRPCServerConfig
-    log     logger.ILogger
-    handler *grpcHandlers.Handler
+    cfg     *GRPCServerConfig
+    log     *zap.SugaredLogger
+    handler *Handler
     base    *grpc.Server
     lis     net.Listener
 }
 
-func New(cfg *containers.GRPCServerConfig, log logger.ILogger, h *grpcHandlers.Handler) *Server {
+func New(cfg *GRPCServerConfig, log *zap.SugaredLogger, h *Handler) *Server {
     return &Server{cfg: cfg, log: log, handler: h}
 }
 
 func (s *Server) OnStart(_ context.Context) error {
-    s.base = grpc.NewServer(tracinggrpc.GRPCServerOptions()...)
+    s.base = grpc.NewServer(
+        grpc.StatsHandler(otelgrpc.NewServerHandler()),
+    )
     pb.RegisterFooServiceExternalServer(s.base, s.handler)
     pb.RegisterFooServiceInternalServer(s.base, s.handler)
     reflection.Register(s.base)
