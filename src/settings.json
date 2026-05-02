@@ -150,7 +150,8 @@
     "context7@claude-plugins-official": true,
     "notion@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
-    "ralph-skills@ralph-marketplace": true
+    "ralph-skills@ralph-marketplace": true,
+    "github@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "ralph-marketplace": {

@@ -62,3 +62,8 @@ pnpm-lock.yaml
 .env.*.local
 
 !CLAUDE.md
+
+# Ralph autonomous agent files
+prd.json
+progress.md
+progress.txt
