@@ -105,6 +105,15 @@
         "lastUpdated": "2026-04-27T20:01:58.612Z",
         "gitCommitSha": "6c53cb0b831ebe8739c6a003e22af14902d8b0b5"
       }
+    ],
+    "github@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/Users/conte/.claude/plugins/cache/claude-plugins-official/github/unknown",
+        "version": "unknown",
+        "installedAt": "2026-05-02T14:41:12.991Z",
+        "lastUpdated": "2026-05-02T14:41:12.991Z"
+      }
     ]
   }
 }
