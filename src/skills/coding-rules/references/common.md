@@ -497,7 +497,7 @@ fee: float64 = amount * 0.025
 **Pattern:**
 ```
 // Использовать decimal-тип с явной точностью
-// Go:     github.com/shopspring/decimal — Decimal
+// Go:     произвольно-точная decimal-библиотека (типы вида `Decimal`)
 // Java:   java.math.BigDecimal
 // Python: decimal.Decimal
 
