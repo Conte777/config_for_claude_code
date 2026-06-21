@@ -1,20 +1,20 @@
 ---
 name: coding-rules
-description: This skill should be used when the user asks to "написать код", "исправить баг", "fix bug", "реализовать фичу", "implement feature", "добавить функцию", "создать класс", "рефакторинг", "refactor", "оптимизировать", "optimize", "debug", "отладить", "написать тест", "write test", "паттерны", "patterns", "anti-patterns", "архитектура", "architecture", "clean code", "обработка ошибок", "error handling", "валидация", "безопасность", "security", "concurrency", "performance", "спланировать изменения", "plan changes", "design solution", "спроектировать", or when writing, modifying, planning, or reviewing any Go, Java, Python code.
+description: This skill should be used when the user asks to plan code changes, design a solution, choose patterns, assess architecture, prepare a new feature implementation plan, or reason about security/concurrency/performance trade-offs for Go, Java, or Python. Do not use for routine code edits; tactical coding guardrails are injected by pi-rules.
 ---
 
 # Coding Rules
 
-Language-specific coding rules: patterns, anti-patterns, and best practices for Go, Java, Python.
-Auto-loaded when writing, modifying, planning, or reviewing code.
+Language-specific planning rules: patterns, anti-patterns, and best practices for Go, Java, Python.
+Use this skill for planning/design work. Routine code-edit guardrails are provided by global `pi-rules`.
 
 ## How to Use
 
 ### Step 1: Always Load Common Rules
 
 You **MUST** load `references/common.md` and the language-specific `patterns.md`
-**BEFORE** writing or modifying any code — even for one-line changes, typo fixes,
-or quick experiments. This is non-negotiable.
+**BEFORE** planning substantial changes, designing a feature, or making architectural recommendations.
+For routine code edits, rely on the global `pi-rules` guardrails instead of loading this skill.
 
 `common.md` covers:
 - Security (input validation, injection, secrets, path traversal)
@@ -64,17 +64,14 @@ Check imports, config files, and annotations for framework indicators:
 
 ### Step 4: Apply Rules
 
-**When writing or modifying code:**
-- Follow patterns from loaded references
-- Avoid anti-patterns listed in the rules
-- Apply security checks from `common.md` at system boundaries
-
 **When planning changes:**
 - Use rules to identify affected layers and potential issues
-- Consider concurrency and performance implications upfront
+- Consider security, concurrency, correctness, and performance implications upfront
+- Decide which language/framework references are relevant before implementation
 
-**When reviewing code:**
-- Use rules as a checklist for each detected language/framework
+**When designing a new feature:**
+- Use rules to choose patterns and avoid known anti-patterns
+- Identify required validation, error handling, testing, and observability work
 - Prioritize: security > concurrency > correctness > performance
 
 ## Reference Files Summary
