@@ -104,32 +104,30 @@ current_branch() {
 gen_message() { # <branch> <ticket> <staged_files> <diff>
   local branch="$1" ticket="$2" staged="$3" diff="$4" correction="" cand raw verr
   for attempt in 1 2; do
-    raw=$(cat <<EOF | gen
-Generate exactly one git commit message for the staged changes.
+    corr_block=""
+    [[ -n "$correction" ]] && corr_block=$(printf '\nPrevious attempt was invalid. Fix it. Validation errors: %s\n' "$correction")
+    # printf with %s args is injection-safe: $staged/$diff are data, never evaluated
+    raw=$(printf 'Generate exactly one git commit message for the staged changes.
 
 Rules:
 - Return ONLY the commit message: no quotes, no markdown, no explanation.
 - Format: {PREFIX}: {description}
 - If Ticket ID is present, PREFIX must be that ticket ID.
 - If Ticket ID is absent, PREFIX must be feat: for new functionality or fix: for bug fixes.
-- Maximum $MAX_LEN characters total. Single line. Description lowercase English. No period at the end.
+- Maximum %s characters total. Single line. Description lowercase English. No period at the end.
 - Imperative verbs: add, fix, update, remove, refactor.
 - Describe the ACTUAL changed behavior/config/API from the diff. Do NOT copy the branch name.
-- Abbreviations when needed: and=>&, implementation=>impl, authentication=>auth, configuration=>config, update=>upd, delete=>del, function=>fn, message=>msg, request=>req, response=>res, database=>db, repository=>repo, parameters=>params, initialization=>init.
-${correction:+
-Previous attempt was invalid. Fix it. Validation errors: $correction
-}
-Ticket ID: ${ticket:-none}
+- Abbreviations when needed: and=>&, implementation=>impl, authentication=>auth, configuration=>config, update=>upd, delete=>del, function=>fn, message=>msg, request=>req, response=>res, database=>db, repository=>repo, parameters=>params, initialization=>init.%s
+Ticket ID: %s
 
 Staged files:
-$staged
+%s
 
 Staged diff:
-\`\`\`diff
-$diff
-\`\`\`
-EOF
-)
+```diff
+%s
+```
+' "$MAX_LEN" "$corr_block" "${ticket:-none}" "$staged" "$diff" | gen)
     cand=$(printf '%s' "$raw" | sanitize)
     [[ -z "$cand" ]] && { correction="model returned empty"; continue; }
     verr=$(validate_msg "$cand" "$branch")
