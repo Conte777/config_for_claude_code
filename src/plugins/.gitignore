@@ -14,3 +14,6 @@ install-counts-cache.json
 plugin-catalog-cache.json
 # Blocklist cache (auto-updated)
 blocklist.json
+# Plugin registry (runtime state: abs paths + timestamps, not portable)
+installed_plugins.json
+known_marketplaces.json

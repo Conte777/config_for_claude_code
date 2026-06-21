@@ -123,6 +123,34 @@ for i in "${!LINK_TARGETS[@]}"; do
     success "  - Created successfully"
 done
 
+# Install plugins from declaration. Claude Code does NOT auto-install from
+# enabledPlugins in settings.json — it only enables already-installed plugins.
+# installed_plugins.json/known_marketplaces.json are runtime state (abs paths,
+# timestamps) and are gitignored, so plugins must be reinstalled here.
+echo ""
+echo "Installing plugins..."
+echo ""
+if command -v claude >/dev/null 2>&1; then
+    # claude-plugins-official is built-in; add explicitly for first-run safety
+    claude plugin marketplace add anthropics/claude-plugins-official --scope user || true
+    claude plugin marketplace add DietrichGebert/ponytail --scope user || true
+    for plugin in \
+        gopls-lsp@claude-plugins-official \
+        clangd-lsp@claude-plugins-official \
+        pyright-lsp@claude-plugins-official \
+        security-guidance@claude-plugins-official \
+        context7@claude-plugins-official \
+        github@claude-plugins-official \
+        ponytail@ponytail; do
+        echo "  - $plugin"
+        claude plugin install "$plugin" --scope user || warn "failed to install $plugin"
+    done
+    success "Plugin installation attempted."
+else
+    warn "claude CLI not found in PATH — skipping plugin install."
+    echo "Run the plugin install commands manually once 'claude' is available."
+fi
+
 echo ""
 echo "============================================"
 success "SUCCESS: All symbolic links created!"
