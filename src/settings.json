@@ -71,6 +71,16 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash $HOME/.claude/hooks/commit-hook.sh",
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
             "command": "bash $HOME/.claude/skills/commit/scripts/collect-git-context.sh",
             "timeout": 15
           }
