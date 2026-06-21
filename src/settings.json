@@ -1,6 +1,7 @@
 {
   "env": {
-    "CLAUDE_CODE_NEW_INIT": "1"
+    "CLAUDE_CODE_NEW_INIT": "1",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787"
   },
   "attribution": {
     "commit": "",
@@ -97,6 +98,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/conte/.local/bin/headroom init hook ensure --profile init-user --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "SubagentStart": [
@@ -130,6 +141,16 @@
             "command": "node \"$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs\"",
             "timeout": 10,
             "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/conte/.local/bin/headroom init hook ensure --profile init-user --marker headroom-init-claude",
+            "timeout": 15
           }
         ]
       }
@@ -172,13 +193,20 @@
     "security-guidance@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "headroom@headroom-marketplace": true
   },
   "extraKnownMarketplaces": {
     "ponytail": {
       "source": {
         "source": "github",
         "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "headroom-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "chopratejas/headroom"
       }
     }
   },
