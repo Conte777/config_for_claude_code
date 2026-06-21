@@ -8,3 +8,5 @@ marketplaces/
 *.tmp
 # Install counts cache
 install-counts-cache.json
+# Plugin in-use sweep marker (auto-generated)
+.last_inuse_sweep

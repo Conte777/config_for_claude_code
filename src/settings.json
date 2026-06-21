@@ -16,8 +16,6 @@
       "Glob",
       "Bash",
       "Skill",
-      "mcp__sequential-thinking",
-      "mcp__claude_ai_Context7",
       "mcp__db-view-mcp__list_databases",
       "mcp__db-view-mcp__query",
       "mcp__db-view-mcp__schema",
@@ -38,18 +36,11 @@
       "mcp__gitlab__mr_discussions",
       "mcp__gitlab__get_draft_note",
       "mcp__gitlab__list_draft_notes",
-      "mcp__plugin_Notion_notion__notion-search",
-      "mcp__claude_ai_Context7__resolve-library-id",
-      "mcp__claude_ai_Context7__query-docs",
-      "mcp__claude_ai_Notion__notion-fetch",
-      "mcp__claude_ai_Notion__notion-query-database-view",
       "mcp__db-view-mcp__list_tables",
       "mcp__db-view-mcp__describe_table",
       "mcp__grafana__query_loki_stats",
       "mcp__grafana__query_loki_patterns",
       "mcp__grafana__query_loki_logs",
-      "mcp__plugin_Notion_notion__notion-query-database-view",
-      "mcp__plugin_Notion_notion__notion-fetch",
       "Bash(uv run *)",
       "mcp__grafana__search_dashboards",
       "mcp__grafana__list_datasources",
@@ -120,6 +111,17 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Grep|Glob|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs\"",
+            "timeout": 10,
+            "statusMessage": "Enriching with GitNexus graph context..."
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -132,8 +134,22 @@
             "timeout": 40
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking GitNexus index freshness..."
+          }
+        ]
       }
     ]
+  },
+  "worktree": {
+    "baseRef": "head"
   },
   "statusLine": {
     "type": "command",
@@ -141,30 +157,26 @@
   },
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
-    "document-skills@anthropic-agent-skills": true,
     "clangd-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "mcp-server-dev@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "notion@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "ralph-skills@ralph-marketplace": true,
-    "github@claude-plugins-official": true
+    "github@claude-plugins-official": true,
+    "ponytail@ponytail": true
   },
   "extraKnownMarketplaces": {
-    "ralph-marketplace": {
+    "ponytail": {
       "source": {
         "source": "github",
-        "repo": "snarktank/ralph"
+        "repo": "DietrichGebert/ponytail"
       }
     }
   },
   "language": "Russian",
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
-  "skipAutoPermissionPrompt": true,
-  "defaultMode": "plan"
+  "autoCompactEnabled": false,
+  "skipAutoPermissionPrompt": true
 }
