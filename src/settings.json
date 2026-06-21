@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/commit-hook.sh",
+            "command": "bash $HOME/.claude/hooks/git-hook.sh",
             "timeout": 120
           }
         ]

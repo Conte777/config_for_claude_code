@@ -10,3 +10,7 @@ marketplaces/
 install-counts-cache.json
 # Plugin in-use sweep marker (auto-generated)
 .last_inuse_sweep
+# Plugin catalog cache (auto-fetched, large)
+plugin-catalog-cache.json
+# Blocklist cache (auto-updated)
+blocklist.json
