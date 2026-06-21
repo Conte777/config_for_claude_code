@@ -1,5 +1,10 @@
 {
     "mcpServers": {
+        "git": {
+            "type": "stdio",
+            "command": "bash",
+            "args": ["-c", "uv run $HOME/.claude/mcp/git-mcp/server.py"]
+        },
         "db-view-mcp": {
             "command": "npx",
             "args": ["-y", "@conte777/db-view-mcp", "--config", "/Users/conte/.db-mcp-config.json"]

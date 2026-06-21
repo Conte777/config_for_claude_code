@@ -71,14 +71,45 @@ if [[ "${1:-}" == "--self-check" ]]; then
   exit 0
 fi
 
-# ---- recursion guard: the child `claude -p` re-fires this hook -----------------
-[[ "${CLAUDE_COMMIT_GEN:-}" == "1" ]] && exit 0
+# ---- output abstraction: hook (decision:block JSON) | cli (stdout + exit code) -
+OUT_MODE=hook
+emit() { # <ok|err> <text...>
+  local kind="$1"; shift; local text="$*"
+  if [[ "$OUT_MODE" == cli ]]; then
+    printf '%s\n' "$text"
+    [[ "$kind" == ok ]] && exit 0 || exit 1
+  fi
+  jq -n --arg r "$text" '{decision:"block", reason:$r, systemMessage:($r|split("\n")|.[0])}'
+  exit 0
+}
 
-# ---- input + helpers -----------------------------------------------------------
-input=$(cat)
-prompt=$(printf '%s' "$input" | jq -r '.prompt // empty')
+# ---- CLI mode: `git-hook.sh commit|branch|commit-msg --repo PATH …` (MCP front) -
+# Subcommand as $1 switches to cli; flags map to the same internal words hook uses.
+SUBCMD="" CLI_REPO="" CLI_STAGE="" CLI_REST=""
+if [[ "${1:-}" =~ ^(commit|branch|commit-msg)$ ]]; then
+  OUT_MODE=cli; SUBCMD="$1"; shift
+  while (( $# )); do
+    case "$1" in
+      --repo)    CLI_REPO="${2:-}"; shift 2 ;;
+      --repo=*)  CLI_REPO="${1#--repo=}"; shift ;;
+      --all)     CLI_STAGE="$CLI_STAGE all";     shift ;;
+      --tracked) CLI_STAGE="$CLI_STAGE tracked"; shift ;;
+      --force)   CLI_STAGE="$CLI_STAGE force";   shift ;;
+      --dry-run) CLI_STAGE="$CLI_STAGE dryrun";  shift ;;
+      *)         CLI_REST="${CLI_REST:+$CLI_REST }$1"; shift ;;
+    esac
+  done
+fi
 
-block() { jq -n --arg r "$1" '{decision:"block", reason:$r, systemMessage:($r|split("\n")|.[0])}'; exit 0; }
+# ---- recursion guard: the child `claude -p` re-fires this hook (hook mode only) -
+[[ "$OUT_MODE" == hook && "${CLAUDE_COMMIT_GEN:-}" == "1" ]] && exit 0
+
+# ---- input: hook mode reads stdin JSON; cli mode has no stdin -------------------
+prompt=""
+if [[ "$OUT_MODE" == hook ]]; then
+  input=$(cat)
+  prompt=$(printf '%s' "$input" | jq -r '.prompt // empty')
+fi
 
 gen() { # stdin = prompt -> raw model output
   CLAUDE_COMMIT_GEN=1 command claude -p --model "$GEN_MODEL" 2>/dev/null || true
@@ -149,16 +180,19 @@ staged_context() { # echoes "files\n---DIFF---\ndiff", truncated; empty if nothi
 }
 
 # ============================== commands =======================================
-cmd_commit() { # <args>
-  local args=" $1 " mode_all=false force=false root branch protected ticket ctx files diff msg hash err
-  [[ "$args" == *" all "* ]]   && mode_all=true
-  [[ "$args" == *" force "* ]] && force=true
+cmd_commit() { # <words: all|tracked|force|dryrun>
+  local args=" $1 " mode_all=false mode_tracked=false force=false dryrun=false root branch protected ticket ctx files diff msg hash err
+  [[ "$args" == *" all "* ]]     && mode_all=true
+  [[ "$args" == *" tracked "* ]] && mode_tracked=true
+  [[ "$args" == *" force "* ]]   && force=true
+  [[ "$args" == *" dryrun "* ]]  && dryrun=true
 
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || block "✗ commit: not a git repository"
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || emit err "✗ commit: not a git repository"
   cd "$root"
-  $mode_all && { git add -A || block "✗ commit: git add -A failed"; }
+  $mode_all     && { git add -A || emit err "✗ commit: git add -A failed"; }
+  $mode_tracked && { git add -u || emit err "✗ commit: git add -u failed"; }
 
-  ctx=$(staged_context) || block "✗ commit: staging is empty. Stage files or use '>commit all'."
+  ctx=$(staged_context) || emit err "✗ commit: nothing staged. Stage files, or use --all / --tracked ('>commit all')."
   files="${ctx%%---DIFF---*}"; diff="${ctx#*---DIFF---$'\n'}"
 
   branch=$(current_branch)
@@ -166,27 +200,29 @@ cmd_commit() { # <args>
   for pb in main master develop stage staging; do
     [[ "$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]')" == "$pb" ]] && protected=true && break
   done
-  $protected && ! $force && block "✗ commit: '$branch' is protected. Use '>commit force' after review."
+  $protected && ! $force && emit err "✗ commit: '$branch' is protected. Use force / --force / allowProtectedBranch after review."
 
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || block "✗ commit: model failed to produce a valid message."
+  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || emit err "✗ commit: model failed to produce a valid message."
 
-  git commit -m "$msg" >/dev/null 2>git_err.tmp || { err=$(cat git_err.tmp); rm -f git_err.tmp; block "✗ commit failed: $err"; }
+  $dryrun && emit ok "📝 $msg"
+
+  git commit -m "$msg" >/dev/null 2>git_err.tmp || { err=$(cat git_err.tmp); rm -f git_err.tmp; emit err "✗ commit failed: $err"; }
   rm -f git_err.tmp
   hash=$(git rev-parse --short HEAD 2>/dev/null || true)
-  block "✓ committed $hash: $msg"
+  emit ok "✓ committed $hash: $msg"
 }
 
 cmd_commit_msg() {
   local root branch ticket ctx files diff msg
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || block "✗ commit-msg: not a git repository"
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || emit err "✗ commit-msg: not a git repository"
   cd "$root"
-  ctx=$(staged_context) || block "✗ commit-msg: staging is empty. Stage files first."
+  ctx=$(staged_context) || emit err "✗ commit-msg: staging is empty. Stage files first."
   files="${ctx%%---DIFF---*}"; diff="${ctx#*---DIFF---$'\n'}"
   branch=$(current_branch)
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || block "✗ commit-msg: model failed to produce a valid message."
-  block "📝 $msg"
+  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || emit err "✗ commit-msg: model failed to produce a valid message."
+  emit ok "📝 $msg"
 }
 
 cmd_branch() { # <args>
@@ -200,7 +236,7 @@ cmd_branch() { # <args>
     desc="$args"
   fi
 
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || block "✗ branch: not a git repository"
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || emit err "✗ branch: not a git repository"
   cd "$root"
 
   if [[ -n "${desc// /}" ]]; then
@@ -208,7 +244,7 @@ cmd_branch() { # <args>
     [[ -z "$prefix" ]] && prefix=$(gen_type "$desc")
   else
     diff=$(git diff HEAD 2>/dev/null || true)
-    [[ -z "$diff" ]] && block "✗ branch: no description and no changes. Use '>branch [CUS-XXXX] <short description>'."
+    [[ -z "$diff" ]] && emit err "✗ branch: no description and no changes. Use '>branch [CUS-XXXX] <short description>'."
     (( ${#diff} > MAX_DIFF )) && diff="${diff:0:MAX_DIFF}"
     for attempt in 1 2; do
       if [[ -n "$prefix" ]]; then
@@ -227,19 +263,31 @@ cmd_branch() { # <args>
         fi
       fi
     done
-    [[ -z "${slug:-}" ]] && block "✗ branch: model failed to produce a valid slug. Pass a description: '>branch [CUS-XXXX] <desc>'."
+    [[ -z "${slug:-}" ]] && emit err "✗ branch: model failed to produce a valid slug. Pass a description: '>branch [CUS-XXXX] <desc>'."
     [[ -z "$prefix" ]] && prefix="feat"
   fi
 
-  [[ -z "$slug" ]] && block "✗ branch: empty description after slugify. Use '>branch [CUS-XXXX] <short description>'."
+  [[ -z "$slug" ]] && emit err "✗ branch: empty description after slugify. Use '>branch [CUS-XXXX] <short description>'."
   local name="$prefix/$slug"
-  git switch -c "$name" >/dev/null 2>git_err.tmp || { err=$(cat git_err.tmp); rm -f git_err.tmp; block "✗ branch failed: $err"; }
+  git switch -c "$name" >/dev/null 2>git_err.tmp || { err=$(cat git_err.tmp); rm -f git_err.tmp; emit err "✗ branch failed: $err"; }
   rm -f git_err.tmp
-  block "✓ switched to new branch $name"
+  emit ok "✓ switched to new branch $name"
 }
 
 # ============================== routing ========================================
-# order matters: >commit-msg before >commit (it is a prefix of it)
+# cli mode: dispatch by subcommand (repo required); returns via emit (exit code).
+if [[ "$OUT_MODE" == cli ]]; then
+  [[ -z "$CLI_REPO" ]] && emit err "✗ $SUBCMD: --repo PATH is required"
+  cd "$CLI_REPO" 2>/dev/null || emit err "✗ $SUBCMD: cannot enter repo '$CLI_REPO'"
+  case "$SUBCMD" in
+    commit)     cmd_commit "$CLI_STAGE" ;;
+    commit-msg) cmd_commit_msg ;;
+    branch)     cmd_branch "$CLI_REST" ;;
+  esac
+  exit 0
+fi
+
+# hook mode — order matters: >commit-msg before >commit (it is a prefix of it)
 if   [[ "$prompt" =~ ^[[:space:]]*\>commit-msg([[:space:]]|$) ]]; then cmd_commit_msg
 elif [[ "$prompt" =~ ^[[:space:]]*\>commit([[:space:]]|$) ]];     then cmd_commit "${prompt#*>commit}"
 elif [[ "$prompt" =~ ^[[:space:]]*\>branch([[:space:]]|$) ]];     then
