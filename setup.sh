@@ -26,6 +26,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/agents"
     "$TARGET_DIR/skills"
     "$TARGET_DIR/hooks"
+    "$TARGET_DIR/mcp"
     "$TARGET_DIR/statusline.sh"
     "$TARGET_DIR/plugins"
     "$TARGET_DIR/keybindings.json"
@@ -38,6 +39,7 @@ declare -a LINK_SOURCES=(
     "$SRC_DIR/agents"
     "$SRC_DIR/skills"
     "$SRC_DIR/hooks"
+    "$SRC_DIR/mcp"
     "$SRC_DIR/statusline.sh"
     "$SRC_DIR/plugins"
     "$SRC_DIR/keybindings.json"
@@ -149,6 +151,22 @@ if command -v claude >/dev/null 2>&1; then
 else
     warn "claude CLI not found in PATH — skipping plugin install."
     echo "Run the plugin install commands manually once 'claude' is available."
+fi
+
+# Register the git MCP server (user scope, all projects). ~/.claude.json is
+# stateful and can't be symlinked, so register idempotently via the CLI. The
+# server itself lives at the symlinked ~/.claude/mcp/git-mcp/server.py.
+echo ""
+echo "Registering git MCP server (user scope)..."
+if command -v claude >/dev/null 2>&1; then
+    if claude mcp get git >/dev/null 2>&1; then
+        echo "  - already registered, skipping"
+    else
+        claude mcp add --scope user git -- bash -c 'uv run $HOME/.claude/mcp/git-mcp/server.py' \
+            && success "  - registered" || warn "failed to register git MCP server"
+    fi
+else
+    warn "claude CLI not found — skipping git MCP registration."
 fi
 
 echo ""

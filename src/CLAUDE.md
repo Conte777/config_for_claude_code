@@ -11,3 +11,6 @@
   honestly, with the command output.
 - `git push`, force-push, and any action on protected branches (main/master) —
   only after explicit confirmation.
+- Commit/branch via `mcp__git__commit` / `mcp__git__branch` only when explicitly
+  asked; the server generates the message — never pass your own. Protected
+  branches need `allowProtectedBranch` (commit) only after the user agrees.
