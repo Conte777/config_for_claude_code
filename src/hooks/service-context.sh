@@ -4,8 +4,8 @@ set -euo pipefail
 input=$(cat)
 cwd=$(echo "$input" | jq -r '.cwd // empty')
 
-MONOREPO_ROOT="${SERVICE_CONTEXT_MONOREPO_ROOT:-$HOME/Work/friday_releases}"
-CONFIGS_DIR="$MONOREPO_ROOT/cryptoprocessing/configs/dev_do_configs"
+MONOREPO_ROOT="${SERVICE_CONTEXT_MONOREPO_ROOT:-$HOME/Work/friday-releases}"
+CONFIGS_DIR="$MONOREPO_ROOT/cryptoprocessing/configs/dev-az-configs"
 
 if [[ -z "$cwd" || "$cwd" != "$MONOREPO_ROOT"* ]]; then
   echo '{}'
@@ -50,11 +50,11 @@ ctx="# Service Context: $config_name
 
 if [[ ! -f "$config_file" ]]; then
   ctx+="
-- Config: not found (configs/dev_do_configs/$config_name/env.dev.yaml)"
+- Config: not found (configs/dev-az-configs/$config_name/env.dev.yaml)"
 
 else
   ctx+="
-- Config: configs/dev_do_configs/$config_name/env.dev.yaml"
+- Config: configs/dev-az-configs/$config_name/env.dev.yaml"
 
   # Database
   db=$(grep -E '^[[:space:]]*DB_DATABASE:' "$config_file" | head -1 | parse_value || true)
@@ -245,11 +245,15 @@ check_migration_dir() {
 check_migration_dir "$service_root/migration"
 check_migration_dir "$service_root/migrations"
 
-for base in "$MONOREPO_ROOT/cryptoprocessing/backend_cp/migrations" \
-            "$MONOREPO_ROOT/cryptoprocessing/cryptoprocessing/migrations"; do
-  check_migration_dir "$base/${config_name}_migration/db/migrations"
-  [[ "$config_name" != "$service_dir_name" ]] && \
-    check_migration_dir "$base/${service_dir_name}_migration/db/migrations"
+# Migrations moved to a single flat dir: cryptoprocessing/migrations/<name>-migration/db/migrations
+# Service -> migration name is not 1:1 (e.g. liquidity-service-migration vs liquidity-migration
+# both exist), so try most-specific name first and stop at the first hit.
+migrations_base="$MONOREPO_ROOT/cryptoprocessing/migrations"
+for cand in "${config_name}-migration" "${config_name%-service}-migration"; do
+  if [[ -d "$migrations_base/$cand/db/migrations" ]]; then
+    check_migration_dir "$migrations_base/$cand/db/migrations"
+    break
+  fi
 done
 
 [[ -n "$migration_section" ]] && ctx+="
