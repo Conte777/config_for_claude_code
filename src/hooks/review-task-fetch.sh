@@ -6,11 +6,62 @@
 # review Workflow. Any other prompt: exit 0 immediately (pass-through).
 set -euo pipefail
 
+# Extract the Jira KEY from a /review-task prompt — accepts a bare key
+# (/review-task CUS-1776) or a task URL (.../browse/CUS-1776). Prints the key, or
+# nothing if the prompt isn't a /review-task trigger.
+extract_key() { # <prompt>
+  [[ "$1" =~ ^/review-task([[:space:]]|$) ]] || return 0
+  printf '%s' "$1" | grep -oE '[A-Z]+-[0-9]+' | tail -1
+}
+
+# Local workspace where per-repo (gitignored) CLAUDE.md files live. We copy the
+# leaf repo's CLAUDE.md into its clone so the lenses see project conventions.
+LOCAL_ROOT="${REVIEW_TASK_LOCAL_ROOT:-$HOME/Work/friday-releases}"
+
+# Map a GitLab path (e.g. Fri_releases/cryptoprocessing/backend-core/order-service)
+# to a local CLAUDE.md. Prints the abs path, or nothing if not found/ambiguous.
+find_local_claudemd() { # <gitlab_path>
+  local gl="$1"
+  # direct map: drop the top GitLab group, the rest mirrors the on-disk layout
+  local cand="$LOCAL_ROOT/${gl#*/}"
+  [[ -f "$cand/CLAUDE.md" ]] && { printf '%s\n' "$cand/CLAUDE.md"; return; }
+  # fallback by basename: accept only a single unambiguous hit (0 or >1 -> nothing)
+  local hits
+  hits=$(find "$LOCAL_ROOT" -maxdepth 5 -type d -name "$(basename "$gl")" 2>/dev/null \
+    | while read -r d; do [[ -f "$d/CLAUDE.md" ]] && printf '%s\n' "$d/CLAUDE.md"; done)
+  [[ $(printf '%s' "$hits" | grep -c .) -eq 1 ]] && printf '%s\n' "$hits"
+}
+
+# ponytail: self-check for the matching logic (non-trivial: direct map + fallback).
+# Run: REVIEW_TASK_SELFTEST=1 bash src/hooks/review-task-fetch.sh
+if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
+  [[ "$(extract_key '/review-task CUS-1776')" == CUS-1776 ]] || { echo "FAIL: bare key"; exit 1; }
+  [[ "$(extract_key '/review-task https://jira.cp.itcrew.info/browse/CUS-1776')" == CUS-1776 ]] || { echo "FAIL: task url"; exit 1; }
+  [[ -z "$(extract_key '/something-else CUS-1776')" ]] || { echo "FAIL: non-trigger"; exit 1; }
+  tmp=$(mktemp -d); LOCAL_ROOT="$tmp"
+  mkdir -p "$tmp/processing/api_go" "$tmp/cryptoprocessing/backend-core/order-service" \
+           "$tmp/cryptoprocessing/shared/logger" "$tmp/dup-a/svc" "$tmp/dup-b/svc"
+  : > "$tmp/processing/api_go/CLAUDE.md"
+  : > "$tmp/cryptoprocessing/backend-core/order-service/CLAUDE.md"
+  : > "$tmp/dup-a/svc/CLAUDE.md"; : > "$tmp/dup-b/svc/CLAUDE.md"
+  [[ "$(find_local_claudemd Fri_releases/processing/api_go)" == "$tmp/processing/api_go/CLAUDE.md" ]] \
+    || { echo "FAIL: direct map"; exit 1; }
+  [[ "$(find_local_claudemd Fri_releases/cryptoprocessing/backend-core/order-service)" == "$tmp/cryptoprocessing/backend-core/order-service/CLAUDE.md" ]] \
+    || { echo "FAIL: nested direct map"; exit 1; }
+  [[ -z "$(find_local_claudemd Fri_releases/cryptoprocessing/shared/logger)" ]] \
+    || { echo "FAIL: missing CLAUDE.md should be empty"; exit 1; }
+  [[ "$(find_local_claudemd other/wrong/order-service)" == "$tmp/cryptoprocessing/backend-core/order-service/CLAUDE.md" ]] \
+    || { echo "FAIL: basename fallback"; exit 1; }
+  [[ -z "$(find_local_claudemd grp/x/svc)" ]] \
+    || { echo "FAIL: ambiguous basename should be empty"; exit 1; }
+  rm -rf "$tmp"; echo "review-task selftest OK"; exit 0
+fi
+
 input=$(cat)
 prompt=$(printf '%s' "$input" | jq -r '.prompt // empty')
-# trigger only on the slash command; KEY = ABC-123
-[[ "$prompt" =~ ^/review-task[[:space:]]+([A-Z]+-[0-9]+) ]] || exit 0
-KEY="${BASH_REMATCH[1]}"
+# trigger only on the slash command; KEY from a bare arg or a task URL
+KEY=$(extract_key "$prompt")
+[[ -n "$KEY" ]] || exit 0
 
 GITLAB_HOST="${REVIEW_TASK_GITLAB_HOST:-git.itcrew.info}"
 # Jira host stays out of this (version-controlled) file: env override, else the
@@ -81,15 +132,24 @@ while [[ $i -lt $n ]]; do
   printf '%s' "$changes" | jq -r '.changes[] | "--- a/\(.old_path)\n+++ b/\(.new_path)\n\(.diff)"' > "$diff_path"
 
   clone_path="$WORK/repos/$slug"
-  if ! git clone --depth 1 --branch "$src" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
+  cmd_present=false
+  if git clone --depth 1 --branch "$src" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
+    cmd=$(find_local_claudemd "$path")
+    if [[ -n "$cmd" ]]; then
+      cp "$cmd" "$clone_path/CLAUDE.md"; cmd_present=true
+      echo "review-task: CLAUDE.md → $slug"
+    else
+      echo "review-task: CLAUDE.md для $path не найден локально — линза без конвенций"
+    fi
+  else
     echo "review-task: клон $path@$src не удался — линза пойдёт по diff без полного кода"
     clone_path=""
   fi
 
   manifest=$(printf '%s' "$manifest" | jq -c \
     --arg repo "$path" --arg iid "$iid" --arg cp "$clone_path" \
-    --arg dp "$diff_path" --arg sb "$src" --arg url "$url" \
-    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, web_url:$url}]')
+    --arg dp "$diff_path" --arg sb "$src" --arg url "$url" --argjson cmd "$cmd_present" \
+    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, web_url:$url, claudeMd:$cmd}]')
 done
 
 printf '%s' "$manifest" > "$WORK/manifest.json"

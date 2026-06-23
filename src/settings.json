@@ -212,7 +212,8 @@
     "context7@claude-plugins-official": true,
     "github@claude-plugins-official": true,
     "ponytail@ponytail": true,
-    "headroom@headroom-marketplace": true
+    "headroom@headroom-marketplace": true,
+    "typescript-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "ponytail": {
@@ -233,6 +234,7 @@
   "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
   "voice": {
     "enabled": true,
     "mode": "hold"
@@ -240,6 +242,5 @@
   "skipWorkflowUsageWarning": true,
   "autoCompactEnabled": false,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "tui": "fullscreen"
+  "voiceEnabled": true
 }
