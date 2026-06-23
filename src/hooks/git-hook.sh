@@ -45,6 +45,14 @@ sanitize() { # model output -> clean single line
     | sed -e 's/^[[:space:]*`"'\''-]*//' -e 's/[[:space:]`"'\'']*$//' -e 's/[[:space:]]\{2,\}/ /g' -e 's/\.$//'
 }
 
+# assemble the correction block shown to the model on retry (pure, testable)
+build_correction() { # <prev_candidate> <errors> -> correction block text
+  printf '
+Your previous output was: "%s"
+It was REJECTED. Fix exactly these problems and return ONLY the corrected commit message: %s
+' "$1" "$2"
+}
+
 # ---- self-check ----------------------------------------------------------------
 if [[ "${1:-}" == "--self-check" ]]; then
   fail=0
@@ -67,6 +75,8 @@ if [[ "${1:-}" == "--self-check" ]]; then
   cks bad "trailing-"
   [[ "$(slugify 'Add User Auth, now!')" == "add-user-auth-now" ]] || { echo "FAIL slugify"; fail=1; }
   [[ "$(slugify 'one two three four five')" == "one-two-three-four" ]] || { echo "FAIL slugify words"; fail=1; }
+  cb=$(build_correction "feat: bad msg." "must not end with a period")
+  [[ "$cb" == *"feat: bad msg."* && "$cb" == *"must not end with a period"* ]] || { echo "FAIL build_correction"; fail=1; }
   (( fail == 0 )) && echo "self-check: PASS" || { echo "self-check: FAIL"; exit 1; }
   exit 0
 fi
@@ -131,12 +141,13 @@ current_branch() {
   printf '%s' "$b"
 }
 
-# build commit-message prompt; echoes a VALID message or nothing (2 attempts)
+# build commit-message prompt; echoes a VALID message or nothing (4 attempts).
+# on exhaustion stashes the last candidate + errors in GEN_LAST_CAND/GEN_LAST_ERR.
 gen_message() { # <branch> <ticket> <staged_files> <diff>
-  local branch="$1" ticket="$2" staged="$3" diff="$4" correction="" cand raw verr
-  for attempt in 1 2; do
+  local branch="$1" ticket="$2" staged="$3" diff="$4" correction="" prev_cand="" cand raw verr
+  for attempt in 1 2 3 4; do
     corr_block=""
-    [[ -n "$correction" ]] && corr_block=$(printf '\nPrevious attempt was invalid. Fix it. Validation errors: %s\n' "$correction")
+    [[ -n "$correction" ]] && corr_block=$(build_correction "$prev_cand" "$correction")
     # printf with %s args is injection-safe: $staged/$diff are data, never evaluated
     raw=$(printf 'Generate exactly one git commit message for the staged changes.
 
@@ -160,11 +171,13 @@ Staged diff:
 ```
 ' "$MAX_LEN" "$corr_block" "${ticket:-none}" "$staged" "$diff" | gen)
     cand=$(printf '%s' "$raw" | sanitize)
+    prev_cand="${cand:-(empty)}"
     [[ -z "$cand" ]] && { correction="model returned empty"; continue; }
     verr=$(validate_msg "$cand" "$branch")
-    [[ -z "$verr" ]] && { printf '%s' "$cand"; return 0; }
+    [[ -z "$verr" ]] && { GEN_MSG="$cand"; return 0; }
     correction=$(printf '%s' "$verr" | paste -sd';' -)
   done
+  GEN_LAST_CAND="$prev_cand"; GEN_LAST_ERR="$correction"
   return 1
 }
 
@@ -203,7 +216,10 @@ cmd_commit() { # <words: all|tracked|force|dryrun>
   $protected && ! $force && emit err "✗ commit: '$branch' is protected. Use force / --force / allowProtectedBranch after review."
 
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || emit err "✗ commit: model failed to produce a valid message."
+  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit: no valid message after 4 tries — re-run >commit to retry.
+Last candidate: %s
+Problems: %s' "${GEN_LAST_CAND:-(empty)}" "${GEN_LAST_ERR:-unknown}")"
+  msg="$GEN_MSG"
 
   $dryrun && emit ok "📝 $msg"
 
@@ -221,8 +237,10 @@ cmd_commit_msg() {
   files="${ctx%%---DIFF---*}"; diff="${ctx#*---DIFF---$'\n'}"
   branch=$(current_branch)
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  msg=$(gen_message "$branch" "$ticket" "$files" "$diff") || emit err "✗ commit-msg: model failed to produce a valid message."
-  emit ok "📝 $msg"
+  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit-msg: no valid message after 4 tries — re-run >commit-msg to retry.
+Last candidate: %s
+Problems: %s' "${GEN_LAST_CAND:-(empty)}" "${GEN_LAST_ERR:-unknown}")"
+  emit ok "📝 $GEN_MSG"
 }
 
 cmd_branch() { # <args>
