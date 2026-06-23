@@ -43,7 +43,7 @@ const FINDINGS = {
 
 // 6 lenses (no tests lens, per plan). code reuses the code-reviewer agent.
 const LENSES = [
-  { key: 'code', agentType: 'code-reviewer', role: 'senior software engineer', focus: 'Correctness bugs, mishandled errors, edge cases, nil/undefined/null derefs, off-by-one, wrong control flow, and language-specific footguns.' },
+  { key: 'code', role: 'senior software engineer', focus: 'Correctness bugs, mishandled errors, edge cases, nil/undefined/null derefs, off-by-one, wrong control flow, and language-specific footguns.' },
   { key: 'architecture', role: 'senior software architect', focus: 'Module boundaries, coupling, duplication, leaky abstractions, deviation from the repo\'s existing patterns, and broken cross-repo/API contracts.' },
   { key: 'security', role: 'senior security engineer', focus: 'Injection (SQL/command/XSS), unsafe deserialization, secrets in code, broken authn/authz, missing input validation at trust boundaries, and sensitive data leaking via errors/logs.' },
   { key: 'performance', role: 'senior performance engineer', focus: 'N+1 queries, redundant allocations/work, inefficient queries or loops, and blocking calls on a hot path.' },
@@ -55,9 +55,10 @@ const lensPrompt = (role, focus) => `You are a ${role} doing an adversarial code
 Adversarial stance: assume a junior wrote these changes. Do NOT trust the code — your job is to find real defects, not to approve it.
 
 Sources (read with Read/Grep, absolute paths):
-- Manifest: ${WORK}/manifest.json — array of {repo, iid, clonePath, diffPath, source_branch, web_url}.
+- Manifest: ${WORK}/manifest.json — array of {repo, iid, clonePath, diffPath, source_branch, web_url, claudeMd}.
 - Diffs: ${WORK}/diffs/*.diff (one per MR).
 - Full code (shallow clones): ${WORK}/repos/* — clonePath from the manifest (may be empty if the clone failed).
+- Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true — the repo's rules and DELIBERATE quirks. Read it BEFORE judging that repo.
 
 Read manifest.json first. For each MR, study its diff, then OPEN the full code in clonePath and investigate: follow imports, callers, and related files to confirm a problem is real and actually reachable before flagging it.
 
@@ -65,6 +66,7 @@ Your lens: ${focus}
 
 Hard rules:
 - Flag ONLY problems introduced by the CHANGED code (the diffs). Surrounding code is context only.
+- Respect patterns documented in the repo's CLAUDE.md (e.g. manual DI instead of FX, load-bearing typos that must NOT be "fixed") — do not report them as defects.
 - EVIDENCE, not speculation: every finding must name the concrete mechanism and the trigger/reachability path (which input or call sequence makes it happen). If you cannot point at the exact code that fails, do not report it.
 - Severity: "critical" = breaks prod, corrupts data, or is exploitable — must fix before merge; "warning" = real defect or risk — fix soon; "suggestion" = optional improvement.
 - Do NOT report: style/formatting/naming; "add error handling/logging/tests" where it already exists or isn't needed; hypotheticals with no trigger; anything you are unsure about. When in doubt, stay silent — a missed nitpick beats a false alarm. A clean change is a valid result (return no findings).
@@ -111,7 +113,7 @@ Draft findings (JSON; "lens" = which lens reported it):
 ${JSON.stringify(all)}
 
 Do this:
-1. VALIDATE (adversarial): for each finding open the file:line in its clonePath and actively try to REFUTE it — is it actually reachable? is there a guard upstream? does the trigger really exist? Drop anything you cannot confirm directly from the code. Be strict: a wrong finding is worse than a dropped one.
+1. VALIDATE (adversarial): for each finding open the file:line in its clonePath and actively try to REFUTE it — is it actually reachable? is there a guard upstream? does the trigger really exist? Also check the clone's CLAUDE.md (when present): drop any finding that contradicts a documented convention or deliberate pattern (manual DI, load-bearing typos, etc.). Drop anything you cannot confirm directly from the code. Be strict: a wrong finding is worse than a dropped one.
 2. DEDUPE: merge findings about the same place (even across lenses) into one entry; list the lenses; tag the source as <repo>#<iid>.
 3. RECALIBRATE severity on the same scale (critical = fix before merge; warning = fix soon; suggestion = optional).
 4. If a draft's technical detail was wrong but the underlying issue is real, correct it.
