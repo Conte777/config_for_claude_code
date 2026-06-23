@@ -1,9 +1,9 @@
 ---
-description: Review all MRs of a Jira task in a background Workflow (6 lenses + summarizer)
-argument-hint: <JIRA-KEY or task URL>
+description: Review the MRs of a Jira task OR a set of GitLab MR URLs in a background Workflow (6 lenses + summarizer)
+argument-hint: <JIRA-KEY | task URL | GitLab MR URL(s)>
 ---
 
-The `review-task-fetch.sh` hook has already fetched the MRs (diff + clone) on `UserPromptSubmit`. Just launch the review:
+The `review-task-fetch.sh` hook has already fetched the MRs (diff + clone) on `UserPromptSubmit`. The input is either a Jira key/URL (MRs pulled from Jira) or one or more direct GitLab MR URLs (Jira skipped entirely). Just launch the review:
 
 1. Find the hook's `WORK=<path>` in the latest `review-task:` line.
    - A `review-task:` line WITHOUT `WORK=` means it failed (no MRs / no credentials) — show it verbatim and STOP.

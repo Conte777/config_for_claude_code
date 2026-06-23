@@ -14,6 +14,12 @@ extract_key() { # <prompt>
   printf '%s' "$1" | grep -oE '[A-Z]+-[0-9]+' | tail -1
 }
 
+# Extract direct GitLab MR URLs from the prompt (.../-/merge_requests/<iid>).
+# Prints one URL per line, or nothing. ponytail: all MRs assumed on $GITLAB_HOST.
+extract_mr_urls() { # <prompt>
+  printf '%s' "$1" | grep -oE 'https?://[^[:space:]]+/-/merge_requests/[0-9]+' || true
+}
+
 # Local workspace where per-repo (gitignored) CLAUDE.md files live. We copy the
 # leaf repo's CLAUDE.md into its clone so the lenses see project conventions.
 LOCAL_ROOT="${REVIEW_TASK_LOCAL_ROOT:-$HOME/Work/friday-releases}"
@@ -38,6 +44,11 @@ if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
   [[ "$(extract_key '/review-task CUS-1776')" == CUS-1776 ]] || { echo "FAIL: bare key"; exit 1; }
   [[ "$(extract_key '/review-task https://jira.cp.itcrew.info/browse/CUS-1776')" == CUS-1776 ]] || { echo "FAIL: task url"; exit 1; }
   [[ -z "$(extract_key '/something-else CUS-1776')" ]] || { echo "FAIL: non-trigger"; exit 1; }
+  one='https://git.itcrew.info/Fri_releases/cryptoprocessing/backend-cp/protos/safe-query-proto/-/merge_requests/7'
+  [[ "$(extract_mr_urls "/review-task $one")" == "$one" ]] || { echo "FAIL: single mr url"; exit 1; }
+  two=$(extract_mr_urls "/review-task $one https://git.itcrew.info/a/b/-/merge_requests/12")
+  [[ "$two" == "$one"$'\n'"https://git.itcrew.info/a/b/-/merge_requests/12" ]] || { echo "FAIL: multi mr url"; exit 1; }
+  [[ -z "$(extract_mr_urls '/review-task CUS-1776')" ]] || { echo "FAIL: key is not an mr url"; exit 1; }
   tmp=$(mktemp -d); LOCAL_ROOT="$tmp"
   mkdir -p "$tmp/processing/api_go" "$tmp/cryptoprocessing/backend-core/order-service" \
            "$tmp/cryptoprocessing/shared/logger" "$tmp/dup-a/svc" "$tmp/dup-b/svc"
@@ -59,15 +70,21 @@ fi
 
 input=$(cat)
 prompt=$(printf '%s' "$input" | jq -r '.prompt // empty')
-# trigger only on the slash command; KEY from a bare arg or a task URL
-KEY=$(extract_key "$prompt")
-[[ -n "$KEY" ]] || exit 0
+# trigger only on the slash command (pass-through for anything else)
+[[ "$prompt" =~ ^/review-task([[:space:]]|$) ]] || exit 0
+
+# Two input modes: direct GitLab MR URLs (priority) or a Jira key. URLs win.
+KEY=""
+MR_URLS=$(extract_mr_urls "$prompt")
+if [[ -n "$MR_URLS" ]]; then
+  MODE=mrs
+else
+  KEY=$(extract_key "$prompt")
+  [[ -n "$KEY" ]] || { echo "review-task: no Jira key or GitLab MR URL in the prompt. Do not run the workflow."; exit 0; }
+  MODE=jira
+fi
 
 GITLAB_HOST="${REVIEW_TASK_GITLAB_HOST:-git.itcrew.info}"
-# Jira host stays out of this (version-controlled) file: env override, else the
-# ~/.netrc machine whose name contains "jira". netrc is the single source.
-JIRA_HOST="${REVIEW_TASK_JIRA_HOST:-}"
-[[ -z "$JIRA_HOST" ]] && JIRA_HOST=$(awk '$1=="machine" && $2 ~ /jira/ {print $2; exit}' "$HOME/.netrc" 2>/dev/null || true)
 
 # password for a host from ~/.netrc; handles single-line and multi-line entries
 netrc_token() { # <host>
@@ -78,35 +95,49 @@ netrc_token() { # <host>
         else if (inhost && $i=="password"){ print $(i+1); exit } } }' "$HOME/.netrc"
 }
 
-JIRA_TOKEN=$(netrc_token "$JIRA_HOST")
+# GitLab token is needed in both modes (clone + /changes API).
 GL_TOKEN=$(netrc_token "$GITLAB_HOST")
-if [[ -z "$JIRA_HOST" || -z "$JIRA_TOKEN" || -z "$GL_TOKEN" ]]; then
-  echo "review-task: no credentials in ~/.netrc (jira machine: ${JIRA_HOST:-not found}, gitlab: $GITLAB_HOST). Add 'machine <host> login <user> password <token>' (chmod 600). Do not run the workflow."
-  exit 0
-fi
+[[ -z "$GL_TOKEN" ]] && { echo "review-task: no GitLab credentials in ~/.netrc (machine $GITLAB_HOST). Add 'machine $GITLAB_HOST login <user> password <token>' (chmod 600). Do not run the workflow."; exit 0; }
 
-# 1. Jira gitplugin -> MR list
-gp=$(curl -fsS -H "Authorization: Bearer $JIRA_TOKEN" \
-  "https://$JIRA_HOST/rest/gitplugin/1.0/issuegitdetails/issue/$KEY/pullRequest" 2>/dev/null || true)
-if [[ -z "$gp" ]]; then
-  echo "review-task: Jira gitplugin did not respond for $KEY (auth/scope/host?). Do not run the workflow."
-  exit 0
-fi
+if [[ "$MODE" == jira ]]; then
+  # Jira host stays out of this (version-controlled) file: env override, else the
+  # ~/.netrc machine whose name contains "jira". netrc is the single source.
+  JIRA_HOST="${REVIEW_TASK_JIRA_HOST:-}"
+  [[ -z "$JIRA_HOST" ]] && JIRA_HOST=$(awk '$1=="machine" && $2 ~ /jira/ {print $2; exit}' "$HOME/.netrc" 2>/dev/null || true)
+  JIRA_TOKEN=$(netrc_token "$JIRA_HOST")
+  if [[ -z "$JIRA_HOST" || -z "$JIRA_TOKEN" ]]; then
+    echo "review-task: no Jira credentials in ~/.netrc (jira machine: ${JIRA_HOST:-not found}). Add 'machine <host> login <user> password <token>' (chmod 600). Do not run the workflow."
+    exit 0
+  fi
 
-# gitplugin shape: {mergeRequests:{items:[...]}, pullRequests:{items:[...]}};
-# item.url is the GitLab MR web url, .compareBranch=source, .baseBranch=target.
-mrs=$(printf '%s' "$gp" | jq -c '
-  [ (.mergeRequests.items // []), (.pullRequests.items // []) | .[]
-    | {url:(.url//""), source:(.compareBranch//""), target:(.baseBranch//""), title:(.title//"")} ]
-  | map(select(.url | test("/-/merge_requests/[0-9]+")))' 2>/dev/null || echo '[]')
+  # 1. Jira gitplugin -> MR list
+  gp=$(curl -fsS -H "Authorization: Bearer $JIRA_TOKEN" \
+    "https://$JIRA_HOST/rest/gitplugin/1.0/issuegitdetails/issue/$KEY/pullRequest" 2>/dev/null || true)
+  if [[ -z "$gp" ]]; then
+    echo "review-task: Jira gitplugin did not respond for $KEY (auth/scope/host?). Do not run the workflow."
+    exit 0
+  fi
+
+  # gitplugin shape: {mergeRequests:{items:[...]}, pullRequests:{items:[...]}};
+  # item.url is the GitLab MR web url, .compareBranch=source, .baseBranch=target.
+  mrs=$(printf '%s' "$gp" | jq -c '
+    [ (.mergeRequests.items // []), (.pullRequests.items // []) | .[]
+      | {url:(.url//""), source:(.compareBranch//""), target:(.baseBranch//""), title:(.title//"")} ]
+    | map(select(.url | test("/-/merge_requests/[0-9]+")))' 2>/dev/null || echo '[]')
+else
+  # mrs mode: build the list straight from the prompt URLs. source/target stay
+  # empty — GitLab /changes returns source_branch, and the loop already falls
+  # back to the API answer when src_gp is empty.
+  mrs=$(printf '%s\n' "$MR_URLS" | jq -R -s -c 'split("\n") | map(select(length>0)) | map({url:., source:"", target:"", title:""})')
+fi
 
 n=$(printf '%s' "$mrs" | jq 'length')
 if [[ "$n" -eq 0 ]]; then
-  echo "review-task: no MRs found for $KEY in Jira gitplugin. Do not run the workflow."
+  echo "review-task: no MRs to review${KEY:+ for $KEY}. Do not run the workflow."
   exit 0
 fi
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-$KEY.XXXXXX")
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}.XXXXXX")
 mkdir -p "$WORK/repos" "$WORK/diffs"
 export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
 
@@ -155,7 +186,7 @@ done
 printf '%s' "$manifest" > "$WORK/manifest.json"
 got=$(printf '%s' "$manifest" | jq 'length')
 if [[ "$got" -eq 0 ]]; then
-  echo "review-task: could not assemble any MR for $KEY. Do not run the workflow."
+  echo "review-task: could not assemble any MR${KEY:+ for $KEY}. Do not run the workflow."
   exit 0
 fi
 
@@ -168,5 +199,5 @@ echo "$diag."
 
 # fallback delivery: fixed file in case stdout->context is unreliable
 echo "$WORK" > "$HOME/.claude/.review-task-last" 2>/dev/null || true
-echo "review-task: MRs for $KEY ready ($got total). WORK=$WORK. Run the review-task workflow with this path."
+echo "review-task: MRs ready ($got total)${KEY:+ for $KEY}. WORK=$WORK. Run the review-task workflow with this path."
 exit 0

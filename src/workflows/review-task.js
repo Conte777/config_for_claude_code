@@ -15,7 +15,9 @@ if (!WORK || typeof WORK !== 'string') {
 }
 
 // Jira key from the WORK dir name (review-task-<KEY>.xxxxxx) for the report header.
+// In MR-URL mode the dir is review-task-mrs.* -> no key -> generic header.
 const KEY = (WORK.match(/review-task-([A-Z]+-\d+)/) || [])[1] || ''
+const HEADER = KEY ? `Review задачи ${KEY}` : 'Review merge requests'
 
 const FINDINGS = {
   type: 'object',
@@ -94,7 +96,7 @@ const all = lensResults
   .flatMap((r) => r.findings.map((f) => ({ ...f, lens: r.lens })))
 
 if (all.length === 0) {
-  return `# Review задачи ${KEY}\n\n✅ Чисто — линзы (${LENSES.join(', ')}) не нашли проблем в изменённом коде.`
+  return `# ${HEADER}\n\n✅ Чисто — линзы (${LENSES.join(', ')}) не нашли проблем в изменённом коде.`
 }
 
 // STAGE 2 — summarizer (opus): adversarially validate, dedup, recalibrate, format
@@ -113,7 +115,7 @@ Do this:
 
 Return ONLY the report (no preamble), written in RUSSIAN, code/identifiers/paths in English, EXACTLY in this Markdown format:
 
-# Review задачи ${KEY}
+# ${HEADER}
 
 > **Итог:** N critical · M warning · K suggestion
 
@@ -138,6 +140,6 @@ Return ONLY the report (no preamble), written in RUSSIAN, code/identifiers/paths
 Formatting rules:
 - Omit a severity section entirely if it has no confirmed findings.
 - Keep each finding tight — no walls of text; one clear sentence per field.
-- If nothing survives validation, return only: "# Review задачи ${KEY}\\n\\n✅ Чисто — подтверждённых проблем нет."`
+- If nothing survives validation, return only: "# ${HEADER}\\n\\n✅ Чисто — подтверждённых проблем нет."`
 
 return await agent(summaryPrompt, { label: 'summarizer', phase: 'Summarize', model: 'opus' })
