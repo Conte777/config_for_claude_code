@@ -41,18 +41,13 @@ const FINDINGS = {
   },
 }
 
-// 6 lenses (no tests lens, per plan). code reuses the code-reviewer agent.
-const LENSES = [
-  { key: 'code', role: 'senior software engineer', focus: 'Correctness bugs, mishandled errors, edge cases, nil/undefined/null derefs, off-by-one, wrong control flow, and language-specific footguns.' },
-  { key: 'architecture', role: 'senior software architect', focus: 'Module boundaries, coupling, duplication, leaky abstractions, deviation from the repo\'s existing patterns, and broken cross-repo/API contracts.' },
-  { key: 'security', role: 'senior security engineer', focus: 'Injection (SQL/command/XSS), unsafe deserialization, secrets in code, broken authn/authz, missing input validation at trust boundaries, and sensitive data leaking via errors/logs.' },
-  { key: 'performance', role: 'senior performance engineer', focus: 'N+1 queries, redundant allocations/work, inefficient queries or loops, and blocking calls on a hot path.' },
-  { key: 'concurrency', role: 'senior concurrency engineer', focus: 'Data races, shared mutable state without synchronization, deadlocks, wrong context/cancellation handling, and goroutine/thread leaks.' },
-  { key: 'over-engineering', role: 'pragmatic senior engineer who hates needless complexity', focus: 'Needless abstractions, speculative flexibility, reinvented stdlib, dead layers, and boilerplate that should be deleted.' },
-]
+// 6 lenses. Each lens's role + domain checklist lives in its own agent file
+// (src/agents/review-<key>.md, symlinked to ~/.claude/agents), invoked by
+// agentType below. This prompt carries only the shared, task-specific context
+// (paths, output contract); the lens persona comes from the agent definition.
+const LENSES = ['code', 'architecture', 'security', 'performance', 'concurrency', 'over-engineering']
 
-const lensPrompt = (role, focus) => `You are a ${role} doing an adversarial code review of one Jira task spread across several merge requests (possibly in different repositories).
-Adversarial stance: assume a junior wrote these changes. Do NOT trust the code — your job is to find real defects, not to approve it.
+const taskPrompt = `Review one Jira task spread across several merge requests (possibly in different repositories). Your review lens (role + what to hunt for) is defined by your agent prompt — stay strictly within it.
 
 Sources (read with Read/Grep, absolute paths):
 - Manifest: ${WORK}/manifest.json — array of {repo, iid, clonePath, diffPath, source_branch, web_url, claudeMd}.
@@ -61,8 +56,6 @@ Sources (read with Read/Grep, absolute paths):
 - Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true — the repo's rules and DELIBERATE quirks. Read it BEFORE judging that repo.
 
 Read manifest.json first. For each MR, study its diff, then OPEN the full code in clonePath and investigate: follow imports, callers, and related files to confirm a problem is real and actually reachable before flagging it.
-
-Your lens: ${focus}
 
 Hard rules:
 - Flag ONLY problems introduced by the CHANGED code (the diffs). Surrounding code is context only.
@@ -85,15 +78,15 @@ No findings → return {"findings": []}.`
 // concurrency keeps the peak survivable, with one retry for stray drops.
 phase('Review')
 const LENS_CONCURRENCY = 3
-const runLens = async (l) => {
-  const opts = { label: `lens:${l.key}`, phase: 'Review', schema: FINDINGS, model: 'sonnet', ...(l.agentType ? { agentType: l.agentType } : {}) }
-  let r = await agent(lensPrompt(l.role, l.focus), opts)
-  if (!r) r = await agent(lensPrompt(l.role, l.focus), opts) // 1 retry on a dropped stream
-  return { lens: l.key, findings: (r && r.findings) || [] }
+const runLens = async (key) => {
+  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'sonnet', agentType: `review-${key}` }
+  let r = await agent(taskPrompt, opts)
+  if (!r) r = await agent(taskPrompt, opts) // 1 retry on a dropped stream
+  return { lens: key, findings: (r && r.findings) || [] }
 }
 const lensResults = []
 for (let i = 0; i < LENSES.length; i += LENS_CONCURRENCY) {
-  lensResults.push(...await parallel(LENSES.slice(i, i + LENS_CONCURRENCY).map((l) => () => runLens(l))))
+  lensResults.push(...await parallel(LENSES.slice(i, i + LENS_CONCURRENCY).map((k) => () => runLens(k))))
 }
 
 const all = lensResults
@@ -101,7 +94,7 @@ const all = lensResults
   .flatMap((r) => r.findings.map((f) => ({ ...f, lens: r.lens })))
 
 if (all.length === 0) {
-  return `# Review задачи ${KEY}\n\n✅ Чисто — линзы (${LENSES.map((l) => l.key).join(', ')}) не нашли проблем в изменённом коде.`
+  return `# Review задачи ${KEY}\n\n✅ Чисто — линзы (${LENSES.join(', ')}) не нашли проблем в изменённом коде.`
 }
 
 // STAGE 2 — summarizer (opus): adversarially validate, dedup, recalibrate, format
@@ -147,5 +140,4 @@ Formatting rules:
 - Keep each finding tight — no walls of text; one clear sentence per field.
 - If nothing survives validation, return only: "# Review задачи ${KEY}\\n\\n✅ Чисто — подтверждённых проблем нет."`
 
-const report = await agent(summaryPrompt, { label: 'summarizer', phase: 'Summarize', model: 'opus' })
-return report
+return await agent(summaryPrompt, { label: 'summarizer', phase: 'Summarize', model: 'opus' })
