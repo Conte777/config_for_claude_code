@@ -81,7 +81,7 @@ netrc_token() { # <host>
 JIRA_TOKEN=$(netrc_token "$JIRA_HOST")
 GL_TOKEN=$(netrc_token "$GITLAB_HOST")
 if [[ -z "$JIRA_HOST" || -z "$JIRA_TOKEN" || -z "$GL_TOKEN" ]]; then
-  echo "review-task: нет учёток в ~/.netrc (jira-машина: ${JIRA_HOST:-не найдена}, gitlab: $GITLAB_HOST). Добавь 'machine <host> login <user> password <token>' (chmod 600). Workflow не запускай."
+  echo "review-task: no credentials in ~/.netrc (jira machine: ${JIRA_HOST:-not found}, gitlab: $GITLAB_HOST). Add 'machine <host> login <user> password <token>' (chmod 600). Do not run the workflow."
   exit 0
 fi
 
@@ -89,7 +89,7 @@ fi
 gp=$(curl -fsS -H "Authorization: Bearer $JIRA_TOKEN" \
   "https://$JIRA_HOST/rest/gitplugin/1.0/issuegitdetails/issue/$KEY/pullRequest" 2>/dev/null || true)
 if [[ -z "$gp" ]]; then
-  echo "review-task: Jira gitplugin не ответил для $KEY (auth/scope/host?). Workflow не запускай."
+  echo "review-task: Jira gitplugin did not respond for $KEY (auth/scope/host?). Do not run the workflow."
   exit 0
 fi
 
@@ -102,7 +102,7 @@ mrs=$(printf '%s' "$gp" | jq -c '
 
 n=$(printf '%s' "$mrs" | jq 'length')
 if [[ "$n" -eq 0 ]]; then
-  echo "review-task: для $KEY не найдено MR в Jira gitplugin. Workflow не запускай."
+  echo "review-task: no MRs found for $KEY in Jira gitplugin. Do not run the workflow."
   exit 0
 fi
 
@@ -112,6 +112,7 @@ export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
 
 manifest='[]'
 i=0
+cmd_copied=0; no_cmd=0; failed_clones=""  # rolled up into one summary line at the end
 while [[ $i -lt $n ]]; do
   url=$(printf '%s' "$mrs" | jq -r ".[$i].url")
   src_gp=$(printf '%s' "$mrs" | jq -r ".[$i].source")
@@ -119,13 +120,13 @@ while [[ $i -lt $n ]]; do
 
   path=$(printf '%s' "$url" | sed -E 's|https?://[^/]+/||; s|/-/merge_requests/.*||')
   iid=$(printf '%s' "$url" | grep -oE 'merge_requests/[0-9]+' | grep -oE '[0-9]+' || true)
-  [[ -z "$path" || -z "$iid" ]] && { echo "review-task: пропуск MR (url не разобран: $url)"; continue; }
+  [[ -z "$path" || -z "$iid" ]] && { echo "review-task: skipping MR (could not parse url: $url)"; continue; }
   enc=$(printf '%s' "$path" | jq -Rr @uri)
   slug="$(printf '%s' "$path" | tr '/' '_')__mr$iid"
 
   changes=$(curl -fsS -H "PRIVATE-TOKEN: $GL_TOKEN" \
     "https://$GITLAB_HOST/api/v4/projects/$enc/merge_requests/$iid/changes" 2>/dev/null || true)
-  [[ -z "$changes" ]] && { echo "review-task: пропуск $path!$iid (GitLab /changes не ответил)"; continue; }
+  [[ -z "$changes" ]] && { echo "review-task: skipping $path!$iid (GitLab /changes did not respond)"; continue; }
 
   src=$(printf '%s' "$changes" | jq -r '.source_branch // empty'); [[ -z "$src" ]] && src="$src_gp"
   diff_path="$WORK/diffs/$slug.diff"
@@ -136,13 +137,12 @@ while [[ $i -lt $n ]]; do
   if git clone --depth 1 --branch "$src" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
     cmd=$(find_local_claudemd "$path")
     if [[ -n "$cmd" ]]; then
-      cp "$cmd" "$clone_path/CLAUDE.md"; cmd_present=true
-      echo "review-task: CLAUDE.md → $slug"
+      cp "$cmd" "$clone_path/CLAUDE.md"; cmd_present=true; cmd_copied=$((cmd_copied+1))
     else
-      echo "review-task: CLAUDE.md для $path не найден локально — линза без конвенций"
+      no_cmd=$((no_cmd+1))
     fi
   else
-    echo "review-task: клон $path@$src не удался — линза пойдёт по diff без полного кода"
+    failed_clones+="${failed_clones:+, }$path@$src"
     clone_path=""
   fi
 
@@ -155,11 +155,18 @@ done
 printf '%s' "$manifest" > "$WORK/manifest.json"
 got=$(printf '%s' "$manifest" | jq 'length')
 if [[ "$got" -eq 0 ]]; then
-  echo "review-task: для $KEY ни один MR собрать не удалось. Workflow не запускай."
+  echo "review-task: could not assemble any MR for $KEY. Do not run the workflow."
   exit 0
 fi
 
+# one rolled-up diagnostics line (instead of one per MR) so the WORK= line below
+# stays visible and isn't lost to context compaction
+diag="review-task: CLAUDE.md injected into $cmd_copied repo(s)"
+[[ $no_cmd -gt 0 ]] && diag+=", without local conventions: $no_cmd"
+[[ -n "$failed_clones" ]] && diag+="; clones failed: $failed_clones"
+echo "$diag."
+
 # fallback delivery: fixed file in case stdout->context is unreliable
 echo "$WORK" > "$HOME/.claude/.review-task-last" 2>/dev/null || true
-echo "review-task: MR для $KEY готовы ($got шт.). WORK=$WORK. Запусти workflow review-task с этим путём."
+echo "review-task: MRs for $KEY ready ($got total). WORK=$WORK. Run the review-task workflow with this path."
 exit 0
