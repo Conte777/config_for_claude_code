@@ -14,3 +14,4 @@
 - Commit/branch via `mcp__git__commit` / `mcp__git__branch` only when explicitly
   asked; the server generates the message — never pass your own. Protected
   branches need `allowProtectedBranch` (commit) only after the user agrees.
+- Be extremely concise. Sacrifice grammar for the sake of concision.

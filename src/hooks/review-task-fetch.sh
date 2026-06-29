@@ -38,6 +38,26 @@ find_local_claudemd() { # <gitlab_path>
   [[ $(printf '%s' "$hits" | grep -c .) -eq 1 ]] && printf '%s\n' "$hits"
 }
 
+# Jira issue JSON (stdin) -> markdown for the completeness agent: title, description,
+# then a comments section. Server/DC api/2 shape: fields.{summary,description,comment.comments[]}.
+issue_to_md() {
+  jq -r '
+    "# \(.key // ""): \(.fields.summary // "")",
+    "",
+    (.fields.description // ""),
+    ( (.fields.comment.comments // []) as $c
+      | if ($c | length) > 0
+        then ("", "## Комментарии", "",
+              ($c[] | "**\(.author.displayName // .author.name // "")** (\((.created // "")[:10])):",
+                      (.body // ""), ""))
+        else empty end )'
+}
+
+# heavy = n>=3 MR -> "-heavy" суффикс в имя WORK-папки, workflow читает его оттуда
+# и гоняет читающих код агентов на 1M-окне. ponytail: n>=3 как прокси «агент
+# прочитает много» (клоны по импортам); байты не тянем — известны только после цикла, YAGNI.
+heavy_suffix() { [[ "$1" -ge 3 ]] && printf -- '-heavy'; }
+
 # ponytail: self-check for the matching logic (non-trivial: direct map + fallback).
 # Run: REVIEW_TASK_SELFTEST=1 bash src/hooks/review-task-fetch.sh
 if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
@@ -65,6 +85,29 @@ if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
     || { echo "FAIL: basename fallback"; exit 1; }
   [[ -z "$(find_local_claudemd grp/x/svc)" ]] \
     || { echo "FAIL: ambiguous basename should be empty"; exit 1; }
+  # discussions filter: system note dropped, inline note keeps file/line.
+  disc_filter() { jq -c '[ .[].notes[]? | select(.system == false)
+      | { author:(.author.username // ""), body:(.body // ""),
+          file:(.position.new_path // .position.old_path // ""),
+          line:(.position.new_line // .position.old_line // null),
+          resolvable:(.resolvable // false), resolved:(.resolved // false) } ]'; }
+  sample='[{"notes":[{"system":true,"body":"added 1 commit","author":{"username":"sys"}},
+    {"system":false,"body":"nil deref here","author":{"username":"alice"},
+     "position":{"new_path":"a/b.go","new_line":42},"resolvable":true,"resolved":false}]}]'
+  out=$(printf '%s' "$sample" | disc_filter)
+  [[ "$(printf '%s' "$out" | jq 'length')" == 1 ]] || { echo "FAIL: system note not dropped"; exit 1; }
+  [[ "$(printf '%s' "$out" | jq -r '.[0].file')" == a/b.go ]] || { echo "FAIL: inline file lost"; exit 1; }
+  [[ "$(printf '%s' "$out" | jq -r '.[0].line')" == 42 ]] || { echo "FAIL: inline line lost"; exit 1; }
+  # issue_to_md: summary + comment body land in the rendered task.md.
+  issue='{"key":"CUS-1","fields":{"summary":"Add retry","description":"Body",
+    "comment":{"comments":[{"author":{"displayName":"Bob"},"created":"2024-05-01T10:00:00.000+0000",
+      "body":"also handle timeout"}]}}}'
+  md=$(printf '%s' "$issue" | issue_to_md)
+  printf '%s' "$md" | grep -q 'CUS-1: Add retry' || { echo "FAIL: issue_to_md summary"; exit 1; }
+  printf '%s' "$md" | grep -q 'also handle timeout' || { echo "FAIL: issue_to_md comment"; exit 1; }
+  # heavy suffix: cross-file contract with the workflow (-heavy in dir name <-> 1M model).
+  [[ "$(heavy_suffix 3)" == "-heavy" ]] || { echo "FAIL: heavy_suffix 3"; exit 1; }
+  [[ -z "$(heavy_suffix 2)" ]] || { echo "FAIL: heavy_suffix 2"; exit 1; }
   rm -rf "$tmp"; echo "review-task selftest OK"; exit 0
 fi
 
@@ -118,6 +161,10 @@ if [[ "$MODE" == jira ]]; then
     exit 0
   fi
 
+  # task text (summary+description+comments) -> task.md for the completeness agent.
+  ISSUE_JSON=$(curl -fsS -H "Authorization: Bearer $JIRA_TOKEN" \
+    "https://$JIRA_HOST/rest/api/2/issue/$KEY?fields=summary,description,comment" 2>/dev/null || true)
+
   # gitplugin shape: {mergeRequests:{items:[...]}, pullRequests:{items:[...]}};
   # item.url is the GitLab MR web url, .compareBranch=source, .baseBranch=target.
   mrs=$(printf '%s' "$gp" | jq -c '
@@ -137,9 +184,13 @@ if [[ "$n" -eq 0 ]]; then
   exit 0
 fi
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}.XXXXXX")
-mkdir -p "$WORK/repos" "$WORK/diffs"
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}$(heavy_suffix "$n").XXXXXX")
+mkdir -p "$WORK/repos" "$WORK/diffs" "$WORK/discussions"
 export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
+
+# jira-only: task.md is the requirements source for the completeness agent. Its
+# absence in mrs-mode is the signal "no task" -> the agent is skipped downstream.
+[[ -n "${ISSUE_JSON:-}" ]] && printf '%s' "$ISSUE_JSON" | issue_to_md > "$WORK/task.md"
 
 manifest='[]'
 i=0
@@ -177,10 +228,35 @@ while [[ $i -lt $n ]]; do
     clone_path=""
   fi
 
+  # human review comments (inline + general) — paginated; matcher correlates them
+  # with findings so already-raised issues land in their own report section.
+  disc='[]'; page=1
+  while [[ $page -le 20 ]]; do   # ponytail: 20*100=2000 нот потолок, дальше не тянем
+    pg=$(curl -fsS -H "PRIVATE-TOKEN: $GL_TOKEN" \
+      "https://$GITLAB_HOST/api/v4/projects/$enc/merge_requests/$iid/discussions?per_page=100&page=$page" 2>/dev/null || true)
+    cnt=$(printf '%s' "$pg" | jq 'length' 2>/dev/null || echo 0)
+    [[ "$cnt" -eq 0 ]] && break
+    disc=$(printf '%s\n%s' "$disc" "$pg" | jq -c -s 'add')   # concat страниц
+    [[ "$cnt" -lt 100 ]] && break                            # последняя страница
+    page=$((page+1))
+  done
+  notes_path="$WORK/discussions/$slug.json"
+  printf '%s' "$disc" | jq -c '
+    [ .[].notes[]?
+      | select(.system == false)
+      | { author:   (.author.username // ""),
+          body:     (.body // ""),
+          file:     (.position.new_path // .position.old_path // ""),
+          line:     (.position.new_line // .position.old_line // null),
+          resolvable:(.resolvable // false),
+          resolved: (.resolved // false) } ]' > "$notes_path" 2>/dev/null \
+    || printf '[]' > "$notes_path"
+
   manifest=$(printf '%s' "$manifest" | jq -c \
     --arg repo "$path" --arg iid "$iid" --arg cp "$clone_path" \
     --arg dp "$diff_path" --arg sb "$src" --arg url "$url" --argjson cmd "$cmd_present" \
-    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, web_url:$url, claudeMd:$cmd}]')
+    --arg disc "$notes_path" \
+    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, web_url:$url, claudeMd:$cmd, discussionsPath:$disc}]')
 done
 
 printf '%s' "$manifest" > "$WORK/manifest.json"
