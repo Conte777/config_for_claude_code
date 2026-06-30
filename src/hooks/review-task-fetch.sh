@@ -105,6 +105,9 @@ if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
   md=$(printf '%s' "$issue" | issue_to_md)
   printf '%s' "$md" | grep -q 'CUS-1: Add retry' || { echo "FAIL: issue_to_md summary"; exit 1; }
   printf '%s' "$md" | grep -q 'also handle timeout' || { echo "FAIL: issue_to_md comment"; exit 1; }
+  # .changes guard: an error payload has no .changes (skip), a real one does (keep).
+  echo '{"message":"404"}' | jq -e '.changes' >/dev/null 2>&1 && { echo "FAIL: error payload must lack .changes"; exit 1; }
+  echo '{"changes":[]}'   | jq -e '.changes' >/dev/null 2>&1 || { echo "FAIL: real payload must have .changes"; exit 1; }
   # heavy suffix: cross-file contract with the workflow (-heavy in dir name <-> 1M model).
   [[ "$(heavy_suffix 3)" == "-heavy" ]] || { echo "FAIL: heavy_suffix 3"; exit 1; }
   [[ -z "$(heavy_suffix 2)" ]] || { echo "FAIL: heavy_suffix 2"; exit 1; }
@@ -122,10 +125,16 @@ MR_URLS=$(extract_mr_urls "$prompt")
 if [[ -n "$MR_URLS" ]]; then
   MODE=mrs
 else
-  KEY=$(extract_key "$prompt")
+  KEY=$(extract_key "$prompt") || true  # grep|tail returns 1 on no-key; -z handles it below
   [[ -n "$KEY" ]] || { echo "review-task: no Jira key or GitLab MR URL in the prompt. Do not run the workflow."; exit 0; }
   MODE=jira
 fi
+
+# Clear the stale-WORK fallback up front. If this run dies mid-flight (a jq/curl
+# fault under `set -e`) before writing a fresh WORK, the command reads an empty
+# file and honestly reports "fetch didn't run" instead of reviewing a PREVIOUS
+# task's leftover WORK dir. Only a fully-completed run repopulates it (bottom).
+: > "$HOME/.claude/.review-task-last" 2>/dev/null || true
 
 GITLAB_HOST="${REVIEW_TASK_GITLAB_HOST:-git.itcrew.info}"
 
@@ -209,6 +218,11 @@ while [[ $i -lt $n ]]; do
   changes=$(curl -fsS -H "PRIVATE-TOKEN: $GL_TOKEN" \
     "https://$GITLAB_HOST/api/v4/projects/$enc/merge_requests/$iid/changes" 2>/dev/null || true)
   [[ -z "$changes" ]] && { echo "review-task: skipping $path!$iid (GitLab /changes did not respond)"; continue; }
+  # A non-empty body without .changes is an error payload ({"message":"404..."}).
+  # Skip it: `jq '.changes[]'` on null is exit 5, which under `set -e`+pipefail
+  # would kill the whole hook mid-loop (no WORK= line -> stale-fallback review).
+  printf '%s' "$changes" | jq -e '.changes' >/dev/null 2>&1 \
+    || { echo "review-task: skipping $path!$iid (no .changes in GitLab response — 404/no access?)"; continue; }
 
   src=$(printf '%s' "$changes" | jq -r '.source_branch // empty'); [[ -z "$src" ]] && src="$src_gp"
   diff_path="$WORK/diffs/$slug.diff"
@@ -217,7 +231,10 @@ while [[ $i -lt $n ]]; do
   clone_path="$WORK/repos/$slug"
   cmd_present=false
   if git clone --depth 1 --branch "$src" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
-    cmd=$(find_local_claudemd "$path")
+    # `|| true`: find_local_claudemd ends in `[[…]] && printf`, so "not found"
+    # returns exit 1 — which under `set -e` would kill the whole hook here for
+    # any repo without a local CLAUDE.md. The empty stdout already means "none".
+    cmd=$(find_local_claudemd "$path") || true
     if [[ -n "$cmd" ]]; then
       cp "$cmd" "$clone_path/CLAUDE.md"; cmd_present=true; cmd_copied=$((cmd_copied+1))
     else

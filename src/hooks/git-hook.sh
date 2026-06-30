@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Deterministic git helpers via UserPromptSubmit router — ports of the pi
-# commit.ts / branch / commit-msg skills. On a ">" trigger the hook does all the
+# commit.ts / branch / commit-msg skills. On a "/" trigger the hook does all the
 # work in bash (model only generates text via `claude -p haiku`), then BLOCKS the
 # prompt so the main session model is never invoked and nothing enters context.
+# The matching src/commands/*.md files exist only for "/" autocompletion and to
+# set disable-model-invocation; their body is never reached (hook blocks first).
 #
 # Triggers (must start the prompt):
-#   >commit [all] [force]   stage? -> haiku msg -> validate -> git commit
-#   >commit-msg             haiku msg from staged diff, preview only (no commit)
-#   >branch [CUS-N] [desc]  git switch -c PREFIX/slug
+#   /commit [all] [force]   stage? -> haiku msg -> validate -> git commit
+#   /commit-msg             haiku msg from staged diff, preview only (no commit)
+#   /branch [CUS-N] [desc]  git switch -c PREFIX/slug
 #                           ticket optional; without it the model picks feat/fix
 set -euo pipefail
 
@@ -205,7 +207,7 @@ cmd_commit() { # <words: all|tracked|force|dryrun>
   $mode_all     && { git add -A || emit err "✗ commit: git add -A failed"; }
   $mode_tracked && { git add -u || emit err "✗ commit: git add -u failed"; }
 
-  ctx=$(staged_context) || emit err "✗ commit: nothing staged. Stage files, or use --all / --tracked ('>commit all')."
+  ctx=$(staged_context) || emit err "✗ commit: nothing staged. Stage files, or use --all / --tracked ('/commit all')."
   files="${ctx%%---DIFF---*}"; diff="${ctx#*---DIFF---$'\n'}"
 
   branch=$(current_branch)
@@ -216,7 +218,7 @@ cmd_commit() { # <words: all|tracked|force|dryrun>
   $protected && ! $force && emit err "✗ commit: '$branch' is protected. Use force / --force / allowProtectedBranch after review."
 
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit: no valid message after 4 tries — re-run >commit to retry.
+  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit: no valid message after 4 tries — re-run /commit to retry.
 Last candidate: %s
 Problems: %s' "${GEN_LAST_CAND:-(empty)}" "${GEN_LAST_ERR:-unknown}")"
   msg="$GEN_MSG"
@@ -237,7 +239,7 @@ cmd_commit_msg() {
   files="${ctx%%---DIFF---*}"; diff="${ctx#*---DIFF---$'\n'}"
   branch=$(current_branch)
   ticket=$(printf '%s' "$branch" | grep -ioE 'CUS-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]' || true)
-  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit-msg: no valid message after 4 tries — re-run >commit-msg to retry.
+  gen_message "$branch" "$ticket" "$files" "$diff" || emit err "$(printf '✗ commit-msg: no valid message after 4 tries — re-run /commit-msg to retry.
 Last candidate: %s
 Problems: %s' "${GEN_LAST_CAND:-(empty)}" "${GEN_LAST_ERR:-unknown}")"
   emit ok "📝 $GEN_MSG"
@@ -262,7 +264,7 @@ cmd_branch() { # <args>
     [[ -z "$prefix" ]] && prefix=$(gen_type "$desc")
   else
     diff=$(git diff HEAD 2>/dev/null || true)
-    [[ -z "$diff" ]] && emit err "✗ branch: no description and no changes. Use '>branch [CUS-XXXX] <short description>'."
+    [[ -z "$diff" ]] && emit err "✗ branch: no description and no changes. Use '/branch [CUS-XXXX] <short description>'."
     (( ${#diff} > MAX_DIFF )) && diff="${diff:0:MAX_DIFF}"
     for attempt in 1 2; do
       if [[ -n "$prefix" ]]; then
@@ -281,11 +283,11 @@ cmd_branch() { # <args>
         fi
       fi
     done
-    [[ -z "${slug:-}" ]] && emit err "✗ branch: model failed to produce a valid slug. Pass a description: '>branch [CUS-XXXX] <desc>'."
+    [[ -z "${slug:-}" ]] && emit err "✗ branch: model failed to produce a valid slug. Pass a description: '/branch [CUS-XXXX] <desc>'."
     [[ -z "$prefix" ]] && prefix="feat"
   fi
 
-  [[ -z "$slug" ]] && emit err "✗ branch: empty description after slugify. Use '>branch [CUS-XXXX] <short description>'."
+  [[ -z "$slug" ]] && emit err "✗ branch: empty description after slugify. Use '/branch [CUS-XXXX] <short description>'."
   local name="$prefix/$slug"
   git switch -c "$name" >/dev/null 2>git_err.tmp || { err=$(cat git_err.tmp); rm -f git_err.tmp; emit err "✗ branch failed: $err"; }
   rm -f git_err.tmp
@@ -305,10 +307,10 @@ if [[ "$OUT_MODE" == cli ]]; then
   exit 0
 fi
 
-# hook mode — order matters: >commit-msg before >commit (it is a prefix of it)
-if   [[ "$prompt" =~ ^[[:space:]]*\>commit-msg([[:space:]]|$) ]]; then cmd_commit_msg
-elif [[ "$prompt" =~ ^[[:space:]]*\>commit([[:space:]]|$) ]];     then cmd_commit "${prompt#*>commit}"
-elif [[ "$prompt" =~ ^[[:space:]]*\>branch([[:space:]]|$) ]];     then
-  b="${prompt#*>branch}"; cmd_branch "$(printf '%s' "$b" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+# hook mode — order matters: /commit-msg before /commit (it is a prefix of it)
+if   [[ "$prompt" =~ ^[[:space:]]*/commit-msg([[:space:]]|$) ]]; then cmd_commit_msg
+elif [[ "$prompt" =~ ^[[:space:]]*/commit([[:space:]]|$) ]];     then cmd_commit "${prompt#*/commit}"
+elif [[ "$prompt" =~ ^[[:space:]]*/branch([[:space:]]|$) ]];     then
+  b="${prompt#*/branch}"; cmd_branch "$(printf '%s' "$b" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 fi
 exit 0  # not our trigger -> pass through to the model
