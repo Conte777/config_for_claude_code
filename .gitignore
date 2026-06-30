@@ -69,3 +69,11 @@ progress.md
 progress.txt
 # Local-only skill (kept on disk, not tracked)
 src/skills/go-microservice/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
