@@ -4,7 +4,7 @@
 # ///
 """Git MCP — deterministic commit/branch for the main model.
 
-Thin adapter: maps tool args to argv and shells out to git-hook.sh, which owns
+Thin adapter: maps tool args to argv and shells out to git_gen.py, which owns
 ALL logic (staging, haiku message generation, validation, retry, git). Nothing
 is duplicated here — the server only parses tool calls and returns stdout.
 """
@@ -16,13 +16,13 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("git")
 
-HOOK = os.path.expanduser("~/.claude/hooks/git-hook.sh")
+GEN = os.path.expanduser("~/.claude/hooks/git_gen.py")
 
 
 def _run(argv: list[str]) -> str:
     try:
         p = subprocess.run(
-            ["bash", HOOK, *argv],
+            ["uv", "run", GEN, *argv],
             capture_output=True,
             text=True,
             timeout=120,
