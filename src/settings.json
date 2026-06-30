@@ -22,7 +22,8 @@
   },
   "env": {
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
-    "CLAUDE_CODE_NEW_INIT": "1"
+    "CLAUDE_CODE_NEW_INIT": "1",
+    "ENABLE_TOOL_SEARCH": "true"
   },
   "extraKnownMarketplaces": {
     "headroom-marketplace": {
