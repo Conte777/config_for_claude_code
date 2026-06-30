@@ -12,9 +12,11 @@ ClaudeSDKClient keeps the dialog open: an invalid candidate is answered with a
 short correction follow-up in the SAME session, so the model sees its own
 rejected turn as conversation context.
 
-setting_sources is left unset -> the SDK-spawned `claude` does NOT load user
-settings/hooks, so it never re-fires UserPromptSubmit (the bash straz keeps a
-CLAUDE_COMMIT_GEN env guard as cheap insurance regardless).
+Isolation: setting_sources=[] makes the SDK load NO file-based config (user /
+project / local), so MCP servers, skills, custom slash commands, hooks, and
+CLAUDE.md are all absent from the spawned instance. Re-firing of
+UserPromptSubmit is prevented separately by the CLAUDE_COMMIT_GEN env guard (in
+git-hook.sh and main()), which is the actual recursion safeguard.
 
 Modes (argv[0]):
   commit|commit-msg|branch  -> cli (needs --repo; flags --all/--tracked/--force/--dry-run)
@@ -161,6 +163,7 @@ async def converse_until_valid(system_prompt, first_prompt, check, attempts):
         model=GEN_MODEL,
         system_prompt=system_prompt,
         allowed_tools=[],
+        setting_sources=[],   # SDK isolation: no MCP / skills / commands / hooks / CLAUDE.md
         max_turns=attempts,
     )
     last_repr, last_err = "(empty)", "unknown"
