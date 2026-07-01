@@ -3,6 +3,7 @@
 ## Language
 - Communication, explanations, and work commentary — in Russian.
 - Code, identifiers, commits, branch names, and technical artifacts — in English.
+- Be extremely concise. Sacrifice grammar for the sake of concision.
 
 ## Workflow
 - Before writing code against a library/framework, check current docs via
@@ -14,4 +15,3 @@
 - Commit/branch via `mcp__git__commit` / `mcp__git__branch` only when explicitly
   asked; the server generates the message — never pass your own. Protected
   branches need `allowProtectedBranch` (commit) only after the user agrees.
-- Be extremely concise. Sacrifice grammar for the sake of concision.
