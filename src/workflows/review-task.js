@@ -1,9 +1,9 @@
 export const meta = {
   name: 'review-task',
-  description: 'Review all MRs of a Jira task: 6 lenses + a task-completeness agent over diffs+clones, then an opus summarizer. Heavy tasks (>=3 MR) run code-reading agents on a 1M-context model.',
+  description: 'Review all MRs of a Jira task: 6 lenses + a task-completeness agent over diffs+clones, then an opus summarizer.',
   phases: [
     { title: 'Review' },
-    { title: 'Match', model: 'sonnet' },
+    { title: 'Match', model: 'sonnet[1m]' },
     { title: 'Summarize', model: 'opus' },
   ],
 }
@@ -19,14 +19,6 @@ if (!WORK || typeof WORK !== 'string') {
 // In MR-URL mode the dir is review-task-mrs.* -> no key -> generic header.
 const KEY = (WORK.match(/review-task-([A-Z]+-\d+)/) || [])[1] || ''
 const HEADER = KEY ? `Review задачи ${KEY}` : 'Review merge requests'
-
-// Heavy task (>=3 MR): the fetch-hook tags the WORK dir with "-heavy". On heavy,
-// code-reading agents (lenses, completeness, summarizer) run on a 1M-context model
-// so they don't hit "Prompt is too long" while following imports across clones.
-const HEAVY = WORK.includes('-heavy.')
-const HEAVY_MODEL = 'claude-opus-4-8[1m]'
-// Appended to lens/completeness prompts on heavy: read surgically, don't gulp clones.
-const HEAVY_NOTE = `\n\nHEAVY TASK — read economically: НЕ читай файлы целиком и не открывай клоны "на разведку". Через \`Grep\` найди конкретные определения/вызовы/использования для проверки reachability и \`Read\` только нужные участки. Диффы — основное доказательство; в клоны лезь точечно, не залпом.`
 
 const FINDINGS = {
   type: 'object',
@@ -83,12 +75,8 @@ Each finding's fields — write title/why/explanation in RUSSIAN, keep code/iden
 
 No findings → return {"findings": []}.`
 
-// STAGE 1 — lenses in batches of LENS_CONCURRENCY (barrier: summarizer needs all
-// findings deduped). The local ANTHROPIC_BASE_URL proxy drops streams when all 6
-// run at once (-> api_error), and a synchronous retry hits the same peak; capping
-// concurrency keeps the peak survivable, with one retry for stray drops.
+// STAGE 1 — all lenses + completeness in one parallel() (barrier: summarizer needs all findings together to dedup).
 phase('Review')
-const LENS_CONCURRENCY = 3
 const runLens = async (key) => {
   // over-engineering only: hand it the task text so requirement-justified complexity
   // isn't flagged. The task.md path is known here, not in the agent .md, so the
@@ -96,15 +84,14 @@ const runLens = async (key) => {
   let prompt = key === 'over-engineering' && KEY
     ? `${taskPrompt}\n\nContext — what the task actually required: \`${WORK}/task.md\` (its description + comments). Complexity that this requirement genuinely demands is NOT over-engineering; only flag complexity beyond what the task asks for.`
     : taskPrompt
-  if (HEAVY) prompt += HEAVY_NOTE
-  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: HEAVY ? HEAVY_MODEL : 'sonnet', agentType: `review-${key}` }
+  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'sonnet[1m]', agentType: `review-${key}` }
   let r = await agent(prompt, opts)
   if (!r) r = await agent(prompt, opts) // 1 retry on a dropped stream
   return { lens: key, findings: (r && r.findings) || [] }
 }
 
 // Completeness agent (jira-only): reads task.md requirements and reports what the
-// MRs left unbuilt. Same shape as runLens so it batches alongside the lenses.
+// MRs left unbuilt. Same shape as runLens so it runs alongside the lenses.
 const completenessPrompt = `Check whether this Jira task's MRs actually deliver what the task asked for. Your role (scope/coverage check, not defect hunting) is defined by your agent prompt.
 
 Requirements source: \`${WORK}/task.md\` — the task's title, description, and comments. This is what was asked.
@@ -125,20 +112,15 @@ Each finding's fields — write title/why/explanation in RUSSIAN, keep code/iden
 If task.md is absent, states no checkable requirements, or everything is covered → return {"findings": []}.`
 
 const runCompleteness = async () => {
-  const prompt = HEAVY ? completenessPrompt + HEAVY_NOTE : completenessPrompt
-  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: HEAVY ? HEAVY_MODEL : 'sonnet', agentType: 'review-completeness' }
-  let r = await agent(prompt, opts)
-  if (!r) r = await agent(prompt, opts) // 1 retry on a dropped stream
+  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: 'sonnet[1m]', agentType: 'review-completeness' }
+  let r = await agent(completenessPrompt, opts)
+  if (!r) r = await agent(completenessPrompt, opts) // 1 retry on a dropped stream
   return { lens: 'completeness', findings: (r && r.findings) || [] }
 }
 
-// Batch lenses + (jira-only) completeness through the same concurrency cap.
 const reviewThunks = LENSES.map((k) => () => runLens(k))
 if (KEY) reviewThunks.push(() => runCompleteness())
-const lensResults = []
-for (let i = 0; i < reviewThunks.length; i += LENS_CONCURRENCY) {
-  lensResults.push(...await parallel(reviewThunks.slice(i, i + LENS_CONCURRENCY)))
-}
+const lensResults = await parallel(reviewThunks)
 
 const all = lensResults
   .filter(Boolean)
@@ -181,7 +163,7 @@ ${JSON.stringify(all.map((f) => ({ index: f.index, repo: f.repo, iid: f.iid, fil
 Manifest: ${WORK}/manifest.json — each MR has a discussionsPath to its human comments. Follow your agent prompt.
 
 Return {"verdicts": [...]} with one entry {index, covered, author, quote, resolved} per finding above.`
-const matched = await agent(matchPrompt, { label: 'comment-match', phase: 'Match', agentType: 'review-comment-match', schema: VERDICTS })
+const matched = await agent(matchPrompt, { label: 'comment-match', phase: 'Match', model: 'sonnet[1m]', agentType: 'review-comment-match', schema: VERDICTS })
 for (const f of all) f.comment = null
 if (matched && matched.verdicts) {
   for (const v of matched.verdicts) {
@@ -252,4 +234,4 @@ Formatting rules:
 - Keep each finding tight — no walls of text; one clear sentence per field.
 - If nothing survives validation, return only: "# ${HEADER}\\n\\n✅ Чисто — подтверждённых проблем нет."`
 
-return await agent(summaryPrompt, { label: 'summarizer', phase: 'Summarize', model: HEAVY ? HEAVY_MODEL : 'opus' })
+return await agent(summaryPrompt, { label: 'summarizer', phase: 'Summarize', model: 'opus' })

@@ -53,11 +53,6 @@ issue_to_md() {
         else empty end )'
 }
 
-# heavy = n>=3 MR -> "-heavy" суффикс в имя WORK-папки, workflow читает его оттуда
-# и гоняет читающих код агентов на 1M-окне. ponytail: n>=3 как прокси «агент
-# прочитает много» (клоны по импортам); байты не тянем — известны только после цикла, YAGNI.
-heavy_suffix() { [[ "$1" -ge 3 ]] && printf -- '-heavy'; }
-
 # ponytail: self-check for the matching logic (non-trivial: direct map + fallback).
 # Run: REVIEW_TASK_SELFTEST=1 bash src/hooks/review-task-fetch.sh
 if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
@@ -108,9 +103,6 @@ if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
   # .changes guard: an error payload has no .changes (skip), a real one does (keep).
   echo '{"message":"404"}' | jq -e '.changes' >/dev/null 2>&1 && { echo "FAIL: error payload must lack .changes"; exit 1; }
   echo '{"changes":[]}'   | jq -e '.changes' >/dev/null 2>&1 || { echo "FAIL: real payload must have .changes"; exit 1; }
-  # heavy suffix: cross-file contract with the workflow (-heavy in dir name <-> 1M model).
-  [[ "$(heavy_suffix 3)" == "-heavy" ]] || { echo "FAIL: heavy_suffix 3"; exit 1; }
-  [[ -z "$(heavy_suffix 2)" ]] || { echo "FAIL: heavy_suffix 2"; exit 1; }
   rm -rf "$tmp"; echo "review-task selftest OK"; exit 0
 fi
 
@@ -193,7 +185,7 @@ if [[ "$n" -eq 0 ]]; then
   exit 0
 fi
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}$(heavy_suffix "$n").XXXXXX")
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}.XXXXXX")
 mkdir -p "$WORK/repos" "$WORK/diffs" "$WORK/discussions"
 export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
 
