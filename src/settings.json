@@ -9,11 +9,7 @@
     "pr": ""
   },
   "includeCoAuthoredBy": false,
-  "disableClaudeAiConnectors": true,
-  "deniedMcpServers": [
-    { "serverName": "jira" },
-    { "serverName": "computer-use" }
-  ],
+  "deniedMcpServers": [],
   "permissions": {
     "allow": [
       "Bash",
@@ -53,9 +49,9 @@
       "mcp__computer-use__*",
       "mcp__gitnexus__*",
       "mcp__grafana__*",
-      "mcp__jira__*",
       "mcp__db-view-mcp__*",
-      "mcp__gitlab__*"
+      "mcp__gitlab__*",
+      "mcp__youtube-vision__*"
     ],
     "deny": [],
     "ask": [
@@ -73,15 +69,6 @@
       "mcp__git__branch",
       "mcp__db-view-mcp__execute",
       "mcp__db-view-mcp__transaction",
-      "mcp__jira__jira_create_*",
-      "mcp__jira__jira_batch_create_*",
-      "mcp__jira__jira_update_*",
-      "mcp__jira__jira_delete_*",
-      "mcp__jira__jira_add_*",
-      "mcp__jira__jira_edit_*",
-      "mcp__jira__jira_remove_*",
-      "mcp__jira__jira_transition_*",
-      "mcp__jira__jira_link_to_epic",
       "mcp__gitlab__create_*",
       "mcp__gitlab__update_*",
       "mcp__gitlab__delete_*",
