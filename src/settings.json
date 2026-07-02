@@ -9,7 +9,6 @@
     "pr": ""
   },
   "includeCoAuthoredBy": false,
-  "deniedMcpServers": [],
   "permissions": {
     "allow": [
       "Bash",
@@ -87,7 +86,8 @@
     ],
     "defaultMode": "plan"
   },
-  "model": "opus[1m]",
+  "model": "claude-fable-5[1m]",
+  "deniedMcpServers": [],
   "hooks": {
     "Notification": [
       {
@@ -142,6 +142,16 @@
             "type": "command",
             "command": "/Users/conte/.local/bin/headroom init hook ensure --profile init-user --marker headroom-init-claude",
             "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/bash-tool-guard.sh",
+            "timeout": 10
           }
         ]
       }
