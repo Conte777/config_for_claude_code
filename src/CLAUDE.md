@@ -6,12 +6,9 @@
 - Be extremely concise. Sacrifice grammar for the sake of concision.
 
 ## Workflow
-- Before writing code against a library/framework, check current docs via
-  context7, even for popular ones (your knowledge may be stale).
-- Don't consider a task done until tests and linters have run. Report failures
-  honestly, with the command output.
-- `git push`, force-push, and any action on protected branches (main/master) —
-  only after explicit confirmation.
-- Commit/branch via `mcp__git__commit` / `mcp__git__branch` only when explicitly
-  asked; the server generates the message — never pass your own. Protected
-  branches need `allowProtectedBranch` (commit) only after the user agrees.
+- Before writing code against a library/framework, check current docs via context7, even for popular ones (your knowledge may be stale).
+- Don't consider a task done until tests and linters have run. Report failures honestly, with the command output.
+- Commit/branch only when explicitly asked, via `mcp__git__commit` / `mcp__git__branch` (a hook blocks raw git for these). `allowProtectedBranch` only after the user agrees.
+
+## Code style
+- No obvious comments. Comment only non-obvious constraints or the "why" the code can't express — never narrate what the next line does.
