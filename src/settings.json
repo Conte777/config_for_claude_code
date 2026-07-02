@@ -48,6 +48,7 @@
       "mcp__computer-use__*",
       "mcp__gitnexus__*",
       "mcp__grafana__*",
+      "mcp__kubernetes__*",
       "mcp__db-view-mcp__*",
       "mcp__gitlab__*",
       "mcp__youtube-vision__*"
@@ -86,7 +87,7 @@
     ],
     "defaultMode": "plan"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "opus[1m]",
   "deniedMcpServers": [],
   "hooks": {
     "Notification": [
