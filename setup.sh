@@ -31,6 +31,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/plugins"
     "$TARGET_DIR/keybindings.json"
     "$TARGET_DIR/workflows"
+    "$TARGET_DIR/rules"
 )
 
 declare -a LINK_SOURCES=(
@@ -45,6 +46,7 @@ declare -a LINK_SOURCES=(
     "$SRC_DIR/plugins"
     "$SRC_DIR/keybindings.json"
     "$SRC_DIR/workflows"
+    "$SRC_DIR/rules"
 )
 
 # Rollback on error
