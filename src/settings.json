@@ -155,6 +155,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/edit-write-autoapprove.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
