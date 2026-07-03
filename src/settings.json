@@ -2,7 +2,8 @@
   "env": {
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
     "CLAUDE_CODE_NEW_INIT": "1",
-    "ENABLE_TOOL_SEARCH": "true"
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_AFK_TIMEOUT_MS": "2147483647"
   },
   "attribution": {
     "commit": "",
@@ -51,7 +52,8 @@
       "mcp__kubernetes__*",
       "mcp__db-view-mcp__*",
       "mcp__gitlab__*",
-      "mcp__youtube-vision__*"
+      "mcp__youtube-vision__*",
+      "mcp__git__*"
     ],
     "deny": [],
     "ask": [
@@ -65,8 +67,6 @@
       "Bash(docker rm:*)",
       "Bash(docker rmi:*)",
       "Bash(kubectl delete:*)",
-      "mcp__git__commit",
-      "mcp__git__branch",
       "mcp__db-view-mcp__execute",
       "mcp__db-view-mcp__transaction",
       "mcp__gitlab__create_*",
@@ -266,7 +266,7 @@
   },
   "language": "Russian",
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "showClearContextOnPlanAccept": true,
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",

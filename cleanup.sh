@@ -27,6 +27,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/plugins"
     "$TARGET_DIR/keybindings.json"
     "$TARGET_DIR/workflows"
+    "$TARGET_DIR/rules"
 )
 
 # Header
