@@ -2,8 +2,7 @@
   "env": {
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
     "CLAUDE_CODE_NEW_INIT": "1",
-    "ENABLE_TOOL_SEARCH": "true",
-    "CLAUDE_AFK_TIMEOUT_MS": "2147483647"
+    "ENABLE_TOOL_SEARCH": "true"
   },
   "attribution": {
     "commit": "",
@@ -43,10 +42,9 @@
       "RemoteTrigger",
       "ListMcpResourcesTool",
       "ReadMcpResourceTool",
-      "mcp__plugin_context7_context7__*",
+      "mcp__context7__*",
+      "mcp__verify__*",
       "mcp__headroom__*",
-      "mcp__claude_ai_Google_Drive__*",
-      "mcp__computer-use__*",
       "mcp__gitnexus__*",
       "mcp__grafana__*",
       "mcp__kubernetes__*",
@@ -209,6 +207,24 @@
             "timeout": 150
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --subagent"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release --tool claude-code --subagent"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -251,7 +267,6 @@
   },
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "headroom@headroom-marketplace": true,
     "ponytail@ponytail": true,
