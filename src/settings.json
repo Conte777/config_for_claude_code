@@ -65,8 +65,6 @@
       "Bash(docker rm:*)",
       "Bash(docker rmi:*)",
       "Bash(kubectl delete:*)",
-      "mcp__db-view-mcp__execute",
-      "mcp__db-view-mcp__transaction",
       "mcp__gitlab__create_*",
       "mcp__gitlab__update_*",
       "mcp__gitlab__delete_*",
