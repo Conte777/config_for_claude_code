@@ -139,15 +139,13 @@ echo ""
 if command -v claude >/dev/null 2>&1; then
     # claude-plugins-official is built-in; add explicitly for first-run safety
     claude plugin marketplace add anthropics/claude-plugins-official --scope user || true
-    claude plugin marketplace add DietrichGebert/ponytail --scope user || true
     for plugin in \
         gopls-lsp@claude-plugins-official \
         clangd-lsp@claude-plugins-official \
         pyright-lsp@claude-plugins-official \
         security-guidance@claude-plugins-official \
         context7@claude-plugins-official \
-        github@claude-plugins-official \
-        ponytail@ponytail; do
+        github@claude-plugins-official; do
         echo "  - $plugin"
         claude plugin install "$plugin" --scope user || warn "failed to install $plugin"
     done
