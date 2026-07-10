@@ -110,16 +110,19 @@ print(f'usage7dResets={r7}')
 print(f'liveLimits={live}')
 curDir=ws.get('current_dir') or os.getcwd()
 home=os.path.expanduser('~')
-effort=''
-for p in [os.path.join(curDir,'.claude','settings.local.json'), os.path.join(curDir,'.claude','settings.json'), os.path.join(home,'.claude','settings.json')]:
-    try:
-        with open(p) as fp:
-            v=(json.load(fp) or {}).get('effortLevel')
-        if v:
-            effort=str(v)
-            break
-    except Exception:
-        pass
+# Live, session-scoped effort: Claude Code exports it into the statusline
+# child's env, so it's immune to other sessions overwriting settings.json.
+effort=os.environ.get('CLAUDE_EFFORT') or os.environ.get('CLAUDE_CODE_EFFORT_LEVEL') or ''
+if not effort:
+    for p in [os.path.join(curDir,'.claude','settings.local.json'), os.path.join(curDir,'.claude','settings.json'), os.path.join(home,'.claude','settings.json')]:
+        try:
+            with open(p) as fp:
+                v=(json.load(fp) or {}).get('effortLevel')
+            if v:
+                effort=str(v)
+                break
+        except Exception:
+            pass
 print(f'effortLevel={effort}')
 mid=m.get('id','unknown')
 print(f'modelId={mid}')
