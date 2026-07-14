@@ -18,3 +18,7 @@ This repo version-controls Claude Code config and deploys it via symlinks (`setu
 ## Skills
 
 Skills live in `src/skills/<name>/SKILL.md` with `name` / `description` frontmatter. Optional `references/`, `examples/`, `scripts/` subdirs are loaded on demand.
+
+## Infrastructure notes
+
+- `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` (`src/settings.json`) is the local **headroom** proxy (plugin `headroom@headroom-marketplace`), which compresses context to save tokens — not a custom API gateway.

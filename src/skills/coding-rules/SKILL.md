@@ -1,12 +1,12 @@
 ---
 name: coding-rules
-description: This skill should be used when the user asks to plan code changes, design a solution, choose patterns, assess architecture, prepare a new feature implementation plan, or reason about security/concurrency/performance trade-offs for Go, Java, or Python. Do not use for routine code edits; tactical coding guardrails are injected by pi-rules.
+description: This skill should be used when the user asks to plan code changes, design a solution, choose patterns, assess architecture, prepare a new feature implementation plan, or reason about security/concurrency/performance trade-offs for Go, Java, or Python. Do not use for routine code edits.
 ---
 
 # Coding Rules
 
 Language-specific planning rules: patterns, anti-patterns, and best practices for Go, Java, Python.
-Use this skill for planning/design work. Routine code-edit guardrails are provided by global `pi-rules`.
+Use this skill for planning/design work.
 
 ## How to Use
 
@@ -14,7 +14,7 @@ Use this skill for planning/design work. Routine code-edit guardrails are provid
 
 You **MUST** load `references/common.md` and the language-specific `patterns.md`
 **BEFORE** planning substantial changes, designing a feature, or making architectural recommendations.
-For routine code edits, rely on the global `pi-rules` guardrails instead of loading this skill.
+Skip this skill for routine code edits.
 
 `common.md` covers:
 - Security (input validation, injection, secrets, path traversal)
