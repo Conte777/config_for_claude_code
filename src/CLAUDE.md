@@ -15,3 +15,5 @@
 # Code style
 - Comment only a non-obvious constraint or "why" — never the "what". No restating the next line, divider banners, signature-echoing docstrings, or "just in case" notes.
 - Match the file's existing comment density — none where the surrounding code has none.
+- Keep any comment to one line where possible; a comment longer than the code it annotates is a smell. No multi-line rationale essays — if the "why" needs a paragraph, cut it to the single load-bearing sentence.
+- Default to zero comments. Add one only when omitting it would leave a reader guessing; when in doubt, leave it out.
