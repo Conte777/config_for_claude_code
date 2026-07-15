@@ -13,7 +13,13 @@
 - Don't consider a task done until tests and linters have run. Report failures honestly, with the command output.
 
 # Code style
-- Comment only a non-obvious constraint or "why" — never the "what". No restating the next line, divider banners, signature-echoing docstrings, or "just in case" notes.
+- Comment only a non-obvious "why" or constraint — never the "what". No restating the next line, divider banners, signature-echoing docstrings, or "just in case" notes.
 - Match the file's existing comment density — none where the surrounding code has none.
-- Keep any comment to one line where possible; a comment longer than the code it annotates is a smell. No multi-line rationale essays — if the "why" needs a paragraph, cut it to the single load-bearing sentence.
-- Default to zero comments. Add one only when omitting it would leave a reader guessing; when in doubt, leave it out.
+- A comment is a last resort, not a courtesy. Ship none by default; add one only when a reader would be actively *misled* without it — not merely *informed* by it. In tests, default to zero.
+- Hard cap: one line per comment. If the "why" won't fit on one line, that's a naming/structure smell — fix the code, don't narrate it.
+- When a comment is genuinely warranted, collapse it. Example:
+    BAD:
+      // receiver pays gas/storage/action fee out of its own balance on native
+      // TON credit; add the tracker-reported fee back so delta reflects the credited amount
+    GOOD:
+      // TON credit: fee paid from receiver's balance, add it backА 
