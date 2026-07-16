@@ -34,7 +34,7 @@ const FINDINGS = {
           repo: { type: 'string' },
           iid: { type: 'string' },
           file: { type: 'string' },
-          line: { type: 'string' },
+          line: { type: 'string', description: 'line number IN THE CLONED SOURCE FILE (clonePath), never the position inside the .diff file' },
           title: { type: 'string' },
           why: { type: 'string', description: 'technical mechanism + trigger/reachability (the evidence)' },
           explanation: { type: 'string', description: 'plain-language: what goes wrong and why it matters, no jargon' },
@@ -57,6 +57,8 @@ Sources (read with Read/Grep, absolute paths):
 - Diffs: ${WORK}/diffs/*.diff (one per MR).
 - Full code (shallow clones): ${WORK}/repos/* — clonePath from the manifest (may be empty if the clone failed).
 - Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true — the repo's rules and DELIBERATE quirks. Read it BEFORE judging that repo.
+
+LINE NUMBERS: the "line" field MUST be the line number in the CLONED SOURCE FILE under clonePath — NEVER the line position inside the .diff file. A unified diff shifts every hunk by the preamble above it (for a new-file hunk the added lines are offset by the diff-file line where the hunk starts), so positions read off the .diff are wrong. To pin a line: open the actual file in clonePath and read its real line number there; use the diff only to locate WHAT changed, not to count line numbers.
 
 Read manifest.json first. For each MR, study its diff, then OPEN the full code in clonePath and investigate: follow imports, callers, and related files to confirm a problem is real and actually reachable before flagging it.
 
@@ -185,7 +187,7 @@ Some findings carry \`comment = {author, quote, resolved}\` — a human already 
 Findings with \`lens = "completeness"\` are NOT code defects — they are requirements from the task that the MRs left missing or only partially done. They live by different rules: refute-by-reachability does NOT apply (there is no "trigger" — the point is something is absent). Validate them differently: confirm the gap is real by checking \`${WORK}/task.md\` (what was asked) against the diffs and clones (what was built); drop a finding only if the requirement IS actually delivered or task.md never asked for it. Survivors go in their OWN section "📋 Покрытие задачи", never in the severity sections. They can still dedupe against each other, but do NOT merge a completeness gap with a code-defect finding.
 
 Do this:
-1. VALIDATE (adversarial): for each finding open the file:line in its clonePath and actively try to REFUTE it — is it actually reachable? is there a guard upstream? does the trigger really exist? Also check the clone's CLAUDE.md (when present): drop any finding that contradicts a documented convention or deliberate pattern (manual DI, load-bearing typos, etc.). Drop anything you cannot confirm directly from the code. Be strict: a wrong finding is worse than a dropped one.
+1. VALIDATE (adversarial): for each finding open the file:line in its clonePath and actively try to REFUTE it — is it actually reachable? is there a guard upstream? does the trigger really exist? While that file is open, RE-VERIFY the line number against the cloned source itself and correct it if a lens reported the diff-file position instead of the real source line — the number in the report MUST match the line in clonePath, never a position inside the .diff. Also check the clone's CLAUDE.md (when present): drop any finding that contradicts a documented convention or deliberate pattern (manual DI, load-bearing typos, etc.). Drop anything you cannot confirm directly from the code. Be strict: a wrong finding is worse than a dropped one.
 2. DEDUPE: merge findings about the same place (even across lenses) into one entry; list the lenses; tag the source as <repo>#<iid>.
 3. RECALIBRATE severity on the same scale (critical = fix before merge; warning = fix soon; suggestion = optional).
 4. If a draft's technical detail was wrong but the underlying issue is real, correct it.
