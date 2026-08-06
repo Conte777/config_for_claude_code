@@ -14,7 +14,3 @@ This repo version-controls Claude Code config and deploys it via symlinks (`setu
 
 - Root `CLAUDE.md` (this file): instructions for working **on this repo**.
 - `src/CLAUDE.md`: the global user instructions that get deployed to `~/.claude/CLAUDE.md` and apply to **every** project. Edit this when changing global Claude behavior, not repo behavior.
-
-## Skills
-
-Skills live in `src/skills/<name>/SKILL.md` with `name` / `description` frontmatter. Optional `references/`, `examples/`, `scripts/` subdirs are loaded on demand.

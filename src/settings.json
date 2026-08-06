@@ -1,216 +1,13 @@
 {
-  "alwaysThinkingEnabled": true,
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-  "autoCompactEnabled": true,
-  "autoUpdatesChannel": "latest",
-  "deniedMcpServers": [],
-  "disableAutoMode": "disable",
-  "effortLevel": "high",
-  "enabledPlugins": {
-    "clangd-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "mattpocock-skills@mattpocock": true,
-    "pyright-lsp@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "watch@claude-video": true
-  },
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1",
     "ENABLE_TOOL_SEARCH": "true"
   },
-  "extraKnownMarketplaces": {
-    "claude-video": {
-      "source": {
-        "repo": "bradautomates/claude-video",
-        "source": "github"
-      }
-    },
-    "mattpocock": {
-      "autoUpdate": true,
-      "source": {
-        "repo": "mattpocock/skills",
-        "source": "github"
-      }
-    }
-  },
-  "hooks": {
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code",
-            "type": "command"
-          }
-        ],
-        "matcher": "idle_prompt"
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/format-and-lint.sh",
-            "timeout": 40,
-            "type": "command"
-          }
-        ],
-        "matcher": "Edit|Write"
-      },
-      {
-        "hooks": [
-          {
-            "command": "node \"$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs\"",
-            "statusMessage": "Checking GitNexus index freshness...",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "node \"$HOME/.claude/hooks/gitnexus/gitnexus-hook.cjs\"",
-            "statusMessage": "Enriching with GitNexus graph context...",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "Grep|Glob|Bash"
-      },
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/bash-tool-guard.sh",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/edit-write-autoapprove.sh",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "Edit|Write|MultiEdit"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --if-background --ttl 86400",
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/service-context.sh",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "startup"
-      },
-      {
-        "hooks": [
-          {
-            "command": "bash '/Users/conte/.claude/hooks/herdr-agent-state.sh' session",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code",
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/lint-project.sh",
-            "timeout": 150,
-            "type": "command"
-          }
-        ],
-        "matcher": "code-reviewer"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --subagent",
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release --tool claude-code --subagent",
-            "type": "command"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "command": "bash $HOME/.claude/hooks/git-hook.sh",
-            "timeout": 120,
-            "type": "command"
-          },
-          {
-            "command": "bash $HOME/.claude/hooks/review-task-fetch.sh",
-            "timeout": 180,
-            "type": "command"
-          },
-          {
-            "command": "bash $HOME/.claude/hooks/fix-cicd-fetch.sh",
-            "timeout": 60,
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      },
-      {
-        "hooks": [
-          {
-            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code",
-            "type": "command"
-          }
-        ]
-      }
-    ]
+  "attribution": {
+    "commit": "",
+    "pr": ""
   },
   "includeCoAuthoredBy": false,
-  "language": "Russian",
-  "model": "opus[1m]",
   "permissions": {
     "allow": [
       "Bash",
@@ -246,16 +43,15 @@
       "ReadMcpResourceTool",
       "mcp__context7__*",
       "mcp__verify__*",
-      "mcp__gitnexus__*",
       "mcp__grafana-dev__*",
       "mcp__kubernetes-dev__*",
       "mcp__kubernetes-stage__*",
       "mcp__db-mcp-dev__*",
       "mcp__db-mcp-stage__*",
       "mcp__gitlab__*",
-      "mcp__youtube-vision__*",
       "mcp__git__*"
     ],
+    "deny": [],
     "ask": [
       "Bash(git push:*)",
       "Bash(git reset:*)",
@@ -276,32 +72,222 @@
       "mcp__gitlab__publish_*",
       "mcp__gitlab__bulk_publish_*",
       "mcp__gitlab__resolve_*",
-      "mcp__grafana__create_*",
-      "mcp__grafana__update_*",
-      "mcp__grafana__add_*",
-      "mcp__grafana__install_*",
-      "mcp__grafana__alerting_manage_rules",
-      "mcp__grafana__grafana_api_request"
+      "mcp__grafana-dev__create_*",
+      "mcp__grafana-dev__update_*",
+      "mcp__grafana-dev__add_*",
+      "mcp__grafana-dev__install_*",
+      "mcp__grafana-dev__alerting_manage_rules",
+      "mcp__grafana-dev__grafana_api_request"
     ],
-    "defaultMode": "plan",
-    "deny": []
+    "defaultMode": "plan"
   },
-  "showClearContextOnPlanAccept": true,
-  "skipAutoPermissionPrompt": true,
-  "skipWorkflowUsageWarning": true,
+  "model": "opus[1m]",
+  "deniedMcpServers": [],
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/format-and-lint.sh",
+            "timeout": 40
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/bash-tool-guard.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/edit-write-autoapprove.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --if-background --ttl 86400"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/homebrew/bin/rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/service-context.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/conte/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "code-reviewer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/lint-project.sh",
+            "timeout": 150
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --subagent"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release --tool claude-code --subagent"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/git-hook.sh",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/review-task-fetch.sh",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/fix-cicd-fetch.sh",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
   "statusLine": {
-    "command": "bash \"$HOME/.claude/statusline.sh\"",
-    "type": "command"
+    "type": "command",
+    "command": "bash \"$HOME/.claude/statusline.sh\""
   },
-  "switchModelsOnFlag": false,
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "mattpocock-skills@mattpocock": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "watch@claude-video": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-video": {
+      "source": {
+        "source": "github",
+        "repo": "bradautomates/claude-video"
+      }
+    },
+    "mattpocock": {
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      },
+      "autoUpdate": true
+    }
+  },
+  "language": "Russian",
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
+  "showClearContextOnPlanAccept": true,
+  "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
-  "useAutoModeDuringPlan": true,
   "voice": {
     "enabled": true,
     "mode": "hold"
   },
+  "skipWorkflowUsageWarning": true,
+  "disableAutoMode": "disable",
+  "autoCompactEnabled": true,
+  "switchModelsOnFlag": false,
+  "skipAutoPermissionPrompt": true,
+  "useAutoModeDuringPlan": true,
   "voiceEnabled": true,
-  "worktree": {
-    "baseRef": "head"
-  }
+  "remoteControlAtStartup": true
 }
