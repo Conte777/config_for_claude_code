@@ -12,7 +12,6 @@
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
-    "headroom@headroom-marketplace": true,
     "mattpocock-skills@mattpocock": true,
     "pyright-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
@@ -21,7 +20,6 @@
     "watch@claude-video": true
   },
   "env": {
-    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787",
     "CLAUDE_CODE_NEW_INIT": "1",
     "ENABLE_TOOL_SEARCH": "true"
   },
@@ -29,12 +27,6 @@
     "claude-video": {
       "source": {
         "repo": "bradautomates/claude-video",
-        "source": "github"
-      }
-    },
-    "headroom-marketplace": {
-      "source": {
-        "repo": "chopratejas/headroom",
         "source": "github"
       }
     },
@@ -96,16 +88,6 @@
       {
         "hooks": [
           {
-            "command": "/Users/conte/.local/bin/headroom init hook ensure --profile init-user --marker headroom-init-claude",
-            "timeout": 15,
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
             "command": "bash $HOME/.claude/hooks/bash-tool-guard.sh",
             "timeout": 10,
             "type": "command"
@@ -122,15 +104,6 @@
           }
         ],
         "matcher": "Edit|Write|MultiEdit"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/Users/conte/.headroom/bin/rtk hook claude",
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
       },
       {
         "hooks": [
@@ -152,16 +125,6 @@
           }
         ],
         "matcher": "startup"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/Users/conte/.local/bin/headroom init hook ensure --profile init-user --marker headroom-init-claude",
-            "timeout": 15,
-            "type": "command"
-          }
-        ],
-        "matcher": "startup|resume"
       },
       {
         "hooks": [
@@ -283,7 +246,6 @@
       "ReadMcpResourceTool",
       "mcp__context7__*",
       "mcp__verify__*",
-      "mcp__headroom__*",
       "mcp__gitnexus__*",
       "mcp__grafana-dev__*",
       "mcp__kubernetes-dev__*",
