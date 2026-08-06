@@ -8,13 +8,22 @@
                 "uv run $HOME/.claude/mcp/git-mcp/server.py"
             ]
         },
-        "db-view-mcp": {
+        "db-mcp-dev": {
             "command": "npx",
             "args": [
                 "-y",
                 "@conte777/db-view-mcp",
                 "--config",
-                "/Users/conte/.db-mcp-config.json"
+                "/Users/conte/.config/db-view/.db-conf-dev.json"
+            ]
+        },
+        "db-mcp-stage": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@conte777/db-view-mcp",
+                "--config",
+                "/Users/conte/.config/db-view/.db-conf-stage.json"
             ]
         },
         "jira": {

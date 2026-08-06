@@ -35,7 +35,7 @@ messages=()
 
 format_go() {
   if ! command -v gofmt &>/dev/null; then
-    return
+    return 0
   fi
 
   local fmt_output fmt_exit
@@ -43,7 +43,7 @@ format_go() {
 
   if [[ $fmt_exit -ne 0 ]]; then
     messages+=("⚠️ gofmt error: ${fmt_output}")
-    return
+    return 0
   fi
 
   if [[ -n "$fmt_output" ]]; then
@@ -52,15 +52,31 @@ format_go() {
   fi
 }
 
-lint_go() {
-  if ! command -v golangci-lint &>/dev/null; then
-    messages+=("⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/")
-    return
+vet_go() {
+  if ! command -v go &>/dev/null; then
+    return 0
   fi
 
+  local vet_output vet_exit
+  vet_output=$(go vet "$file_path" 2>&1) && vet_exit=0 || vet_exit=$?
+
+  if [[ $vet_exit -eq 0 ]]; then
+    messages+=("✅ go vet: no issues in $(basename "$file_path") (standalone file, no go.mod)")
+  else
+    messages+=("⚠️ go vet (standalone file, no go.mod):
+${vet_output}")
+  fi
+}
+
+lint_go() {
   local file_dir module_root
   file_dir=$(dirname "$file_path")
-  module_root=$(find_project_root "$file_dir" "go.mod") || return
+  module_root=$(find_project_root "$file_dir" "go.mod") || { vet_go; return 0; }
+
+  if ! command -v golangci-lint &>/dev/null; then
+    messages+=("⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/")
+    return 0
+  fi
 
   local package_path
   if [[ "$file_dir" == "$module_root" ]]; then
@@ -86,29 +102,32 @@ ${lint_output}")
 
 # --- Python ---
 
-find_python_project_root() {
-  local file_dir="$1"
-  local root=""
-  root=$(find_project_root "$file_dir" "pyproject.toml") || \
-    root=$(find_project_root "$file_dir" "ruff.toml") || return 1
-  echo "$root"
+RUFF=()
+
+# ruff resolves pyproject.toml/ruff.toml from the file's own path, so no project root needed
+init_ruff() {
+  if [[ ${#RUFF[@]} -gt 0 ]]; then
+    return 0
+  fi
+
+  if command -v ruff &>/dev/null; then
+    RUFF=(ruff)
+  elif command -v uvx &>/dev/null; then
+    RUFF=(uvx ruff)
+  else
+    return 1
+  fi
 }
 
 format_python() {
-  if ! command -v uv &>/dev/null; then
-    return
-  fi
-
-  local file_dir project_root
-  file_dir=$(dirname "$file_path")
-  project_root=$(find_python_project_root "$file_dir") || return
+  init_ruff || return 0
 
   local fmt_output fmt_exit
-  fmt_output=$(cd "$project_root" && uv run ruff format "$file_path" 2>&1) && fmt_exit=0 || fmt_exit=$?
+  fmt_output=$("${RUFF[@]}" format "$file_path" 2>&1) && fmt_exit=0 || fmt_exit=$?
 
   if [[ $fmt_exit -ne 0 ]]; then
     messages+=("⚠️ ruff format error: ${fmt_output}")
-    return
+    return 0
   fi
 
   if echo "$fmt_output" | grep -q "1 file reformatted"; then
@@ -117,21 +136,16 @@ format_python() {
 }
 
 lint_python() {
-  if ! command -v uv &>/dev/null; then
-    messages+=("⚠️ uv not found in PATH. Install: https://docs.astral.sh/uv/getting-started/installation/")
-    return
+  if ! init_ruff; then
+    messages+=("⚠️ ruff not found and uvx unavailable. Install: https://docs.astral.sh/uv/getting-started/installation/")
+    return 0
   fi
 
-  local file_dir project_root
-  file_dir=$(dirname "$file_path")
-  project_root=$(find_python_project_root "$file_dir") || return
-
   local lint_output lint_exit
-  lint_output=$(cd "$project_root" && uv run ruff check "$file_path" 2>&1) && lint_exit=0 || lint_exit=$?
+  lint_output=$("${RUFF[@]}" check "$file_path" 2>&1) && lint_exit=0 || lint_exit=$?
 
   if [[ $lint_exit -eq 0 ]]; then
-    local rel_path="${file_path#"$project_root"/}"
-    messages+=("✅ ruff check: no issues in ${rel_path}")
+    messages+=("✅ ruff check: no issues in $(basename "$file_path")")
   elif [[ $lint_exit -eq 1 ]]; then
     messages+=("⚠️ ruff found issues:
 ${lint_output}")
@@ -145,7 +159,7 @@ ${lint_output}")
 
 format_java() {
   if ! command -v google-java-format &>/dev/null; then
-    return
+    return 0
   fi
 
   local fmt_output fmt_exit

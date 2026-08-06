@@ -8,6 +8,7 @@
 - Default to explain-then-act: when asked to explain, diagnose, or discuss, don't edit until told to.
 - Verify against the real code before proposing — check how sibling/existing code does it; don't assume or invent.
 - Prefer the simplest, most native path — add complexity, fallbacks, or extra tooling only when the simple one is ruled out.
+- Use fable subagents when you need more intelligence
 
 # Workflow
 - Don't consider a task done until tests and linters have run. Report failures honestly, with the command output.
