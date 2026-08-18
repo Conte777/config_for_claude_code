@@ -46,8 +46,20 @@
       "mcp__grafana-dev__*",
       "mcp__kubernetes-dev__*",
       "mcp__kubernetes-stage__*",
-      "mcp__db-mcp-dev__*",
-      "mcp__db-mcp-stage__*",
+      "mcp__db-mcp-dev__query",
+      "mcp__db-mcp-dev__list_databases",
+      "mcp__db-mcp-dev__list_tables",
+      "mcp__db-mcp-dev__describe_table",
+      "mcp__db-mcp-dev__schema",
+      "mcp__db-mcp-dev__explain_query",
+      "mcp__db-mcp-dev__performance",
+      "mcp__db-mcp-stage__query",
+      "mcp__db-mcp-stage__list_databases",
+      "mcp__db-mcp-stage__list_tables",
+      "mcp__db-mcp-stage__describe_table",
+      "mcp__db-mcp-stage__schema",
+      "mcp__db-mcp-stage__explain_query",
+      "mcp__db-mcp-stage__performance",
       "mcp__gitlab__*",
       "mcp__git__*"
     ],
@@ -76,7 +88,8 @@
       "mcp__grafana-dev__update_*",
       "mcp__grafana-dev__add_*",
       "mcp__grafana-dev__install_*",
-      "mcp__grafana-dev__alerting_manage_rules",
+      "mcp__grafana-dev__delete_*",
+      "mcp__grafana-dev__alerting_manage_*",
       "mcp__grafana-dev__grafana_api_request"
     ],
     "defaultMode": "plan"
@@ -103,6 +116,20 @@
             "type": "command",
             "command": "bash $HOME/.claude/hooks/format-and-lint.sh",
             "timeout": 40
+          },
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/comment-slop-guard.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode|AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -143,6 +170,15 @@
           {
             "type": "command",
             "command": "/opt/homebrew/bin/rtk hook claude"
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode|AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -272,6 +308,7 @@
       "autoUpdate": true
     }
   },
+  "outputStyle": "lean-comments",
   "language": "Russian",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
@@ -286,8 +323,9 @@
   "disableAutoMode": "disable",
   "autoCompactEnabled": true,
   "switchModelsOnFlag": false,
+  "remoteControlAtStartup": true,
   "skipAutoPermissionPrompt": true,
   "useAutoModeDuringPlan": true,
   "voiceEnabled": true,
-  "remoteControlAtStartup": true
+  "agentPushNotifEnabled": true
 }

@@ -33,6 +33,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/workflows"
     "$TARGET_DIR/rules"
     "$TARGET_DIR/scripts"
+    "$TARGET_DIR/output-styles"
 )
 
 declare -a LINK_SOURCES=(
@@ -49,6 +50,7 @@ declare -a LINK_SOURCES=(
     "$SRC_DIR/workflows"
     "$SRC_DIR/rules"
     "$SRC_DIR/scripts"
+    "$SRC_DIR/output-styles"
 )
 
 # Rollback on error

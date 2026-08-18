@@ -29,6 +29,7 @@ declare -a LINK_TARGETS=(
     "$TARGET_DIR/workflows"
     "$TARGET_DIR/rules"
     "$TARGET_DIR/scripts"
+    "$TARGET_DIR/output-styles"
 )
 
 # Header

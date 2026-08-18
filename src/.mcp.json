@@ -62,9 +62,10 @@
             ]
         },
         "grafana": {
-            "command": "uvx",
+            "command": "bash",
             "args": [
-                "mcp-grafana"
+                "-c",
+                "exec $HOME/.claude/mcp/grafana-mcp.sh"
             ],
             "env": {
                 "GRAFANA_URL": "{GRAFANA_URL}",

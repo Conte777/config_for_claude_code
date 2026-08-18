@@ -17,6 +17,8 @@ config_for_claude_code/
 │   ├── hooks/                       # Hook scripts for tool events
 │   │   ├── lint-file.sh              # Multi-language linter on file edit
 │   │   └── lint-project.sh          # Project-wide lint before code review
+│   ├── output-styles/               # System-prompt output styles
+│   │   └── lean-comments.md         # Comment discipline: why, not what
 │   ├── commands/                    # Custom slash commands
 │   │   ├── branch.md                # Create branch from ticket ID
 │   │   ├── commit.md                # Commit with ticket ID
@@ -175,6 +177,12 @@ Located in `src/commands/`:
 Located in `src/hooks/`:
 - **lint-file.sh**: PostToolUse hook (Edit/Write) — runs `golangci-lint` on `.go` files, `uv run ruff check` on `.py` files
 - **lint-project.sh**: SubagentStart hook (code-reviewer) — runs `golangci-lint` and `ruff` on project before code review
+- **comment-slop-guard.sh**: PostToolUse hook (Edit/Write) — flags comments that restate the code, banner separators, and 5+ line comment blocks. Judges only lines added since `HEAD`, so existing comments are left alone
+
+### Output Styles
+
+Located in `src/output-styles/`. Selected via the `outputStyle` field in `settings.json`; a change takes effect on the next session or after `/clear`.
+- **lean-comments.md**: keeps Claude's coding instructions (`keep-coding-instructions: true`) and adds comment discipline — comment the *why*, one line, match the file's existing density
 
 ### Custom Agents
 
