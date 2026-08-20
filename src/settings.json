@@ -1,7 +1,10 @@
 {
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1",
-    "ENABLE_TOOL_SEARCH": "true"
+    "ENABLE_TOOL_SEARCH": "true",
+    "HTTPS_PROXY": "http://127.0.0.1:7890",
+    "HTTP_PROXY": "http://127.0.0.1:7890",
+    "NO_PROXY": "localhost,127.0.0.1,::1"
   },
   "attribution": {
     "commit": "",
