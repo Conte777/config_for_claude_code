@@ -4,7 +4,7 @@
     "ENABLE_TOOL_SEARCH": "true",
     "HTTPS_PROXY": "http://127.0.0.1:7890",
     "HTTP_PROXY": "http://127.0.0.1:7890",
-    "NO_PROXY": "localhost,127.0.0.1,::1"
+    "NO_PROXY": "localhost,127.0.0.1,::1,.local,10.0.0.0/8,100.64.0.0/10,192.168.0.0/16,.example.com,.example-k8s.invalid,.example-a.invalid,.example-b.invalid,.example-db.invalid,.example-do.invalid,.example-hd.invalid"
   },
   "attribution": {
     "commit": "",
