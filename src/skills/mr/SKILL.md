@@ -1,15 +1,14 @@
 ---
 name: mr
-description: Create a GitLab merge request for the current work and block it on the merge requests it depends on.
-disable-model-invocation: true
+description: Create a GitLab merge request, put a branch up for review, or block one merge request on another. Every merge request in a GitLab repo goes through here, including one you decided to open yourself.
 allowed-tools: AskUserQuestion, mcp__git__branch, mcp__git__commit, mcp__gitlab__create_merge_request, mcp__gitlab__list_merge_requests, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*)
 ---
 
 # Create a merge request
 
-Invoked as `/mr` or `/mr CUS-1234`. Ask every question in this skill with AskUserQuestion.
+Ask every question in this skill with AskUserQuestion.
 
-Values used throughout: `REPO` = `git rev-parse --show-toplevel`, `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`.
+Values used throughout: `REPO` = `git rev-parse --show-toplevel`, `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`, `TICKET` = the ticket id for this work, sourced as step 2 describes.
 
 ## 1. Target branch
 
@@ -22,9 +21,9 @@ Skipping the fetch makes `origin/<TARGET>` stale, which silently corrupts the co
 `BRANCH` is one of `main`, `master`, `develop`, `stage`, `staging`:
 
 - `git status --porcelain` empty → stop and report that there is nothing to branch from. Create no branch.
-- Otherwise take the ticket from the invocation argument; with no argument, ask the user whether this work has a ticket. Then call `mcp__git__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
+- Otherwise take `TICKET` from the current branch name, or from the ticket the user named in this session. With neither, ask the user whether this work has a ticket. Never infer an id from commit messages, the diff, or file contents — a match there belongs to someone else's work and sends the branch to the wrong ticket. Then call `mcp__git__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
 
-`BRANCH` is a feature branch and a ticket argument was passed whose id does not appear in `BRANCH` → ask whether to continue on this branch, and stop if the user declines. A missing ticket in the name usually means the branch was cut without one, or that you are standing on the wrong branch — either is worth catching before the push. Leave the branch name as it is.
+`BRANCH` is a feature branch and the user named a ticket whose id does not appear in `BRANCH` → ask whether to continue on this branch, and stop if the user declines. A missing ticket in the name usually means the branch was cut without one, or that you are standing on the wrong branch — either is worth catching before the push. Leave the branch name as it is.
 
 ## 3. Commit
 
@@ -54,16 +53,14 @@ Collect the blocking candidates from two signals:
 - A pseudo-version (`v0.0.0-<date>-<sha>`) added to `go.mod` in this branch — `git diff origin/<TARGET>..HEAD -- go.mod`. It marks the case this step exists for: the service pins an unmerged library commit, and the library version must be bumped once the library merges.
 - Merge requests this skill created earlier in the session, in other repositories.
 
-Then ask the user, always:
+- Candidates found → block on them without asking, and list them in the final report. A block that turns out to be unnecessary is visible there and cheap to remove by hand; a missing one is not.
+- No candidates → ask whether this merge request depends on any other. The user answers with full merge request URLs.
 
-- Candidates found → list them and ask whether that is all the dependencies.
-- No candidates → ask whether this merge request depends on any other.
-
-The user answers with full merge request URLs. Related changes across two services need no block — they merge together anyway; a pinned pseudo-version does.
+Related changes across two services need no block — they merge together anyway; a pinned pseudo-version does.
 
 ## 7. Block
 
-For each URL the user gave, in order:
+For each blocking merge request from step 6 — a candidate you found or a URL the user gave — in order:
 
 1. Read the blocking project path and `iid` from the URL, then `glab api projects/<encoded blocking path>/merge_requests/<blocking iid>` and take the `id` field — the instance-global numeric id, which differs from the `iid` in the URL.
 2. `glab api "projects/PROJECT/merge_requests/<iid>/blocks" -X POST -f "blocking_merge_request_id=<id>"` — undocumented endpoint, GitLab Premium.
@@ -71,6 +68,8 @@ For each URL the user gave, in order:
 
 Verify once at the end: `glab api projects/PROJECT/merge_requests/<iid>` reports `detailed_merge_status: merge_request_blocked`. The endpoint is undocumented, so this status is the only evidence that the blocks took effect.
 
+A failing POST or a status other than `merge_request_blocked` is not a reason to stop — the merge request is already created and pushed. Carry on and say so in the report.
+
 ## Done
 
-Report the merge request URL and each blocking merge request that was attached.
+Report the merge request URL, then the blocks that took effect and the ones that did not, as separate lists. With no confirming question left in the flow, this report is the only place a missing block becomes visible.
