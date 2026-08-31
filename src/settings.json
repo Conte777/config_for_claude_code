@@ -2,23 +2,22 @@
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1",
     "ENABLE_TOOL_SEARCH": "true",
-    "HTTPS_PROXY": "http://127.0.0.1:7890",
     "HTTP_PROXY": "http://127.0.0.1:7890",
+    "HTTPS_PROXY": "http://127.0.0.1:7890",
     "NO_PROXY": "localhost,127.0.0.1,::1,.local,10.0.0.0/8,100.64.0.0/10,192.168.0.0/16,.example.com,.example-k8s.invalid,.example-a.invalid,.example-b.invalid,.example-db.invalid,.example-do.invalid,.example-hd.invalid"
   },
   "attribution": {
     "commit": "",
-    "pr": ""
+    "pr": "",
+    "sessionUrl": false
   },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Bash",
       "Read",
       "Glob",
       "Grep",
       "LSP",
-      "Agent",
       "Workflow",
       "TaskCreate",
       "TaskUpdate",
@@ -35,7 +34,6 @@
       "CronDelete",
       "CronList",
       "ScheduleWakeup",
-      "Monitor",
       "PushNotification",
       "AskUserQuestion",
       "WebSearch",
@@ -49,51 +47,13 @@
       "mcp__grafana-dev__*",
       "mcp__kubernetes-dev__*",
       "mcp__kubernetes-stage__*",
-      "mcp__db-mcp-dev__query",
-      "mcp__db-mcp-dev__list_databases",
-      "mcp__db-mcp-dev__list_tables",
-      "mcp__db-mcp-dev__describe_table",
-      "mcp__db-mcp-dev__schema",
-      "mcp__db-mcp-dev__explain_query",
-      "mcp__db-mcp-dev__performance",
-      "mcp__db-mcp-stage__query",
-      "mcp__db-mcp-stage__list_databases",
-      "mcp__db-mcp-stage__list_tables",
-      "mcp__db-mcp-stage__describe_table",
-      "mcp__db-mcp-stage__schema",
-      "mcp__db-mcp-stage__explain_query",
-      "mcp__db-mcp-stage__performance",
+      "mcp__plugin_infra-mcp-postgres_postgres__pg_read_*",
       "mcp__gitlab__*",
       "mcp__git__*"
     ],
     "deny": [],
     "ask": [
-      "Bash(git push:*)",
-      "Bash(git reset:*)",
-      "Bash(git rebase:*)",
-      "Bash(rm:*)",
-      "Bash(Remove-Item:*)",
-      "Bash(npm install:*)",
-      "Bash(pip install:*)",
-      "Bash(docker rm:*)",
-      "Bash(docker rmi:*)",
-      "Bash(kubectl delete:*)",
-      "mcp__gitlab__create_*",
-      "mcp__gitlab__update_*",
-      "mcp__gitlab__delete_*",
-      "mcp__gitlab__merge_*",
-      "mcp__gitlab__approve_*",
-      "mcp__gitlab__unapprove_*",
-      "mcp__gitlab__publish_*",
-      "mcp__gitlab__bulk_publish_*",
-      "mcp__gitlab__resolve_*",
-      "mcp__grafana-dev__create_*",
-      "mcp__grafana-dev__update_*",
-      "mcp__grafana-dev__add_*",
-      "mcp__grafana-dev__install_*",
-      "mcp__grafana-dev__delete_*",
-      "mcp__grafana-dev__alerting_manage_*",
-      "mcp__grafana-dev__grafana_api_request"
+      "Bash(kubectl delete:*)"
     ],
     "defaultMode": "plan"
   },
@@ -186,6 +146,16 @@
         ]
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "startup",
@@ -204,6 +174,15 @@
             "type": "command",
             "command": "bash '/Users/conte/.claude/hooks/herdr-agent-state.sh' session",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -288,7 +267,9 @@
   },
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
+    "eli5@claude-community": true,
     "gopls-lsp@claude-plugins-official": true,
+    "infra-mcp-postgres@infra-mcp": true,
     "mattpocock-skills@mattpocock": true,
     "pyright-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
@@ -297,10 +278,22 @@
     "watch@claude-video": true
   },
   "extraKnownMarketplaces": {
+    "claude-community": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-community"
+      }
+    },
     "claude-video": {
       "source": {
         "source": "github",
         "repo": "bradautomates/claude-video"
+      }
+    },
+    "infra-mcp": {
+      "source": {
+        "source": "github",
+        "repo": "Conte777/infra-mcp"
       }
     },
     "mattpocock": {
@@ -311,7 +304,7 @@
       "autoUpdate": true
     }
   },
-  "outputStyle": "lean-comments",
+  "outputStyle": "Concise",
   "language": "Russian",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
@@ -322,13 +315,52 @@
     "enabled": true,
     "mode": "hold"
   },
+  "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
-  "disableAutoMode": "disable",
   "autoCompactEnabled": true,
   "switchModelsOnFlag": false,
   "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "useAutoModeDuringPlan": true,
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(task:*) in ~/Projects/mcp — routine build/lint/test/schema driver per CLAUDE.md and 70× observed usage"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Shared Infra Mutation [user-asked — **must name:** nothing beyond having asked for the change]: For this rule only, the global [named+specifics] framing and \"a bare action-level yes clears nothing\" do not apply — it clears on a bare action-level request, and the specifics need not be named. **This rule only ever adds a gate where none existed; it never lowers another rule's bar.** Scope: any write to infrastructure shared with other people, whatever the vehicle — MCP tool, CLI, `curl`, SDK, or IaC. This is the user's blanket standing preference: they act on shared systems only when they asked for it. Treat any hosted or remote system as shared unless the transcript shows it is a single-user resource the agent created. Where any built-in rule covers the same action at a stricter bar — External System Writes, Production Deploy, Modify Shared Resources, Shared Cluster Mutation, Cloud Storage Mass Delete, Irreversible Deletion (general), Blind Apply, Protected-Scope IaC Apply, Permission Grant, DNS / Domain / Cert Changes, CI Bypass, Node Lifecycle Operations, Cluster-Wide Workload Creation, Interfere With Workloads, Traffic Redirection, Merge Without Review, Self-Approval, ChatOps Trigger Comments, Secret-Store Writes, Feature Flag Writes, Public Data-Sharing Upload, or any other rule in this list — that stricter bar governs and this rule adds nothing. Surfaces include, and are not limited to: source-control platforms (merge requests and pull requests, notes, discussions, threads, issues, branches, tags, releases, approvals, merges, publishing draft notes, resolving threads); observability platforms (dashboards, folders, annotations, datasources, plugins, alert rules, notification routing, silences and mutes); databases (`INSERT`/`UPDATE`/`DELETE`/DDL, migrations, `transaction`/`execute` MCP calls); Kubernetes and cloud resources; CI/CD configuration and pipeline triggers; secret stores; feature flags. Ref-updating and branch-publication commands are governed by Unrequested Push, not by this rule. A dev, staging, or test label does NOT make a system unshared — a shared dev database, cluster, or Grafana instance is other people's working state too. This rule does not fire on reads (`query`, `list`, `describe`, `explain`, `schema`, `get`, `logs`, `top`, fetching diffs or approval state), including read paths that happen to use POST such as `/api/ds/query` or a datasource-proxy `POST /query_range`; other rules still judge reads on their own terms. It also does not fire on anything local to the machine or the session's working directory, or on a resource a prior tool_use in this transcript shows the agent created this session. It clears when the user asked for the change either way: their own message asked for it, or the agent proposed it and the user agreed. Clearing examples: \"fix the noisy alert rule\" clears editing that alert rule; \"update the deploy dashboard\" clears editing its panels; \"reply on the MR\" clears posting the note. Non-clearing: \"why are these alerts noisy?\" and \"look into the dashboard\" are questions and read requests, not requests to change anything. Authorization is standing for that object for the rest of the session, so follow-up edits to the same MR, dashboard, or table do not re-block. \"Object\" means the exact resource named — that dashboard, that MR, that table — not its container: authorizing a dashboard does not authorize its folder, and authorizing a table does not authorize the database. Standing clears this rule's gate only; where a stricter built-in rule also matches, that rule clears per action.",
+      "Unrequested Push [user-asked — **must name:** nothing beyond having asked for the push]: Two scopes: (a) commands that update a ref on a remote — `git push`, `git push -u`, `git push --tags`, `jj git push`; and (b) commands that publish a branch for review or release — `gh pr create`, `glab mr create`, `gh release create`, `npm version` and release scripts that push tags. For any action matching this rule the built-in Git Push Destination exception does not apply and must not be cited: that exception blesses the destination, and this user wants the destination blessed but the act of pushing still gated. Evaluate under this rule instead. For this rule only, the global [named+specifics] framing and \"a bare action-level yes clears nothing\" do not apply: a bare \"push it\" clears. Clears when the user asked for it either way: their own message asked to push, publish, or open a PR/MR (asking for a PR/MR implies the push it needs), or the agent proposed a push and the user agreed. An authorization to push a branch is standing for that branch for the rest of the session, so follow-up pushes after review fixes do not re-block. Opaque wrappers: if the transcript shows a script's contents and they push, this rule applies; if a push effect is only inferred from a name like `make release` or `./ship.sh`, do not block on this rule alone. It lowers no other rule's bar: `--force`, `--force-with-lease`, `--delete`, remote branch or tag deletion, and history rewrites stay at Git Destructive's bar, publishing to a public repo, registry, or release stays at Create Public Surface's bar, and every content rule — Code That Leaks When Run, Sensitive-Source Provenance, Out-of-Place Publication, Excess Sensitive Detail, Credential Leakage, PII Data Handling, the HARD Data Exfiltration rule, or any other rule in this list — judges the push exactly as it would otherwise. Committing locally is not covered; only the push is."
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Primary use of Claude Code**: software development",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: PUBLIC — Conte777/infra-mcp (github.com). Any push publishes.",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured (CI references a GITHUB_TOKEN secret by name only — no value seen)",
+      "**Default / protected branches**: main is default; no branch protection rules or rulesets listed via gh — code lands on main only via reviewed, squash-merged PR per repo docs (docs/agents/code-change-workflow.md), not via platform-enforced protection",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (Conte777/infra-mcp on github.com) and its origin remote only — no additional orgs configured",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar. Note: this repo is PUBLIC, so only this repo's own work belongs here — content ported from elsewhere, or secrets/personal data of any kind, must never be committed or pushed regardless of visibility.",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited)",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development on infra-mcp (MCP servers for infrastructure access: postgres, k8s, grafana, redis, kafka, clickhouse)",
+      "**Trusted repo**: Conte777/infra-mcp (this repo, public, working directory /Users/conte/Projects/mcp) and its origin remote (github.com/Conte777/infra-mcp) — public visibility means only this repo's own work is OK to push here; secrets and personal/entrusted sensitive data are never cleared into it regardless of visibility",
+      "**Org-specific CLIs**: None configured — `task` (Taskfile runner, 70×) is the project's routine build/test/lint driver per CLAUDE.md's \"every gate green\" workflow",
+      "routine under this repo's docs/agents/ workflow: issue-tracker, code-change-workflow (worktree + PR + two reviews + squash-merge), triage-labels, domain.md"
+    ]
+  },
   "voiceEnabled": true,
-  "agentPushNotifEnabled": true
+  "crossSessionInbound": "accept"
 }

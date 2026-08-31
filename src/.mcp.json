@@ -8,23 +8,25 @@
                 "uv run $HOME/.claude/mcp/git-mcp/server.py"
             ]
         },
-        "db-mcp-dev": {
-            "command": "npx",
+        "postgres-dev": {
+            "command": "bash",
             "args": [
-                "-y",
-                "@conte777/db-view-mcp",
-                "--config",
-                "/Users/conte/.config/db-view/.db-conf-dev.json"
-            ]
+                "-c",
+                "exec $HOME/go/bin/infra-mcp-postgres --profile dev"
+            ],
+            "env": {
+                "PGPASSWORD_DEV": "{PGPASSWORD_DEV}"
+            }
         },
-        "db-mcp-stage": {
-            "command": "npx",
+        "postgres-stage": {
+            "command": "bash",
             "args": [
-                "-y",
-                "@conte777/db-view-mcp",
-                "--config",
-                "/Users/conte/.config/db-view/.db-conf-stage.json"
-            ]
+                "-c",
+                "exec $HOME/go/bin/infra-mcp-postgres --profile stage"
+            ],
+            "env": {
+                "PGPASSWORD_STAGE": "{PGPASSWORD_STAGE}"
+            }
         },
         "jira": {
             "command": "uvx",
