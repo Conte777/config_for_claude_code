@@ -36,8 +36,6 @@
       "ScheduleWakeup",
       "PushNotification",
       "AskUserQuestion",
-      "WebSearch",
-      "WebFetch",
       "DesignSync",
       "RemoteTrigger",
       "ListMcpResourcesTool",
@@ -49,9 +47,13 @@
       "mcp__kubernetes-stage__*",
       "mcp__plugin_infra-mcp-postgres_postgres__pg_read_*",
       "mcp__gitlab__*",
-      "mcp__git__*"
+      "mcp__git__*",
+      "mcp__keenable__*"
     ],
-    "deny": [],
+    "deny": [
+      "WebSearch",
+      "WebFetch"
+    ],
     "ask": [
       "Bash(kubectl delete:*)"
     ],

@@ -73,6 +73,10 @@
                 "GRAFANA_URL": "{GRAFANA_URL}",
                 "GRAFANA_SERVICE_ACCOUNT_TOKEN": "{GRAFANA_SERVICE_ACCOUNT_TOKEN}"
             }
+        },
+        "keenable": {
+            "type": "http",
+            "url": "https://api.keenable.ai/mcp"
         }
     }
 }
