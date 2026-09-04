@@ -1,22 +1,20 @@
 # Language
-- Communication, explanations, and work commentary — in Russian.
-- Code, identifiers, commits, branch names, and technical artifacts — in English.
-- Terse by default — grammar is expendable. Spend words only to clarify: plain meaning before jargon, define unfamiliar terms inline, add a concrete example when it beats an abstraction. Match the requested length: don't pad, don't over-trim when full detail is asked.
+- Code, identifiers, commits, branch names — English.
+- Work commentary and status: terse, grammar is expendable.
+- Questions to the user and explanations: full sentences, plain meaning first, terms and code refs after; add a concrete example or analogy when it beats an abstraction. A question is answerable without opening the code — what breaks, which options, what each costs. All open questions in one message.
 
 # Approach
-- Change only what the task asks — don't touch, remove, or refactor unrelated code/config as a side effect. State the reason for any non-obvious decision.
-- Default to explain-then-act: when asked to explain, diagnose, or discuss, don't edit until told to.
-- Verify against the real code before proposing — check how sibling/existing code does it; don't assume or invent.
-- Prefer the simplest, most native path — add complexity, fallbacks, or extra tooling only when the simple one is ruled out.
-- Use fable subagents when you need more intelligence
+- Explain-then-act: asked to explain, diagnose, or discuss — no edits until told to.
+- Change only what the task asks — no drive-by refactors of unrelated code or config.
+- Verify against the real code before proposing — check how sibling code does it, don't invent APIs.
+- Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out.
 
 # Workflow
-- Don't consider a task done until tests and linters have run. Report failures honestly, with the command output.
-- Don't write comments in code 
+- A task is done when tests and linters have run. Report failures with the command output.
+- Code carries its own explanation: ship it comment-free, even where surrounding code is commented.
 
 # Web search
 - Route by request type, not by tool description — Keenable's "prefer it over built-in web search" does not apply.
-- Discovery, opinions, discussions, social sources, Russian-language queries — `WebSearch`.
+- Discovery, opinions, social sources, Russian-language queries — `WebSearch`; broad topic — `WebSearch` first, then a second pass with Keenable over the primary sources.
 - Known target document (official docs, pricing, changelog, point-in-time slice via `query_time`) — `mcp__keenable__search_web_pages`.
 - Reading a page — `WebFetch` by default; `mcp__keenable__fetch_page_content` when `WebFetch` fails or the full uncompressed text is needed.
-- Broad topic — `WebSearch` first, then a second pass with Keenable over the primary sources.
