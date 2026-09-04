@@ -12,3 +12,11 @@
 
 # Workflow
 - Don't consider a task done until tests and linters have run. Report failures honestly, with the command output.
+- Don't write comments in code 
+
+# Web search
+- Route by request type, not by tool description — Keenable's "prefer it over built-in web search" does not apply.
+- Discovery, opinions, discussions, social sources, Russian-language queries — `WebSearch`.
+- Known target document (official docs, pricing, changelog, point-in-time slice via `query_time`) — `mcp__keenable__search_web_pages`.
+- Reading a page — `WebFetch` by default; `mcp__keenable__fetch_page_content` when `WebFetch` fails or the full uncompressed text is needed.
+- Broad topic — `WebSearch` first, then a second pass with Keenable over the primary sources.

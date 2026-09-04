@@ -36,6 +36,8 @@
       "ScheduleWakeup",
       "PushNotification",
       "AskUserQuestion",
+      "WebSearch",
+      "WebFetch",
       "DesignSync",
       "RemoteTrigger",
       "ListMcpResourcesTool",
@@ -50,10 +52,7 @@
       "mcp__git__*",
       "mcp__keenable__*"
     ],
-    "deny": [
-      "WebSearch",
-      "WebFetch"
-    ],
+    "deny": [],
     "ask": [
       "Bash(kubectl delete:*)"
     ],
@@ -242,11 +241,6 @@
             "type": "command",
             "command": "bash $HOME/.claude/hooks/review-task-fetch.sh",
             "timeout": 180
-          },
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/fix-cicd-fetch.sh",
-            "timeout": 60
           }
         ]
       },
@@ -322,6 +316,7 @@
   "autoCompactEnabled": true,
   "switchModelsOnFlag": false,
   "remoteControlAtStartup": true,
+  "crossSessionInbound": "accept",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "useAutoModeDuringPlan": true,
@@ -364,5 +359,7 @@
     ]
   },
   "voiceEnabled": true,
-  "crossSessionInbound": "accept"
+  "advisorModel": "fable",
+  "awaySummaryEnabled": false,
+  "disableClaudeAiConnectors": true
 }
