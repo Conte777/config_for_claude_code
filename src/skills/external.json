@@ -1,0 +1,7 @@
+{
+  "archify": {
+    "repo": "https://github.com/tt-a1i/archify",
+    "ref": "main",
+    "path": "archify"
+  }
+}

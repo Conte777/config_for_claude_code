@@ -5,6 +5,7 @@
 # to stdout (-> session context) so the /review-task command can hand it to the
 # review Workflow. Any other prompt: exit 0 immediately (pass-through).
 set -euo pipefail
+for c in jq curl git; do command -v "$c" >/dev/null 2>&1 || exit 0; done
 
 # Extract the Jira KEY from a /review-task prompt — accepts a bare key
 # (/review-task CUS-1776) or a task URL (.../browse/CUS-1776). Prints the key, or
@@ -57,7 +58,7 @@ issue_to_md() {
 # Run: REVIEW_TASK_SELFTEST=1 bash src/hooks/review-task-fetch.sh
 if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
   [[ "$(extract_key '/review-task CUS-1776')" == CUS-1776 ]] || { echo "FAIL: bare key"; exit 1; }
-  [[ "$(extract_key '/review-task https://jira.cp.example.com/browse/CUS-1776')" == CUS-1776 ]] || { echo "FAIL: task url"; exit 1; }
+  [[ "$(extract_key '/review-task https://jira.example.com/browse/CUS-1776')" == CUS-1776 ]] || { echo "FAIL: task url"; exit 1; }
   [[ -z "$(extract_key '/something-else CUS-1776')" ]] || { echo "FAIL: non-trigger"; exit 1; }
   one='https://git.example.com/Fri_releases/cryptoprocessing/backend-cp/protos/safe-query-proto/-/merge_requests/7'
   [[ "$(extract_mr_urls "/review-task $one")" == "$one" ]] || { echo "FAIL: single mr url"; exit 1; }
@@ -128,7 +129,8 @@ fi
 # task's leftover WORK dir. Only a fully-completed run repopulates it (bottom).
 : > "$HOME/.claude/.review-task-last" 2>/dev/null || true
 
-GITLAB_HOST="${REVIEW_TASK_GITLAB_HOST:-git.example.com}"
+GITLAB_HOST="${GITLAB_HOST:-${REVIEW_TASK_GITLAB_HOST:-}}"
+[[ -z "$GITLAB_HOST" ]] && { echo "review-task: GITLAB_HOST is unset (see ~/.claude/.env). Do not run the workflow."; exit 0; }
 
 # password for a host from ~/.netrc; handles single-line and multi-line entries
 netrc_token() { # <host>
@@ -146,7 +148,7 @@ GL_TOKEN=$(netrc_token "$GITLAB_HOST")
 if [[ "$MODE" == jira ]]; then
   # Jira host stays out of this (version-controlled) file: env override, else the
   # ~/.netrc machine whose name contains "jira". netrc is the single source.
-  JIRA_HOST="${REVIEW_TASK_JIRA_HOST:-}"
+  JIRA_HOST="${REVIEW_TASK_JIRA_HOST:-${JIRA_URL:-}}"
   [[ -z "$JIRA_HOST" ]] && JIRA_HOST=$(awk '$1=="machine" && $2 ~ /jira/ {print $2; exit}' "$HOME/.netrc" 2>/dev/null || true)
   JIRA_TOKEN=$(netrc_token "$JIRA_HOST")
   if [[ -z "$JIRA_HOST" || -z "$JIRA_TOKEN" ]]; then

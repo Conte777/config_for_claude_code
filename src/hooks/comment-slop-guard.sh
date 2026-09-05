@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+for c in jq; do command -v "$c" >/dev/null 2>&1 || exit 0; done
 
 input=$(cat)
 

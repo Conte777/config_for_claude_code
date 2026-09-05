@@ -1,184 +1,179 @@
 #!/usr/bin/env bash
+# Deploys this repo onto the machine: symlinks into ~/.claude, then reconciles
+# marketplaces, plugins, external skills and user-scope MCP servers against the
+# declarations in src/. Idempotent — re-run it after every pull.
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()    { echo -e "${CYAN}$*${NC}"; }
 warn()    { echo -e "${YELLOW}WARNING: $*${NC}"; }
-error()   { echo -e "${RED}ERROR: $*${NC}"; }
+error()   { echo -e "${RED}ERROR: $*${NC}" >&2; }
 success() { echo -e "${GREEN}$*${NC}"; }
 
-# Paths
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$REPO_DIR/src"
 TARGET_DIR="$HOME/.claude"
+BACKUP_DIR="$TARGET_DIR/.pre-setup-backup"
+ENV_FILE="$TARGET_DIR/.env"
 
-# Symlink definitions: target -> source
-declare -a LINK_TARGETS=(
-    "$TARGET_DIR/settings.json"
-    "$TARGET_DIR/CLAUDE.md"
-    "$TARGET_DIR/commands"
-    "$TARGET_DIR/agents"
-    "$TARGET_DIR/skills"
-    "$TARGET_DIR/hooks"
-    "$TARGET_DIR/mcp"
-    "$TARGET_DIR/statusline.sh"
-    "$TARGET_DIR/plugins"
-    "$TARGET_DIR/keybindings.json"
-    "$TARGET_DIR/workflows"
-    "$TARGET_DIR/rules"
-    "$TARGET_DIR/scripts"
-    "$TARGET_DIR/output-styles"
+# ~/.claude/<name> -> src/<name>. Everything else under ~/.claude is runtime
+# state Claude Code owns (plugins/, projects/, history) and stays out of git.
+LINKS=(
+    settings.json
+    CLAUDE.md
+    statusline.sh
+    keybindings.json
+    commands
+    agents
+    skills
+    hooks
+    mcp
+    workflows
 )
 
-declare -a LINK_SOURCES=(
-    "$SRC_DIR/settings.json"
-    "$SRC_DIR/CLAUDE.md"
-    "$SRC_DIR/commands"
-    "$SRC_DIR/agents"
-    "$SRC_DIR/skills"
-    "$SRC_DIR/hooks"
-    "$SRC_DIR/mcp"
-    "$SRC_DIR/statusline.sh"
-    "$SRC_DIR/plugins"
-    "$SRC_DIR/keybindings.json"
-    "$SRC_DIR/workflows"
-    "$SRC_DIR/rules"
-    "$SRC_DIR/scripts"
-    "$SRC_DIR/output-styles"
-)
-
-# Rollback on error
-CREATED_LINKS=()
-
-cleanup_on_error() {
-    echo ""
-    error "Cleaning up partial installation..."
-    for link in "${CREATED_LINKS[@]}"; do
-        rm -f "$link" 2>/dev/null || true
-    done
-    error "Setup failed. Please check the error messages above."
-    exit 1
-}
-
-trap 'cleanup_on_error' ERR
-
-# Header
 echo "============================================"
 info "Claude Code Configuration Setup"
 echo "============================================"
-echo ""
-echo "Repository path: $REPO_DIR"
+echo "Repository: $REPO_DIR"
 echo ""
 
-# Check for conflicts
-CONFLICT=0
-for target in "${LINK_TARGETS[@]}"; do
-    if [ -e "$target" ] || [ -L "$target" ]; then
-        warn "Already exists: $target"
-        CONFLICT=1
-    fi
+# --- 1. dependencies ----------------------------------------------------------
+# Report and stop. Installing them would mean guessing a package manager and
+# using sudo, which breaks the machine rather than just the config.
+echo "Checking dependencies..."
+missing=()
+for c in git jq node npx uv gh python3; do
+    command -v "$c" >/dev/null 2>&1 || missing+=("$c")
 done
-
-if [ "$CONFLICT" -eq 1 ]; then
-    echo ""
-    error "One or more target files/directories already exist."
-    echo "Please manually backup or remove existing files before running this script."
-    echo "You can use cleanup.sh to remove symbolic links if they were created by this script."
+if [ ${#missing[@]} -gt 0 ]; then
+    error "missing required commands: ${missing[*]}"
+    echo "Install them and re-run. Nothing has been changed." >&2
     exit 1
 fi
+command -v claude >/dev/null 2>&1 \
+    || warn "claude CLI not in PATH — symlinks will be created, but plugins and MCP servers will not."
+command -v officecli >/dev/null 2>&1 \
+    || warn "officecli not in PATH — the officecli skill needs it: curl -fsSL https://d.officecli.ai/install.sh | bash"
+success "  all required commands present"
 
-# Check source files exist
-echo "Checking source files..."
+# --- 2. secrets ---------------------------------------------------------------
 echo ""
-SOURCE_MISSING=0
-for source in "${LINK_SOURCES[@]}"; do
-    if [ ! -e "$source" ]; then
-        error "Source not found: $source"
-        SOURCE_MISSING=1
+if [ -f "$ENV_FILE" ]; then
+    if [ "$(stat -f '%Lp' "$ENV_FILE" 2>/dev/null || stat -c '%a' "$ENV_FILE" 2>/dev/null)" != 600 ]; then
+        warn "$ENV_FILE is not mode 600 — fixing"
+        chmod 600 "$ENV_FILE"
     fi
-done
-
-if [ "$SOURCE_MISSING" -eq 1 ]; then
-    echo ""
-    error "One or more source files/directories are missing."
-    echo "Please ensure all required files exist in: $SRC_DIR"
-    exit 1
-fi
-
-echo "All source files found."
-
-# Create .claude directory if needed
-if [ ! -d "$TARGET_DIR" ]; then
-    echo "Creating directory: $TARGET_DIR"
-    mkdir -p "$TARGET_DIR"
-fi
-
-# Create symbolic links
-echo ""
-echo "Creating symbolic links..."
-echo ""
-
-for i in "${!LINK_TARGETS[@]}"; do
-    target="${LINK_TARGETS[$i]}"
-    source="${LINK_SOURCES[$i]}"
-    echo "Creating: $target -> $source"
-    ln -s "$source" "$target"
-    CREATED_LINKS+=("$target")
-    success "  - Created successfully"
-done
-
-# Install plugins from declaration. Claude Code does NOT auto-install from
-# enabledPlugins in settings.json — it only enables already-installed plugins.
-# installed_plugins.json/known_marketplaces.json are runtime state (abs paths,
-# timestamps) and are gitignored, so plugins must be reinstalled here.
-echo ""
-echo "Installing plugins..."
-echo ""
-if command -v claude >/dev/null 2>&1; then
-    # claude-plugins-official is built-in; add explicitly for first-run safety
-    claude plugin marketplace add anthropics/claude-plugins-official --scope user || true
-    for plugin in \
-        gopls-lsp@claude-plugins-official \
-        clangd-lsp@claude-plugins-official \
-        pyright-lsp@claude-plugins-official \
-        security-guidance@claude-plugins-official \
-        context7@claude-plugins-official \
-        github@claude-plugins-official; do
-        echo "  - $plugin"
-        claude plugin install "$plugin" --scope user || warn "failed to install $plugin"
-    done
-    success "Plugin installation attempted."
+    set -a; . "$ENV_FILE"; set +a
+    info "Loaded $ENV_FILE"
 else
-    warn "claude CLI not found in PATH — skipping plugin install."
-    echo "Run the plugin install commands manually once 'claude' is available."
+    warn "$ENV_FILE not found — MCP servers that need credentials will be skipped."
+    echo "  cp $SRC_DIR/.env.example $ENV_FILE && chmod 600 $ENV_FILE, fill it in, re-run."
 fi
 
-# Register the git MCP server (user scope, all projects). ~/.claude.json is
-# stateful and can't be symlinked, so register idempotently via the CLI. The
-# server itself lives at the symlinked ~/.claude/mcp/git-mcp/server.py.
+# --- 3. symlinks --------------------------------------------------------------
 echo ""
-echo "Registering git MCP server (user scope)..."
-if command -v claude >/dev/null 2>&1; then
-    if claude mcp get git >/dev/null 2>&1; then
-        echo "  - already registered, skipping"
-    else
-        claude mcp add --scope user git -- bash -c 'uv run $HOME/.claude/mcp/git-mcp/server.py' \
-            && success "  - registered" || warn "failed to register git MCP server"
+echo "Linking into $TARGET_DIR..."
+mkdir -p "$TARGET_DIR"
+
+backup() { # <path> — move an unexpected file/link out of the way, once
+    if [ -d "$BACKUP_DIR" ] && [ -n "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+        error "$BACKUP_DIR already holds files from an earlier run."
+        echo "Review and empty it, then re-run setup.sh." >&2
+        exit 1
     fi
-else
-    warn "claude CLI not found — skipping git MCP registration."
+    mkdir -p "$BACKUP_DIR"
+    mv "$1" "$BACKUP_DIR/$(basename "$1")"
+    warn "  moved existing $(basename "$1") to $BACKUP_DIR/"
+}
+
+for name in "${LINKS[@]}"; do
+    src="$SRC_DIR/$name"
+    dst="$TARGET_DIR/$name"
+    if [ ! -e "$src" ]; then
+        error "source missing: $src"
+        exit 1
+    fi
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+        continue
+    fi
+    if [ -e "$dst" ] || [ -L "$dst" ]; then backup "$dst"; fi
+    ln -s "$src" "$dst"
+    info "  + $name"
+done
+success "  symlinks in place"
+
+# --- 4. repo git hooks --------------------------------------------------------
+echo ""
+git -C "$REPO_DIR" config core.hooksPath .githooks
+success "core.hooksPath = .githooks (secret guard on commit)"
+
+# --- 5. marketplaces and plugins ----------------------------------------------
+echo ""
+echo "Reconciling marketplaces and plugins..."
+bash "$SRC_DIR/lib/reconcile-plugins.sh" "$SRC_DIR/settings.json"
+success "  plugins match settings.json"
+
+# --- 6. external skills -------------------------------------------------------
+# Skills distributed as a plain git repo rather than a plugin. The clone lands in
+# src/skills/.external/<name>; src/skills/<name> is a relative symlink to the skill
+# directory inside it, so it shows up under the already-symlinked ~/.claude/skills.
+# Both are gitignored.
+echo ""
+EXTERNAL="$SRC_DIR/skills/external.json"
+if [ -f "$EXTERNAL" ]; then
+    echo "Syncing external skills..."
+    while IFS=$'\t' read -r name repo ref path; do
+        [ -n "$name" ] || continue
+        stage="$SRC_DIR/skills/.external/$name"
+        link="$SRC_DIR/skills/$name"
+
+        if [ -d "$stage/.git" ]; then
+            info "  ~ $name"
+            git -C "$stage" fetch --depth 1 origin "$ref" --quiet \
+                && git -C "$stage" reset --hard FETCH_HEAD --quiet \
+                || { warn "failed to update skill $name"; continue; }
+        else
+            info "  + $name ($repo@$ref)"
+            rm -rf "$stage"
+            mkdir -p "$(dirname "$stage")"
+            # blobless + sparse: the repo around the skill can be far larger than
+            # the skill itself
+            if [ -n "$path" ]; then
+                git clone --depth 1 --branch "$ref" --filter=blob:none --sparse \
+                    --quiet "$repo" "$stage" \
+                    && git -C "$stage" sparse-checkout set "$path" \
+                    || { warn "failed to clone skill $name"; continue; }
+            else
+                git clone --depth 1 --branch "$ref" --quiet "$repo" "$stage" \
+                    || { warn "failed to clone skill $name"; continue; }
+            fi
+        fi
+
+        if [ ! -d "$stage/$path" ]; then
+            warn "skill $name: '$path' not found in $repo — skipping"
+            continue
+        fi
+
+        want=".external/$name${path:+/$path}"
+        if [ "$(readlink "$link" 2>/dev/null)" != "$want" ]; then
+            rm -rf "$link"
+            ln -s "$want" "$link"
+        fi
+    done < <(jq -r '
+        to_entries[]
+        | .key + "\t" + .value.repo + "\t" + (.value.ref // "main") + "\t" + (.value.path // "")
+    ' "$EXTERNAL")
+    success "  external skills synced"
 fi
+
+# --- 7. MCP servers -----------------------------------------------------------
+echo ""
+echo "Reconciling user-scope MCP servers..."
+bash "$SRC_DIR/lib/reconcile-mcp.sh" "$SRC_DIR/mcp/servers.json"
+success "  MCP servers match servers.json"
 
 echo ""
 echo "============================================"
-success "SUCCESS: All symbolic links created!"
+success "Setup complete."
 echo "============================================"
-echo ""
-echo "Claude Code will now use configuration from:"
-echo "$REPO_DIR"
+echo "Verify from outside the repo:  cd /tmp && claude plugin list --json && claude mcp list"

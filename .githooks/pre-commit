@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Blocks a commit that would publish a value from ~/.claude/.env, a pattern from
+# ~/.claude/.secret-patterns, or a well-known token prefix. Both source files
+# live outside git, so this hook names no secret and no host of its own.
+#
+# Bypass (only when you are sure): git commit --no-verify
+set -uo pipefail
+
+ENV_FILE="$HOME/.claude/.env"
+EXTRA_FILE="$HOME/.claude/.secret-patterns"
+
+patfile=$(mktemp)      # literal strings: values from .env, lines from .secret-patterns
+shapefile=$(mktemp)    # regexes: token shapes, matched only with a payload after them
+trap 'rm -f "$patfile" "$shapefile"' EXIT
+
+{
+    # every non-empty value in .env, quotes stripped
+    if [ -f "$ENV_FILE" ]; then
+        sed -E 's/^[[:space:]]*(export[[:space:]]+)?//' "$ENV_FILE" \
+            | grep -vE '^[[:space:]]*(#|$)' \
+            | cut -d= -f2- \
+            | tr -d "\"'"
+    fi
+    [ -f "$EXTRA_FILE" ] && grep -vE '^[[:space:]]*(#|$)' "$EXTRA_FILE"
+} 2>/dev/null | grep -vE '^.{0,7}$' > "$patfile" || true
+
+# Token shapes worth blocking even when the value itself is unknown here. Each
+# needs a plausible payload after the prefix, so a bare prefix — this file's own
+# pattern list, sync.sh's leak check — does not trip the hook.
+printf '%s\n' \
+    'glpat-[A-Za-z0-9_-]{16,}' \
+    'glsa_[A-Za-z0-9_-]{16,}' \
+    'gh[pousr]_[A-Za-z0-9]{16,}' \
+    'github_pat_[A-Za-z0-9_]{16,}' \
+    'ctx7sk-[A-Za-z0-9-]{16,}' \
+    'keen_[A-Za-z0-9_]{16,}' \
+    'sk-ant-[A-Za-z0-9_-]{16,}' \
+    'AKIA[A-Z0-9]{12,}' \
+    > "$shapefile"
+
+offenders=()
+while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    content=$(git show ":$f" 2>/dev/null || true)
+    if { [ -s "$patfile" ] && grep -qaFf "$patfile" <<<"$content"; } \
+       || grep -qaEf "$shapefile" <<<"$content"; then
+        offenders+=("$f")
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ ${#offenders[@]} -gt 0 ]; then
+    echo "pre-commit: refusing to commit — a secret or private host from ~/.claude/.env" >&2
+    echo "appears in the staged content of:" >&2
+    printf '  %s\n' "${offenders[@]}" >&2
+    echo "" >&2
+    echo "Replace it with a \${VAR} placeholder, or bypass with --no-verify if this is" >&2
+    echo "a false positive (a short shared string that happens to match)." >&2
+    exit 1
+fi
+
+exit 0

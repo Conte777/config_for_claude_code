@@ -1,215 +1,163 @@
-# Claude Code Configuration Repository
+# Claude Code configuration
 
-This repository contains configuration files for Claude Code CLI, managed through symbolic links for easy version control and synchronization.
+Version-controlled Claude Code configuration, deployed by symlinking `src/` into
+`~/.claude`. `setup.sh` also reconciles the machine's marketplaces, plugins and
+user-scope MCP servers against the declarations in this repo, so a fresh clone plus
+one secrets file gives a working machine.
 
-## Structure
+No secret and no private host is stored here. Everything machine- or account-specific
+lives in `~/.claude/.env`, which is outside git.
+
+## Layout
 
 ```
-config_for_claude_code/
-├── src/
-│   ├── .mcp.json                    # MCP server configurations
-│   ├── settings.json                # Claude Code settings
-│   ├── CLAUDE.md                    # Global instructions
-│   ├── statusline.sh                # Custom status line script (bash)
-│   ├── agents/                      # Custom subagents for Task tool
-│   │   ├── code-reviewer.md         # Code review agent
-│   │   └── kubectl-log-fetcher.md   # Kubernetes log fetcher agent
-│   ├── hooks/                       # Hook scripts for tool events
-│   │   ├── lint-file.sh              # Multi-language linter on file edit
-│   │   └── lint-project.sh          # Project-wide lint before code review
-│   ├── output-styles/               # System-prompt output styles
-│   │   └── lean-comments.md         # Comment discipline: why, not what
-│   ├── commands/                    # Custom slash commands
-│   │   ├── branch.md                # Create branch from ticket ID
-│   │   ├── commit.md                # Commit with ticket ID
-│   │   └── fix-ci.md                # CI/CD trace analysis
-│   └── skills/                      # Skill packages
-│       ├── code-review/             # Code review (Go, Java, Python)
-│       ├── commit-msg/              # Commit message generation
-│       ├── command-development/     # Slash command creation guide
-│       ├── go-microservice/         # Go microservice development
-│       ├── hook-development/        # Claude Code hooks creation
-│       ├── mcp-integration/         # MCP server integration
-│       └── skill-development/       # Skill creation guide
-├── setup.sh                         # Installation script
-├── cleanup.sh                       # Uninstallation script
-├── CLAUDE.md                        # Project-specific instructions
-├── README.md
-└── .gitignore
+src/
+  settings.json        Claude Code settings; also the source of truth for
+                       enabledPlugins and extraKnownMarketplaces
+  CLAUDE.md            global instructions, deployed to ~/.claude/CLAUDE.md
+  .env.example         variable names for ~/.claude/.env — names only, no values
+  statusline.sh        status line
+  keybindings.json     key bindings
+  agents/              review-* subagents used by the review-task workflow
+  commands/            /branch, /commit, /review-task
+  hooks/               hook scripts referenced from settings.json
+  mcp/
+    servers.json       user-scope MCP servers, with ${VAR} placeholders
+    git-mcp/           local git MCP server
+    grafana-mcp.sh     Grafana MCP launcher
+  skills/
+    mr/                own skill
+    external.json      skills distributed as a plain git repo rather than a plugin;
+                       setup.sh clones each into skills/.external/<name> (sparse)
+                       and symlinks skills/<name> at the skill dir inside it —
+                       both the clone and the symlink are gitignored
+  workflows/           review-task workflow script
+  lib/                 reconcilers used by setup.sh
+setup.sh               deploy / re-sync
+cleanup.sh             remove the symlinks
+sync.sh                pull live state back into the repo
+.githooks/pre-commit   blocks commits containing a value from ~/.claude/.env
+docs/                  notes that outlived the files they came from
 ```
 
-## Installation
+`src/lib/`, `setup.sh`, `cleanup.sh` and `sync.sh` are repo tooling and are not
+symlinked anywhere.
 
-### Prerequisites
+## Install
 
-- macOS (or Linux)
-- Claude Code CLI installed
+Supported: macOS and Linux. On Windows use WSL2 — the same bash scripts run unchanged.
 
-### Steps
+1. **Dependencies.** `setup.sh` requires `git`, `jq`, `node`, `npx`, `uv`, `gh` and
+   `python3`, and stops with a list if any is missing. It never installs anything:
+   guessing a package manager and reaching for `sudo` breaks the machine, not just the
+   config. `claude` itself and `officecli` are checked too, but only warned about.
 
-1. Clone or download this repository to your desired location
-2. Run the setup script:
+2. **Clone**, anywhere you like:
+
    ```bash
-   chmod +x setup.sh
+   git clone git@github.com:Conte777/config_for_claude_code.git
+   cd config_for_claude_code
+   ```
+
+3. **Secrets.**
+
+   ```bash
+   cp src/.env.example ~/.claude/.env
+   chmod 600 ~/.claude/.env
+   $EDITOR ~/.claude/.env
+   ```
+
+   Leave a variable empty and the MCP servers that need it are skipped, with a message
+   saying which variable was missing. Everything else still gets set up.
+
+4. **Shell wrapper.** `settings.json` does not expand `${VAR}`, so proxy and credential
+   variables have to reach the process from the shell. Add to `~/.zshrc` (or `~/.bashrc`):
+
+   ```zsh
+   claude() { set -a; . ~/.claude/.env; set +a; command claude "$@"; }
+   ```
+
+5. **Deploy.**
+
+   ```bash
    ./setup.sh
    ```
-3. Follow the on-screen instructions
 
-The script will create symbolic links from the standard Claude Code configuration locations to the files in this repository:
+6. **Verify from outside the repo** — a project-scope registration would look right from
+   inside it and be invisible everywhere else:
 
-- `~/.claude/settings.json` → `src/settings.json`
-- `~/.claude/CLAUDE.md` → `src/CLAUDE.md`
-- `~/.claude/statusline.sh` → `src/statusline.sh`
-- `~/.claude/commands` → `src/commands`
-- `~/.claude/agents` → `src/agents`
-- `~/.claude/skills` → `src/skills`
-- `~/.claude/hooks` → `src/hooks`
+   ```bash
+   cd /tmp && claude plugin list --json && claude mcp list
+   ```
 
-### Important Notes
+## What `setup.sh` does
 
-- The setup script will **not** overwrite existing files. If configuration files already exist, you'll need to back them up or remove them manually before running the script.
-- After installation, any changes made through Claude Code will be automatically saved to this repository.
-- `.mcp.json` is **not** symlinked by `setup.sh` — it must be placed manually or configured per-project.
+1. Checks dependencies and stops if any required one is missing.
+2. Sources `~/.claude/.env`.
+3. Symlinks `settings.json`, `CLAUDE.md`, `statusline.sh`, `keybindings.json`,
+   `commands/`, `agents/`, `skills/`, `hooks/`, `mcp/` and `workflows/` into `~/.claude`.
+   A correct symlink is left alone; anything else in the way is moved to
+   `~/.claude/.pre-setup-backup/` first. If that directory already holds files from an
+   earlier run, setup stops and asks you to deal with them.
+4. Points the repo's `core.hooksPath` at `.githooks`.
+5. Reconciles marketplaces and plugins against `settings.json`
+   (`src/lib/reconcile-plugins.sh`).
+6. Clones or updates the skills declared in `src/skills/external.json`.
+7. Reconciles user-scope MCP servers against `src/mcp/servers.json`
+   (`src/lib/reconcile-mcp.sh`).
 
-## Uninstallation
+It is idempotent — run it again after every pull. Everything is registered at **user**
+scope, so it works from any directory.
 
-To remove the symbolic links and restore your system to its original state:
+## Day-to-day
+
+**Editing config.** Edit the files under `src/`. `~/.claude/*` are symlinks back into
+`src/`, so a change takes effect immediately. Re-run `./setup.sh` only after adding a new
+top-level entry to the link list in `setup.sh`.
+
+**Plugins.** Install and remove them normally (`/plugin`, or `claude plugin install`).
+Claude Code maintains `enabledPlugins` and `extraKnownMarketplaces` inside
+`src/settings.json` itself, so the change is version-controlled the moment you make it.
+`setup.sh` replays that list on other machines: Claude Code enables plugins from
+`enabledPlugins` but never installs them.
+
+Three states: `true` — installed and enabled; `false` — installed and disabled; key
+absent — uninstalled. `setup.sh` removes anything installed at user scope that
+`settings.json` no longer lists.
+
+**MCP servers.** Add or change them with `claude mcp add-json <name> <json> --scope user`
+(the `--scope user` matters: the default is `local`, which hides the server in whatever
+directory you happened to be in), then fold the change back into the repo:
+
+```bash
+./sync.sh export-mcp
+```
+
+That rewrites `src/mcp/servers.json` from `~/.claude.json`, substituting values found in
+`~/.claude/.env` back into `${VAR}` placeholders. It refuses to write the file if anything
+that still looks like a token survives.
+
+`$HOME` and other shell variables in a server's `command`/`args` are left literal — only
+`${VAR}` is substituted, and only from the environment.
+
+**Secret guard.** `.githooks/pre-commit` blocks a commit whose staged content contains any
+value from `~/.claude/.env`, any line from the optional `~/.claude/.secret-patterns`, or a
+known token prefix. Both sources are outside git, so the hook itself names nothing. Add
+extra strings — a bare internal domain, say — to `~/.claude/.secret-patterns`, one per
+line. `git commit --no-verify` bypasses it.
+
+**Proxy.** Configured outside the repo, in `~/.claude/.env`, and reaches Claude Code
+through the shell wrapper.
+
+## Uninstall
 
 ```bash
 ./cleanup.sh
 ```
 
-Confirm the removal when prompted. The script will remove all symbolic links created by `setup.sh`. The `.claude` directory itself will not be removed automatically.
-
-## Usage
-
-After installation, you can:
-
-### Edit Configuration
-
-Simply edit the files in the `src/` directory. Changes will be immediately reflected in Claude Code since symbolic links are used.
-
-### Version Control
-
-Commit your changes to track configuration history:
-
-```bash
-git add src/
-git commit -m "Update Claude configuration"
-```
-
-### Sync Across Machines
-
-1. Push your changes to a remote repository
-2. Clone the repository on another machine
-3. Run `./setup.sh`
-
-### Add New Commands
-
-1. Create a new `.md` file in `src/commands/`
-2. Add YAML frontmatter with `description` field
-3. The command will be automatically available in Claude Code
-
-### Add New Skills
-
-1. Create a new directory in `src/skills/` with the skill name
-2. Create `SKILL.md` with YAML frontmatter (name, description)
-3. Optionally add `references/`, `examples/`, `scripts/` subdirectories
-4. The skill will be automatically available in Claude Code
-
-## Troubleshooting
-
-### Files Already Exist
-
-If you see warnings about existing files:
-
-1. Backup your current configuration
-2. Manually remove the existing files/directories listed in the warning
-3. Run `./setup.sh` again
-
-### Symbolic Links Not Working
-
-Verify that symbolic links were created correctly:
-
-```bash
-ls -la ~/.claude/
-```
-
-Symlinks are indicated by `->` pointing to the source files in this repository.
-
-## Configuration Files
-
-### .mcp.json
-
-MCP (Model Context Protocol) server configurations:
-- **context7**: HTTP-based documentation server (requires API key from https://context7.com)
-- **sequential-thinking**: Advanced reasoning tool via NPX
-- **db-mcp-server**: Stdio-based database access tool (query, schema, performance analysis)
-
-### settings.json
-
-Claude Code CLI settings:
-- **Tool permissions**: Allow/deny/ask lists for tools and bash commands
-- **Always-thinking mode**: Enabled for enhanced reasoning
-- **Default model**: Opus (haiku overridden to sonnet via env)
-- **Default mode**: Plan mode
-- **Language**: Russian
-- **Sandbox**: Enabled with `autoAllowBashIfSandboxed`
-- **Status line**: Custom bash script
-- **Plugins**: gopls-lsp, document-skills
-
-### CLAUDE.md (src/)
-
-Global instructions for all Claude Code sessions:
-- Language preferences (Russian for communication, English for code artifacts)
-- Context7 integration guidelines
-- Code style preferences (self-documenting code)
-
-### Custom Commands
-
-Located in `src/commands/`:
-- **branch.md**: Create and switch to a new git branch from Jira ticket ID
-- **commit.md**: Create a commit using the commit-msg skill for message generation
-- **fix-ci.md**: Analyze CI/CD trace output to identify failing stages and provide fixing plans
-
-### Hooks
-
-Located in `src/hooks/`:
-- **lint-file.sh**: PostToolUse hook (Edit/Write) — runs `golangci-lint` on `.go` files, `uv run ruff check` on `.py` files
-- **lint-project.sh**: SubagentStart hook (code-reviewer) — runs `golangci-lint` and `ruff` on project before code review
-- **comment-slop-guard.sh**: PostToolUse hook (Edit/Write) — flags comments that restate the code, banner separators, and 5+ line comment blocks. Judges only lines added since `HEAD`, so existing comments are left alone
-
-### Output Styles
-
-Located in `src/output-styles/`. Selected via the `outputStyle` field in `settings.json`; a change takes effect on the next session or after `/clear`.
-- **lean-comments.md**: keeps Claude's coding instructions (`keep-coding-instructions: true`) and adds comment discipline — comment the *why*, one line, match the file's existing density
-
-### Custom Agents
-
-Located in `src/agents/`:
-- **code-reviewer.md**: Code review agent with language-specific checks (Go, Java, Python)
-- **kubectl-log-fetcher.md**: Agent for retrieving and filtering Kubernetes pod logs
-
-### Skills
-
-Located in `src/skills/`. Each skill is a directory containing:
-- `SKILL.md` — main file with YAML frontmatter and instructions
-- `references/` — detailed documentation (loaded as needed)
-- `examples/` — working code examples
-- `scripts/` — utility scripts
-
-**Available skills:**
-
-| Skill | Description |
-|-------|-------------|
-| **code-review** | Code review for Go, Java, Python with framework-specific checks (Uber FX, Spring, FastAPI) |
-| **commit-msg** | Generates Conventional Commits messages with ticket ID extraction from branch name |
-| **command-development** | Guidance for creating Claude Code slash commands with YAML frontmatter |
-| **go-microservice** | Go microservice development with Uber FX, DDD patterns, internal packages |
-| **hook-development** | Creating Claude Code hooks (PreToolUse, PostToolUse, Stop, etc.) |
-| **mcp-integration** | Integrating MCP servers (stdio, SSE, HTTP) into plugins |
-| **skill-development** | Creating new skills with progressive disclosure pattern |
+Removes the symlinks (including ones earlier versions of `setup.sh` created). Installed
+plugins, registered MCP servers, `~/.claude/.env` and `~/.claude` itself are left alone.
 
 ## License
 
-This is a personal configuration repository. Feel free to use and modify as needed.
+Personal configuration. Use and modify as you like.

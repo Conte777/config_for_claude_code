@@ -4,6 +4,7 @@
 # in acceptEdits mode — default (cautious) and plan (writes blocked) keep the
 # normal prompt. In-project writes fall through to the usual acceptEdits flow.
 set -euo pipefail
+for c in jq; do command -v "$c" >/dev/null 2>&1 || exit 0; done
 
 is_sensitive() { # <file> -> 0 if in a credential/config location that must keep the prompt
   local f="$1" h="${HOME:-/nonexistent}"

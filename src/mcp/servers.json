@@ -1,0 +1,86 @@
+{
+  "mcpServers": {
+    "context7": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp",
+        "--api-key",
+        "${CONTEXT7_API_KEY}"
+      ],
+      "command": "npx",
+      "type": "stdio"
+    },
+    "git": {
+      "args": [
+        "-c",
+        "uv run $HOME/.claude/mcp/git-mcp/server.py"
+      ],
+      "command": "bash",
+      "type": "stdio"
+    },
+    "gitlab": {
+      "args": [
+        "-y",
+        "@zereight/mcp-gitlab"
+      ],
+      "command": "npx",
+      "env": {
+        "GITLAB_API_URL": "https://${GITLAB_HOST}",
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_PAT}",
+        "GITLAB_TOOLSETS": "merge_requests"
+      },
+      "type": "stdio"
+    },
+    "grafana-dev": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec $HOME/.claude/mcp/grafana-mcp.sh"
+      ],
+      "env": {
+        "GRAFANA_URL": "${GRAFANA_URL}",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+      }
+    },
+    "keenable": {
+      "type": "http",
+      "url": "https://api.keenable.ai/mcp",
+      "headers": {
+        "X-API-Key": "${KEENABLE_API_KEY}"
+      }
+    },
+    "kubernetes-dev": {
+      "args": [
+        "-y",
+        "kubernetes-mcp-server@latest",
+        "--read-only",
+        "--disable-multi-cluster",
+        "--kubeconfig",
+        "${KUBECONFIG_DEV}"
+      ],
+      "command": "npx",
+      "type": "stdio"
+    },
+    "kubernetes-stage": {
+      "args": [
+        "-y",
+        "kubernetes-mcp-server@latest",
+        "--read-only",
+        "--disable-multi-cluster",
+        "--kubeconfig",
+        "${KUBECONFIG_STAGE}"
+      ],
+      "command": "npx",
+      "type": "stdio"
+    },
+    "verify": {
+      "args": [
+        "-y",
+        "verify-mcp@latest"
+      ],
+      "command": "npx",
+      "type": "stdio"
+    }
+  }
+}

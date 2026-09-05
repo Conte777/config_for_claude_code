@@ -2,6 +2,7 @@
 # PreToolUse guard for Bash: routes raw git commit/branch creation to mcp__git__
 # (the server generates the commit message).
 set -euo pipefail
+for c in jq; do command -v "$c" >/dev/null 2>&1 || exit 0; done
 
 cmd=$(cat | jq -r '.tool_input.command // empty')
 [[ -z "$cmd" ]] && exit 0

@@ -75,3 +75,11 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+
+# Claude Code plugin runtime state (abs paths, timestamps, caches) — never versioned
+src/plugins/
+
+# External skills: the clones setup.sh makes from src/skills/external.json,
+# and the symlink it points at the skill directory inside each clone
+src/skills/.external/
+src/skills/archify

@@ -1,94 +1,67 @@
 #!/usr/bin/env bash
+# Removes the symlinks setup.sh created in ~/.claude. Leaves installed plugins,
+# registered MCP servers, ~/.claude/.env and ~/.claude itself alone.
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()    { echo -e "${CYAN}$*${NC}"; }
 warn()    { echo -e "${YELLOW}WARNING: $*${NC}"; }
-error()   { echo -e "${RED}ERROR: $*${NC}"; }
 success() { echo -e "${GREEN}$*${NC}"; }
 
 TARGET_DIR="$HOME/.claude"
 
-# Symlink targets to remove
-declare -a LINK_TARGETS=(
-    "$TARGET_DIR/settings.json"
-    "$TARGET_DIR/CLAUDE.md"
-    "$TARGET_DIR/commands"
-    "$TARGET_DIR/agents"
-    "$TARGET_DIR/skills"
-    "$TARGET_DIR/hooks"
-    "$TARGET_DIR/statusline.sh"
-    "$TARGET_DIR/plugins"
-    "$TARGET_DIR/keybindings.json"
-    "$TARGET_DIR/workflows"
-    "$TARGET_DIR/rules"
-    "$TARGET_DIR/scripts"
-    "$TARGET_DIR/output-styles"
+# Current links, plus names earlier versions of setup.sh linked.
+NAMES=(
+    settings.json
+    CLAUDE.md
+    statusline.sh
+    keybindings.json
+    commands
+    agents
+    skills
+    hooks
+    mcp
+    workflows
+    plugins
+    rules
+    scripts
+    output-styles
 )
 
-# Header
 echo "============================================"
 info "Claude Code Configuration Cleanup"
 echo "============================================"
 echo ""
-echo "This script will remove symbolic links created by setup.sh"
-echo ""
-
-echo "The following symbolic links will be removed:"
-for target in "${LINK_TARGETS[@]}"; do
-    echo "  - $target"
+echo "Symlinks under $TARGET_DIR that will be removed:"
+for name in "${NAMES[@]}"; do
+    [ -L "$TARGET_DIR/$name" ] && echo "  - $name"
 done
 echo ""
 
-# Confirmation
-read -rp "Are you sure you want to continue? (y/N): " CONFIRM
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo ""
-    echo "Operation cancelled."
-    exit 0
-fi
-
-echo ""
-echo "Removing symbolic links..."
+read -rp "Continue? (y/N): " CONFIRM
+[[ "$CONFIRM" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
 echo ""
 
-ERROR_COUNT=0
-
-for target in "${LINK_TARGETS[@]}"; do
+ERRORS=0
+for name in "${NAMES[@]}"; do
+    target="$TARGET_DIR/$name"
     if [ -L "$target" ]; then
-        echo "Removing: $target"
-        if rm "$target" 2>/dev/null; then
-            success "  - Removed successfully"
-        else
-            warn "Failed to remove $target"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
+        rm "$target" && info "  removed $name" || { warn "could not remove $name"; ERRORS=$((ERRORS + 1)); }
     elif [ -e "$target" ]; then
-        warn "Skipping: $target (not a symlink, will not remove)"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
-    else
-        echo "Skipping: $target (not found)"
+        warn "  skipped $name (not a symlink)"
+        ERRORS=$((ERRORS + 1))
     fi
 done
 
 echo ""
 echo "============================================"
-
-if [ "$ERROR_COUNT" -eq 0 ]; then
-    success "SUCCESS: All symbolic links removed!"
+if [ "$ERRORS" -eq 0 ]; then
+    success "All symlinks removed."
 else
-    warn "COMPLETED WITH WARNINGS: $ERROR_COUNT item(s) could not be removed."
-    echo "Please check the messages above and remove them manually if needed."
+    warn "Finished with $ERRORS item(s) left in place — see the messages above."
 fi
-
 echo "============================================"
 echo ""
-echo "NOTE: The .claude directory itself was not removed."
-echo "If you want to remove it completely, delete it manually:"
-echo "  rm -rf $TARGET_DIR"
+echo "Left untouched: $TARGET_DIR itself, ~/.claude/.env, installed plugins and"
+echo "registered MCP servers. Remove those with 'claude plugin uninstall' /"
+echo "'claude mcp remove', or delete $TARGET_DIR to wipe everything."
