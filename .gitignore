@@ -67,8 +67,6 @@ pnpm-lock.yaml
 prd.json
 progress.md
 progress.txt
-# Local-only skill (kept on disk, not tracked)
-src/skills/go-microservice/
 
 # Python
 __pycache__/
