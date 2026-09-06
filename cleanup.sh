@@ -9,6 +9,7 @@ warn()    { echo -e "${YELLOW}WARNING: $*${NC}"; }
 success() { echo -e "${GREEN}$*${NC}"; }
 
 TARGET_DIR="$HOME/.claude"
+AUTOGIT_LINK="$HOME/.config/autogit/config.json"
 
 # Current links, plus names earlier versions of setup.sh linked.
 NAMES=(
@@ -36,6 +37,7 @@ echo "Symlinks under $TARGET_DIR that will be removed:"
 for name in "${NAMES[@]}"; do
     [ -L "$TARGET_DIR/$name" ] && echo "  - $name"
 done
+[ -L "$AUTOGIT_LINK" ] && echo "  - $AUTOGIT_LINK"
 echo ""
 
 read -rp "Continue? (y/N): " CONFIRM
@@ -52,6 +54,13 @@ for name in "${NAMES[@]}"; do
         ERRORS=$((ERRORS + 1))
     fi
 done
+
+if [ -L "$AUTOGIT_LINK" ]; then
+    rm "$AUTOGIT_LINK" && info "  removed $AUTOGIT_LINK" || { warn "could not remove $AUTOGIT_LINK"; ERRORS=$((ERRORS + 1)); }
+elif [ -e "$AUTOGIT_LINK" ]; then
+    warn "  skipped $AUTOGIT_LINK (not a symlink)"
+    ERRORS=$((ERRORS + 1))
+fi
 
 echo ""
 echo "============================================"

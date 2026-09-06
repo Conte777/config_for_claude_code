@@ -10,14 +10,6 @@
       "command": "npx",
       "type": "stdio"
     },
-    "git": {
-      "args": [
-        "-c",
-        "uv run $HOME/.claude/mcp/git-mcp/server.py"
-      ],
-      "command": "bash",
-      "type": "stdio"
-    },
     "grafana-dev": {
       "type": "stdio",
       "command": "bash",

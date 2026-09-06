@@ -19,11 +19,11 @@ src/
   statusline.sh        status line
   keybindings.json     key bindings
   agents/              review-* subagents used by the review-task workflow
-  commands/            /branch, /commit, /review-task, /replan, /pickup
+  autogit/config.json  autogit's own config, linked to ~/.config/autogit/
+  commands/            /review-task, /replan, /pickup
   hooks/               hook scripts referenced from settings.json
   mcp/
     servers.json       user-scope MCP servers, with ${VAR} placeholders
-    git-mcp/           local git MCP server
     grafana-mcp.sh     Grafana MCP launcher
   skills/
     mr/                own skills

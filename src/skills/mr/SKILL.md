@@ -1,7 +1,7 @@
 ---
 name: mr
 description: Create a GitLab merge request, put a branch up for review, or block one merge request on another. Every merge request in a GitLab repo goes through here, including one you decided to open yourself.
-allowed-tools: AskUserQuestion, mcp__git__branch, mcp__git__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*)
+allowed-tools: AskUserQuestion, mcp__plugin_autogit_autogit__branch, mcp__plugin_autogit_autogit__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*)
 ---
 
 # Create a merge request
@@ -21,17 +21,17 @@ Skipping the fetch makes `origin/<TARGET>` stale, which silently corrupts the co
 `BRANCH` is one of `main`, `master`, `develop`, `stage`, `staging`:
 
 - `git status --porcelain` empty → stop and report that there is nothing to branch from. Create no branch.
-- Otherwise take `TICKET` from the current branch name, or from the ticket the user named in this session. With neither, ask the user whether this work has a ticket. Never infer an id from commit messages, the diff, or file contents — a match there belongs to someone else's work and sends the branch to the wrong ticket. Then call `mcp__git__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
+- Otherwise take `TICKET` from the current branch name, or from the ticket the user named in this session. With neither, ask the user whether this work has a ticket. Never infer an id from commit messages, the diff, or file contents — a match there belongs to someone else's work and sends the branch to the wrong ticket. Then call `mcp__plugin_autogit_autogit__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
 
 `BRANCH` is a feature branch and the user named a ticket whose id does not appear in `BRANCH` → ask whether to continue on this branch, and stop if the user declines. A missing ticket in the name usually means the branch was cut without one, or that you are standing on the wrong branch — either is worth catching before the push. Leave the branch name as it is.
 
 ## 3. Commit
 
-- `git diff --cached --name-only` non-empty → `mcp__git__commit` with `stageMode: "staged"`.
+- `git diff --cached --name-only` non-empty → `mcp__plugin_autogit_autogit__commit` with `stageMode: "staged"`.
 - Nothing staged and `git status --porcelain` non-empty → ask which files to commit: all files (`stageMode: "all"`), tracked files only (`stageMode: "tracked"`), or nothing. Commit with the chosen mode.
 - Clean worktree → skip this step.
 
-`mcp__git__commit` generates the message server-side; pass no message.
+`mcp__plugin_autogit_autogit__commit` generates the message server-side; pass no message.
 
 ## 4. Push
 
