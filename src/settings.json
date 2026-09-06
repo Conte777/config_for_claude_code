@@ -1,7 +1,8 @@
 {
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1",
-    "ENABLE_TOOL_SEARCH": "true"
+    "ENABLE_TOOL_SEARCH": "true",
+    "SECURITY_REVIEW_MODEL": "claude-opus-5"
   },
   "attribution": {
     "commit": "",
@@ -42,12 +43,14 @@
       "mcp__context7__*",
       "mcp__verify__*",
       "mcp__grafana-dev__*",
-      "mcp__kubernetes-dev__*",
-      "mcp__kubernetes-stage__*",
       "mcp__plugin_infra-mcp-postgres_postgres__pg_read_*",
-      "mcp__gitlab__*",
       "mcp__git__*",
-      "mcp__keenable__*"
+      "mcp__keenable__*",
+      "Bash(gh pr merge:*)",
+      "Bash(glab mr list:*)",
+      "Bash(glab mr view:*)",
+      "Bash(glab ci:*)",
+      "Bash(glab auth status:*)"
     ],
     "deny": [],
     "ask": [
@@ -55,7 +58,6 @@
     ],
     "defaultMode": "plan"
   },
-  "model": "opus[1m]",
   "disableClaudeAiConnectors": true,
   "deniedMcpServers": [],
   "hooks": {

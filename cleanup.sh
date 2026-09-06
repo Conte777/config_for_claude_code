@@ -21,7 +21,7 @@ NAMES=(
     skills
     hooks
     mcp
-    workflows
+    workflow-scripts
     plugins
     rules
     scripts

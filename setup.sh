@@ -28,7 +28,7 @@ LINKS=(
     skills
     hooks
     mcp
-    workflows
+    workflow-scripts
 )
 
 echo "============================================"

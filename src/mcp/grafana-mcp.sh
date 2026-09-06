@@ -74,31 +74,34 @@ else:
 PY
 )
 
-if [[ -z "$cookie" ]]; then
-    log "starting anyway — Grafana tools will fail until you open $base in the browser and reconnect this MCP server"
-    run "$@"
+if [[ -n "$cookie" ]]; then
+    export GRAFANA_EXTRA_HEADERS
+    GRAFANA_EXTRA_HEADERS=$(COOKIE="$cookie" python3 -c \
+        'import json, os; print(json.dumps({"Cookie": "_pomerium=" + os.environ["COOKIE"]}))')
 fi
 
-export GRAFANA_EXTRA_HEADERS
-GRAFANA_EXTRA_HEADERS=$(COOKIE="$cookie" python3 -c \
-    'import json, os; print(json.dumps({"Cookie": "_pomerium=" + os.environ["COOKIE"]}))')
-
-# Pomerium answers a stale session with a 302 to the SSO login page. Without this check
-# the user only sees mcp-grafana failing to unmarshal that HTML, which explains nothing.
-# curl reads the secrets from stdin so they stay out of the process arguments.
+# Pomerium answers a stale session with a 302 to the SSO login page, and an unreachable
+# host answers nothing at all. Either way mcp-grafana would start and then fail to
+# unmarshal HTML on every single call, which explains nothing — refuse to start instead,
+# so /mcp shows this server as failed with the reason. curl reads the secrets from stdin
+# so they stay out of the process arguments.
 if command -v curl >/dev/null 2>&1; then
     status=$({
-        printf 'header = "Cookie: _pomerium=%s"\n' "$cookie"
+        [[ -n "$cookie" ]] && printf 'header = "Cookie: _pomerium=%s"\n' "$cookie"
         [[ -n "${GRAFANA_SERVICE_ACCOUNT_TOKEN:-}" ]] &&
             printf 'header = "Authorization: Bearer %s"\n' "$GRAFANA_SERVICE_ACCOUNT_TOKEN"
     } | curl -sS --config - --max-time 10 -o /dev/null -w '%{http_code}' "$base/api/health" 2>/dev/null)
 
     case "$status" in
         2*) ;;
-        3*) log "Pomerium session expired (HTTP $status) — open $base in the browser to refresh SSO, then reconnect this MCP server" ;;
-        "") log "health check could not reach $base — VPN down?" ;;
-        *)  log "health check returned HTTP $status" ;;
+        3*) log "not starting: Pomerium session expired (HTTP $status). Open $base in the browser to refresh SSO, then reconnect this MCP server"
+            exit 1 ;;
+        "") log "not starting: cannot reach $base. Turn the VPN on, open $base in the browser, then reconnect this MCP server"
+            exit 1 ;;
+        *)  log "health check returned HTTP $status — starting anyway" ;;
     esac
+elif [[ -z "$cookie" ]]; then
+    log "starting anyway — no _pomerium cookie and no curl to check with; Grafana tools will fail until you open $base in the browser and reconnect this MCP server"
 fi
 
 run "$@"

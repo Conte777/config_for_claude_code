@@ -19,19 +19,22 @@ src/
   statusline.sh        status line
   keybindings.json     key bindings
   agents/              review-* subagents used by the review-task workflow
-  commands/            /branch, /commit, /review-task
+  commands/            /branch, /commit, /review-task, /replan, /pickup
   hooks/               hook scripts referenced from settings.json
   mcp/
     servers.json       user-scope MCP servers, with ${VAR} placeholders
     git-mcp/           local git MCP server
     grafana-mcp.sh     Grafana MCP launcher
   skills/
-    mr/                own skill
+    mr/                own skills
+    k8s/
     external.json      skills distributed as a plain git repo rather than a plugin;
                        setup.sh clones each into skills/.external/<name> (sparse)
                        and symlinks skills/<name> at the skill dir inside it —
                        both the clone and the symlink are gitignored
-  workflows/           review-task workflow script
+  workflow-scripts/    review-task workflow script; deliberately NOT in
+                       workflows/, which Claude Code scans and would turn into a
+                       second /review-task entry in the slash menu
   lib/                 reconcilers used by setup.sh
 setup.sh               deploy / re-sync
 cleanup.sh             remove the symlinks
@@ -95,7 +98,7 @@ Supported: macOS and Linux. On Windows use WSL2 — the same bash scripts run un
 1. Checks dependencies and stops if any required one is missing.
 2. Sources `~/.claude/.env`.
 3. Symlinks `settings.json`, `CLAUDE.md`, `statusline.sh`, `keybindings.json`,
-   `commands/`, `agents/`, `skills/`, `hooks/`, `mcp/` and `workflows/` into `~/.claude`.
+   `commands/`, `agents/`, `skills/`, `hooks/`, `mcp/` and `workflow-scripts/` into `~/.claude`.
    A correct symlink is left alone; anything else in the way is moved to
    `~/.claude/.pre-setup-backup/` first. If that directory already holds files from an
    earlier run, setup stops and asks you to deal with them.

@@ -6,7 +6,7 @@
 # Approach
 - Explain-then-act: asked to explain, diagnose, or discuss — no edits until told to.
 - Change only what the task asks — no drive-by refactors of unrelated code or config.
-- Verify against the real code before proposing — check how sibling code does it, don't invent APIs.
+- Verify against the real code before proposing — check how sibling code does it, don't invent APIs. Sibling services in the same monorepo are the reference: if they do it the same way, leave it — don't "fix" a shared pattern in one service.
 - Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out.
 
 # Workflow

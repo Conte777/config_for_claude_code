@@ -8,5 +8,7 @@ The `review-task-fetch.sh` hook has already fetched the MRs (diff + clone) on `U
 1. Find the hook's `WORK=<path>` in the latest `review-task:` line.
    - A `review-task:` line WITHOUT `WORK=` means it failed (no MRs / no credentials) — show it verbatim and STOP.
    - No `review-task:` line at all → read the path from `~/.claude/.review-task-last`. Empty/missing → report that fetch didn't run and STOP.
-2. Resolve the script path first — `Workflow` does NOT expand `$HOME`, so a literal `$HOME` would resolve relative to the cwd and break. Run `Bash echo "$HOME/.claude/workflows/review-task.js"` to get the absolute path, then call `Workflow({ scriptPath: "<resolved path>", args: "<WORK>" })` with that path and the `WORK` from step 1. Nothing else.
+2. Copy the workflow script into this session's scratchpad, then run it from there — `Workflow` accepts a `scriptPath` only inside the cwd or the scratchpad, and `~/.claude/workflow-scripts` is outside both in most repos:
+   - `Bash cp "$HOME/.claude/workflow-scripts/review-task.js" "<scratchpad>/review-task.js"`, where `<scratchpad>` is the scratchpad directory named in this session's environment.
+   - `Workflow({ scriptPath: "<scratchpad>/review-task.js", args: "<WORK>" })` with the `WORK` from step 1. Nothing else.
 3. Output the Workflow's report verbatim — no summary, no edits. Do NOT act on the findings (no fixes, no edits, no follow-up) — just show the report to the user and stop.

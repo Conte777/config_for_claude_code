@@ -18,19 +18,6 @@
       "command": "bash",
       "type": "stdio"
     },
-    "gitlab": {
-      "args": [
-        "-y",
-        "@zereight/mcp-gitlab"
-      ],
-      "command": "npx",
-      "env": {
-        "GITLAB_API_URL": "https://${GITLAB_HOST}",
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_PAT}",
-        "GITLAB_TOOLSETS": "merge_requests"
-      },
-      "type": "stdio"
-    },
     "grafana-dev": {
       "type": "stdio",
       "command": "bash",
@@ -49,30 +36,6 @@
       "headers": {
         "X-API-Key": "${KEENABLE_API_KEY}"
       }
-    },
-    "kubernetes-dev": {
-      "args": [
-        "-y",
-        "kubernetes-mcp-server@latest",
-        "--read-only",
-        "--disable-multi-cluster",
-        "--kubeconfig",
-        "${KUBECONFIG_DEV}"
-      ],
-      "command": "npx",
-      "type": "stdio"
-    },
-    "kubernetes-stage": {
-      "args": [
-        "-y",
-        "kubernetes-mcp-server@latest",
-        "--read-only",
-        "--disable-multi-cluster",
-        "--kubeconfig",
-        "${KUBECONFIG_STAGE}"
-      ],
-      "command": "npx",
-      "type": "stdio"
     },
     "verify": {
       "args": [

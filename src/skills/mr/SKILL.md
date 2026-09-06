@@ -1,14 +1,14 @@
 ---
 name: mr
 description: Create a GitLab merge request, put a branch up for review, or block one merge request on another. Every merge request in a GitLab repo goes through here, including one you decided to open yourself.
-allowed-tools: AskUserQuestion, mcp__git__branch, mcp__git__commit, mcp__gitlab__create_merge_request, mcp__gitlab__list_merge_requests, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*)
+allowed-tools: AskUserQuestion, mcp__git__branch, mcp__git__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*)
 ---
 
 # Create a merge request
 
 Ask every question in this skill with AskUserQuestion.
 
-Values used throughout: `REPO` = `git rev-parse --show-toplevel`, `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`, `TICKET` = the ticket id for this work, sourced as step 2 describes.
+Values used throughout: `REPO` = `git rev-parse --show-toplevel`, `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`, needed only by the `glab api` calls in step 7, `TICKET` = the ticket id for this work, sourced as step 2 describes.
 
 ## 1. Target branch
 
@@ -41,10 +41,16 @@ Otherwise `git push -u origin HEAD`.
 
 ## 5. Merge request
 
-`mcp__gitlab__list_merge_requests` with `project_id: PROJECT`, `source_branch: BRANCH`, `state: "opened"`.
+`glab mr list --source-branch BRANCH --output json` — with no state flag it lists open merge requests only. `glab` picks the project and the host from `git remote`, so no id and no token are needed here.
 
-- A merge request exists → keep it exactly as it is, title and description included, and carry its `iid` into step 6.
-- None exists → `mcp__gitlab__create_merge_request` with `project_id: PROJECT`, `source_branch: BRANCH`, `target_branch: TARGET`, and `title` = the **first** commit of the branch, i.e. the last line of `git log --pretty=%s origin/<TARGET>..HEAD`. Omit `description` so it stays empty.
+- A record comes back → keep that merge request exactly as it is, title and description included, and carry its `iid` into step 6.
+- The list is empty → create one:
+
+  ```
+  glab mr create --source-branch BRANCH --target-branch TARGET --title "<first commit>" --description "" --yes
+  ```
+
+  `<first commit>` is the **first** commit of the branch, i.e. the last line of `git log --pretty=%s origin/<TARGET>..HEAD`. `--yes` skips the confirmation prompt and the empty `--description` keeps the description empty. If `glab` opens an editor anyway, re-run with `--no-editor`.
 
 ## 6. Dependencies
 
