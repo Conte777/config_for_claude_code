@@ -105,6 +105,17 @@ for name in "${LINKS[@]}"; do
     ln -s "$src" "$dst"
     info "  + $name"
 done
+
+# autogit reads ~/.config/autogit/config.json, outside ~/.claude, so it gets its
+# own link instead of an entry in LINKS.
+autogit_src="$SRC_DIR/autogit/config.json"
+autogit_dst="$HOME/.config/autogit/config.json"
+mkdir -p "$(dirname "$autogit_dst")"
+if [ ! -L "$autogit_dst" ] || [ "$(readlink "$autogit_dst")" != "$autogit_src" ]; then
+    if [ -e "$autogit_dst" ] || [ -L "$autogit_dst" ]; then backup "$autogit_dst"; fi
+    ln -s "$autogit_src" "$autogit_dst"
+    info "  + ~/.config/autogit/config.json"
+fi
 success "  symlinks in place"
 
 # --- 4. repo git hooks --------------------------------------------------------

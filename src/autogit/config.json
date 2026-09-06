@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Conte777/autogit/main/schema/config.schema.json",
+  "provider": "claude-cli",
+  "preset": "conventional",
+  "workspaces": [
+    { "path": "~/Work/friday-releases", "preset": "ticket" }
+  ]
+}
