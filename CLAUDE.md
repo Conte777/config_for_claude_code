@@ -14,7 +14,10 @@ This repo version-controls Claude Code config and deploys it via symlinks (`setu
 
 The repo is public. No secret, token, internal domain, absolute `/Users/...` path or Mac-only binary path belongs in a versioned file — those live in `~/.claude/.env` (outside git) and reach the config as `${VAR}` in `src/mcp/servers.json`, as `$HOME` in `settings.json` hook commands, or through the `claude` shell wrapper described in the README. `.githooks/pre-commit` blocks a commit that would publish a value from `~/.claude/.env`.
 
-Hooks that shell out to a machine-specific binary get a wrapper in `src/hooks/` that exits 0 when the binary is absent (`adrafinil.sh`, `rtk.sh`), so the same `settings.json` works on a machine without it.
+Two machine-specific binaries are the deliberate exception, and both are called directly rather than through a tolerant wrapper:
+
+- **`rtk`** (`PreToolUse` on Bash) — a hard dependency: `setup.sh` refuses to run without it. Called bare, through `PATH`, so it works wherever it is installed.
+- **`adrafinil`** (10 hooks) — called by the absolute path `/Applications/Adrafinil.app/Contents/Helpers/adrafinil`, which is the form `adrafinil install-hooks` writes and looks for. A wrapper or a bare `PATH` call makes adrafinil stop recognising its own hooks and duplicate them on the next `install-hooks`. It is macOS-only; `setup.sh` warns when it is missing, and on Linux those hooks fail loudly without blocking anything.
 
 ## Sources of truth
 

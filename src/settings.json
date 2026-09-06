@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -122,7 +122,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh acquire --tool claude-code --if-background --ttl 86400"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --if-background --ttl 86400"
           }
         ]
       },
@@ -131,7 +131,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/rtk.sh hook claude"
+            "command": "rtk hook claude"
           }
         ]
       },
@@ -140,7 +140,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -150,7 +150,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -181,7 +181,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -191,7 +191,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh release $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }
@@ -211,7 +211,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh acquire --tool claude-code --subagent"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire --tool claude-code --subagent"
           }
         ]
       }
@@ -221,7 +221,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh release --tool claude-code --subagent"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil release --tool claude-code --subagent"
           }
         ]
       }
@@ -246,7 +246,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/adrafinil.sh acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
+            "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
       }

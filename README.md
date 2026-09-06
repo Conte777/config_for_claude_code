@@ -149,6 +149,11 @@ line. `git commit --no-verify` bypasses it.
 **Proxy.** Configured outside the repo, in `~/.claude/.env`, and reaches Claude Code
 through the shell wrapper.
 
+**Machine-specific hook binaries.** `rtk` is a hard dependency — `setup.sh` stops
+without it. `adrafinil` is macOS-only and is called by the absolute path its own
+`install-hooks` writes, so that it keeps recognising its hooks; `setup.sh` only warns
+when it is absent, and elsewhere those hooks fail without blocking anything.
+
 ## Uninstall
 
 ```bash
