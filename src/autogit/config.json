@@ -2,6 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/Conte777/autogit/main/schema/config.schema.json",
   "provider": "claude-cli",
   "preset": "conventional",
+  "mcp": {
+    "allowProtectedBranch": true
+  },
   "workspaces": [
     { "path": "~/Work/friday-releases", "preset": "ticket" }
   ]
