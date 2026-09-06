@@ -55,6 +55,14 @@ Supported: macOS and Linux. On Windows use WSL2 — the same bash scripts run un
    guessing a package manager and reaching for `sudo` breaks the machine, not just the
    config. `claude` itself and `officecli` are checked too, but only warned about.
 
+   `autogit` is a dependency of the autogit plugin rather than of `setup.sh`, so nothing
+   here checks for it — the plugin says so itself at the start of a session. Install it
+   before the first commit:
+
+   ```bash
+   brew install Conte777/tap/autogit
+   ```
+
 2. **Clone**, anywhere you like:
 
    ```bash
@@ -98,7 +106,9 @@ Supported: macOS and Linux. On Windows use WSL2 — the same bash scripts run un
 1. Checks dependencies and stops if any required one is missing.
 2. Sources `~/.claude/.env`.
 3. Symlinks `settings.json`, `CLAUDE.md`, `statusline.sh`, `keybindings.json`,
-   `commands/`, `agents/`, `skills/`, `hooks/`, `mcp/` and `workflow-scripts/` into `~/.claude`.
+   `commands/`, `agents/`, `skills/`, `hooks/`, `mcp/` and `workflow-scripts/` into `~/.claude`,
+   plus `autogit/config.json` into `~/.config/autogit/` — autogit reads XDG, not `~/.claude`,
+   so that one link is spelled out separately instead of joining the list.
    A correct symlink is left alone; anything else in the way is moved to
    `~/.claude/.pre-setup-backup/` first. If that directory already holds files from an
    earlier run, setup stops and asks you to deal with them.
@@ -127,6 +137,20 @@ Claude Code maintains `enabledPlugins` and `extraKnownMarketplaces` inside
 Three states: `true` — installed and enabled; `false` — installed and disabled; key
 absent — uninstalled. `setup.sh` removes anything installed at user scope that
 `settings.json` no longer lists.
+
+**Commits and branches.** Both come from the `autogit@autogit` plugin, which answers
+`/autogit:commit`, `/autogit:commit-msg` and `/autogit:branch`, carries a
+`UserPromptSubmit` hook that recognises a commit or branch request and does the work
+without waking the model, and runs the same binary as an MCP server so an agent gets
+`mcp__plugin_autogit_autogit__commit` and `__branch` as tools. `src/hooks/bash-tool-guard.sh`
+blocks a raw `git commit` or branch creation and points at those tools — the message is
+generated from the diff and validated, never written by hand.
+
+The format is configured in `src/autogit/config.json`: full Conventional Commits by
+default, and one `workspaces` rule pinning the `~/Work/friday-releases` tree to the
+`ticket` preset, where a commit reads `CUS-1234: subject` and a branch `CUS-1234/some-desc`.
+A rule matches on the root of the repository being committed, not on the working
+directory, so it holds over MCP too. `autogit doctor` prints which rule matched.
 
 **MCP servers.** Add or change them with `claude mcp add-json <name> <json> --scope user`
 (the `--scope user` matters: the default is `local`, which hides the server in whatever
@@ -163,8 +187,9 @@ when it is absent, and elsewhere those hooks fail without blocking anything.
 ./cleanup.sh
 ```
 
-Removes the symlinks (including ones earlier versions of `setup.sh` created). Installed
-plugins, registered MCP servers, `~/.claude/.env` and `~/.claude` itself are left alone.
+Removes the symlinks (including ones earlier versions of `setup.sh` created, and the
+`~/.config/autogit/config.json` one outside `~/.claude`). Installed plugins, registered MCP
+servers, `~/.claude/.env` and `~/.claude` itself are left alone.
 
 ## License
 
