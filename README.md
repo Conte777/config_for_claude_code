@@ -24,10 +24,10 @@ src/
   hooks/               hook scripts referenced from settings.json
   mcp/
     servers.json       user-scope MCP servers, with ${VAR} placeholders
-    grafana-mcp.sh     Grafana MCP launcher
   skills/
     mr/                own skills
     k8s/
+    grafana/
     external.json      skills distributed as a plain git repo rather than a plugin;
                        setup.sh clones each into skills/.external/<name> (sparse)
                        and symlinks skills/<name> at the skill dir inside it —

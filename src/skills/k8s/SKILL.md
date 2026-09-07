@@ -1,6 +1,6 @@
 ---
 name: k8s
-description: Inspect or poke a service in the dev/stage Kubernetes cluster — pods, logs, config maps, restarts, port-forwards to gRPC or metrics endpoints. Use for anything that would otherwise be a raw kubectl invocation.
+description: Inspect or poke a service in the dev/stage Kubernetes cluster — pods, live logs, config maps, restarts, port-forwards to gRPC or metrics endpoints. Use for anything that would otherwise be a raw kubectl invocation.
 allowed-tools: Bash(kubectl:*), Bash(grpcurl:*)
 ---
 
@@ -55,6 +55,8 @@ kubectl --kubeconfig "$KC" -n "$NS" logs -l app=<service> --previous
 
 `--previous` is the one that survives a crash loop. For a container that restarts faster than it logs, `kubectl describe pod` plus `get events --sort-by=.lastTimestamp` say more than the log does.
 
+Older than those two lives, or spread across replicas, and the history is in Loki — the `grafana` skill.
+
 ## Port-forward, then talk to the service
 
 Start the forward as a background Bash command (`run_in_background: true`), not with a trailing `&` — a foreground forward blocks the session until it is killed.
@@ -102,4 +104,4 @@ Every manual change is temporary unless the user asked for it to stay. Walk the 
 - background port-forwards → killed;
 - anything else created for the check (a debug pod, a temporary secret) → deleted.
 
-Then list in the report what was changed, what was restored, and anything left in place on purpose. A change that outlives the session is other people's broken environment.
+Then list in the report what was changed, what was restored, and anything left in place on purpose. The cluster is shared; a change that outlives the session is other people's broken environment.
