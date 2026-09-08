@@ -267,7 +267,8 @@
     "security-guidance@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "watch@claude-video": true
+    "watch@claude-video": true,
+    "lighter@lighter": true
   },
   "extraKnownMarketplaces": {
     "autogit": {
@@ -310,6 +311,12 @@
       "source": {
         "source": "github",
         "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "lighter": {
+      "source": {
+        "source": "github",
+        "repo": "Conte777/lighter"
       }
     }
   },
