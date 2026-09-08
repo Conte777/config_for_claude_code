@@ -39,6 +39,17 @@ find_local_claudemd() { # <gitlab_path>
   [[ $(printf '%s' "$hits" | grep -c .) -eq 1 ]] && printf '%s\n' "$hits"
 }
 
+# GitLab MR state -> what to do with it: "skip" (closed — abandoned work),
+# "merged" (review it, but it alone cannot justify a review run), "open"
+# (anything else, including locked and an unreadable state).
+state_disposition() { # <state>
+  case "$1" in
+    closed) printf 'skip\n' ;;
+    merged) printf 'merged\n' ;;
+    *)      printf 'open\n' ;;
+  esac
+}
+
 # Jira issue JSON (stdin) -> markdown for the completeness agent: title, description,
 # then a comments section. Server/DC api/2 shape: fields.{summary,description,comment.comments[]}.
 issue_to_md() {
@@ -81,6 +92,13 @@ if [[ "${REVIEW_TASK_SELFTEST:-}" == 1 ]]; then
     || { echo "FAIL: basename fallback"; exit 1; }
   [[ -z "$(find_local_claudemd grp/x/svc)" ]] \
     || { echo "FAIL: ambiguous basename should be empty"; exit 1; }
+  # MR state disposition: closed is dropped, merged is reviewable but passive,
+  # anything unknown (incl. an empty state from a failed API call) counts as open.
+  [[ "$(state_disposition closed)" == skip ]]   || { echo "FAIL: closed must be skipped"; exit 1; }
+  [[ "$(state_disposition merged)" == merged ]] || { echo "FAIL: merged disposition"; exit 1; }
+  [[ "$(state_disposition opened)" == open ]]   || { echo "FAIL: opened disposition"; exit 1; }
+  [[ "$(state_disposition locked)" == open ]]   || { echo "FAIL: locked must be reviewable"; exit 1; }
+  [[ "$(state_disposition '')" == open ]]       || { echo "FAIL: unknown state must be reviewable"; exit 1; }
   # discussions filter: system note dropped, inline note keeps file/line.
   disc_filter() { jq -c '[ .[].notes[]? | select(.system == false)
       | { author:(.author.username // ""), body:(.body // ""),
@@ -128,6 +146,10 @@ fi
 # file and honestly reports "fetch didn't run" instead of reviewing a PREVIOUS
 # task's leftover WORK dir. Only a fully-completed run repopulates it (bottom).
 : > "$HOME/.claude/.review-task-last" 2>/dev/null || true
+
+if [[ -z "${GITLAB_HOST:-}" && -f "$HOME/.claude/.env" ]]; then
+  set -a; . "$HOME/.claude/.env"; set +a
+fi
 
 GITLAB_HOST="${GITLAB_HOST:-${REVIEW_TASK_GITLAB_HOST:-}}"
 [[ -z "$GITLAB_HOST" ]] && { echo "review-task: GITLAB_HOST is unset (see ~/.claude/.env). Do not run the workflow."; exit 0; }
@@ -187,6 +209,45 @@ if [[ "$n" -eq 0 ]]; then
   exit 0
 fi
 
+# State pre-pass: a closed MR is abandoned work — drop it before any diff or
+# clone. When everything that is left is already merged, there is nothing to
+# review at all. An unreadable state keeps the MR (and blocks the all-merged
+# shortcut) — a failed API call must not silently shrink the review.
+kept='[]'; all_merged=1; closed_n=0
+i=0
+while [[ $i -lt $n ]]; do
+  item=$(printf '%s' "$mrs" | jq -c ".[$i]")
+  url=$(printf '%s' "$item" | jq -r '.url')
+  i=$((i+1))
+  path=$(printf '%s' "$url" | sed -E 's|https?://[^/]+/||; s|/-/merge_requests/.*||')
+  iid=$(printf '%s' "$url" | grep -oE 'merge_requests/[0-9]+' | grep -oE '[0-9]+' || true)
+  if [[ -n "$path" && -n "$iid" ]]; then
+    enc=$(printf '%s' "$path" | jq -Rr @uri)
+    state=$(curl -fsS -H "PRIVATE-TOKEN: $GL_TOKEN" \
+      "https://$GITLAB_HOST/api/v4/projects/$enc/merge_requests/$iid" 2>/dev/null \
+      | jq -r '.state // empty' 2>/dev/null || true)
+  else
+    state=""
+  fi
+  case "$(state_disposition "$state")" in
+    skip)   closed_n=$((closed_n+1)); continue ;;
+    merged) ;;
+    *)      all_merged=0 ;;
+  esac
+  kept=$(printf '%s' "$kept" | jq -c --argjson it "$item" '. + [$it]')
+done
+mrs="$kept"
+n=$(printf '%s' "$mrs" | jq 'length')
+[[ $closed_n -gt 0 ]] && echo "review-task: skipped $closed_n closed MR(s)."
+if [[ "$n" -eq 0 ]]; then
+  echo "review-task: every MR is closed${KEY:+ for $KEY} — nothing to review. Do not run the workflow."
+  exit 0
+fi
+if [[ "$all_merged" -eq 1 ]]; then
+  echo "review-task: all $n MR(s) are already merged${KEY:+ for $KEY} — nothing to review. Do not run the workflow."
+  exit 0
+fi
+
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/review-task-${KEY:-mrs}.XXXXXX")
 mkdir -p "$WORK/repos" "$WORK/diffs" "$WORK/discussions"
 export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
@@ -197,7 +258,7 @@ export GIT_TERMINAL_PROMPT=0  # never block on a credential prompt
 
 manifest='[]'
 i=0
-cmd_copied=0; no_cmd=0; failed_clones=""  # rolled up into one summary line at the end
+cmd_copied=0; no_cmd=0; failed_clones=""; target_clones=0  # rolled up into one summary line at the end
 while [[ $i -lt $n ]]; do
   url=$(printf '%s' "$mrs" | jq -r ".[$i].url")
   src_gp=$(printf '%s' "$mrs" | jq -r ".[$i].source")
@@ -219,12 +280,26 @@ while [[ $i -lt $n ]]; do
     || { echo "review-task: skipping $path!$iid (no .changes in GitLab response — 404/no access?)"; continue; }
 
   src=$(printf '%s' "$changes" | jq -r '.source_branch // empty'); [[ -z "$src" ]] && src="$src_gp"
+  tgt=$(printf '%s' "$changes" | jq -r '.target_branch // empty')
+  state=$(printf '%s' "$changes" | jq -r '.state // empty')
   diff_path="$WORK/diffs/$slug.diff"
   printf '%s' "$changes" | jq -r '.changes[] | "--- a/\(.old_path)\n+++ b/\(.new_path)\n\(.diff)"' > "$diff_path"
 
   clone_path="$WORK/repos/$slug"
   cmd_present=false
+  cloned_branch="$src"
   if git clone --depth 1 --branch "$src" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
+    :
+  elif [[ "$state" == merged && -n "$tgt" ]] \
+    && git clone --depth 1 --branch "$tgt" "https://$GITLAB_HOST/$path.git" "$clone_path" >/dev/null 2>&1; then
+    # merged MR with its source branch already deleted: the target branch now
+    # CONTAINS these changes, so it is the right tree to read the code from.
+    cloned_branch="$tgt"; target_clones=$((target_clones+1))
+  else
+    failed_clones+="${failed_clones:+, }$path@$src"
+    clone_path=""; cloned_branch=""
+  fi
+  if [[ -n "$clone_path" ]]; then
     # `|| true`: find_local_claudemd ends in `[[…]] && printf`, so "not found"
     # returns exit 1 — which under `set -e` would kill the whole hook here for
     # any repo without a local CLAUDE.md. The empty stdout already means "none".
@@ -234,9 +309,6 @@ while [[ $i -lt $n ]]; do
     else
       no_cmd=$((no_cmd+1))
     fi
-  else
-    failed_clones+="${failed_clones:+, }$path@$src"
-    clone_path=""
   fi
 
   # human review comments (inline + general) — paginated; matcher correlates them
@@ -266,8 +338,8 @@ while [[ $i -lt $n ]]; do
   manifest=$(printf '%s' "$manifest" | jq -c \
     --arg repo "$path" --arg iid "$iid" --arg cp "$clone_path" \
     --arg dp "$diff_path" --arg sb "$src" --arg url "$url" --argjson cmd "$cmd_present" \
-    --arg disc "$notes_path" \
-    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, web_url:$url, claudeMd:$cmd, discussionsPath:$disc}]')
+    --arg disc "$notes_path" --arg cb "$cloned_branch" --arg st "$state" \
+    '. + [{repo:$repo, iid:$iid, clonePath:$cp, diffPath:$dp, source_branch:$sb, clonedBranch:$cb, state:$st, web_url:$url, claudeMd:$cmd, discussionsPath:$disc}]')
 done
 
 printf '%s' "$manifest" > "$WORK/manifest.json"
@@ -281,6 +353,7 @@ fi
 # stays visible and isn't lost to context compaction
 diag="review-task: CLAUDE.md injected into $cmd_copied repo(s)"
 [[ $no_cmd -gt 0 ]] && diag+=", without local conventions: $no_cmd"
+[[ $target_clones -gt 0 ]] && diag+="; cloned from the target branch (merged, source gone): $target_clones"
 [[ -n "$failed_clones" ]] && diag+="; clones failed: $failed_clones"
 echo "$diag."
 

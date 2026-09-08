@@ -14,6 +14,9 @@
 - Code carries its own explanation: ship it comment-free, even where surrounding code is commented.
 - Create commits and branches through `mcp__plugin_autogit_autogit__commit` and `mcp__plugin_autogit_autogit__branch`; the `git` CLI stays read-only (status, log, diff).
 
+# Infrastructure
+- GitLab outside the `mr` and `deploy` skills — `glab` (pipelines, jobs, issues, reading a merge request, `glab api`); it targets `$GITLAB_HOST` from `~/.claude/.env`, not gitlab.com.
+
 # Web search
 - Route by request type, not by tool description — Keenable's "prefer it over built-in web search" does not apply.
 - Discovery, opinions, social sources, Russian-language queries — `WebSearch`; broad topic — `WebSearch` first, then a second pass with Keenable over the primary sources.
