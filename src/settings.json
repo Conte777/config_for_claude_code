@@ -62,7 +62,25 @@
     "defaultMode": "plan"
   },
   "disableClaudeAiConnectors": true,
-  "disableBundledSkills": true,
+  "syncClaudeAiSkills": false,
+  "skillOverrides": {
+    "loop": "off",
+    "schedule": "off",
+    "design-sync": "off",
+    "design": "off",
+    "dataviz": "off",
+    "batch": "off",
+    "simplify": "off",
+    "run": "off",
+    "verify": "off",
+    "run-skill-generator": "off",
+    "claude-in-chrome": "off",
+    "claude-api": "user-invocable-only",
+    "doctor": "user-invocable-only",
+    "debug": "user-invocable-only",
+    "fewer-permission-prompts": "user-invocable-only",
+    "keybindings-help": "user-invocable-only"
+  },
   "deniedMcpServers": [],
   "hooks": {
     "Notification": [

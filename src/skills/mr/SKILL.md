@@ -1,12 +1,10 @@
 ---
 name: mr
 description: Create a GitLab merge request, put a branch up for review, or block one merge request on another. Every merge request in a GitLab repo goes through here, including one you decided to open yourself.
-allowed-tools: AskUserQuestion, mcp__plugin_autogit_autogit__branch, mcp__plugin_autogit_autogit__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*), Bash(glab mr update:*)
+allowed-tools: mcp__plugin_autogit_autogit__branch, mcp__plugin_autogit_autogit__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*), Bash(glab mr update:*)
 ---
 
 # Create a merge request
-
-Ask every question in this skill with AskUserQuestion.
 
 Values used throughout: `REPO` = `git rev-parse --show-toplevel`, `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`, needed only by the `glab api` calls in step 7, `TICKET` = the ticket id for this work, sourced as step 2 describes.
 

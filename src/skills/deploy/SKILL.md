@@ -1,12 +1,10 @@
 ---
 name: deploy
 description: Roll a service out to dev or stage through its GitLab pipeline — trigger the build job, replay a deploy of the same commit, cut the release tag that carries stage. Use for any request to deploy, redeploy or ship a change.
-allowed-tools: AskUserQuestion, Monitor, Bash(git fetch:*), Bash(git rev-parse:*), Bash(git log:*), Bash(git status:*), Bash(git remote get-url:*), Bash(glab ci:*), Bash(glab api:*)
+allowed-tools: Monitor, Bash(git fetch:*), Bash(git rev-parse:*), Bash(git log:*), Bash(git status:*), Bash(git remote get-url:*), Bash(glab ci:*), Bash(glab api:*)
 ---
 
 # Deploy
-
-Ask every question in this skill with AskUserQuestion.
 
 Values: `BRANCH` = `git rev-parse --abbrev-ref HEAD`, `PROJECT` = the URL-encoded project path (`group%2Fsub%2Fproject`) derived from `git remote get-url origin`, needed only by the `glab api` calls.
 

@@ -83,3 +83,6 @@ src/plugins/
 # and the symlink it points at the skill directory inside each clone
 src/skills/.external/
 src/skills/archify
+
+src/skills/synced/
+src/skills/.trash/
