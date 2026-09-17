@@ -1,4 +1,5 @@
 {
+  "syncClaudeAiSkills": false,
   "env": {
     "CLAUDE_CODE_NEW_INIT": "1",
     "ENABLE_TOOL_SEARCH": "true",
@@ -62,7 +63,6 @@
     "defaultMode": "plan"
   },
   "disableClaudeAiConnectors": true,
-  "syncClaudeAiSkills": false,
   "skillOverrides": {
     "loop": "off",
     "schedule": "off",
@@ -421,5 +421,6 @@
       "routine under `~/Projects/mcp` prefix: `Bash(task:*)` build/lint/test/schema driver noted in prior settings as routine (70× observed) — out of scope for this project's proposal since scope is just this project"
     ]
   },
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "opus[1m]"
 }
