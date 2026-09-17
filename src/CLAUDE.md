@@ -8,6 +8,7 @@
 - Change only what the task asks — no drive-by refactors of unrelated code or config.
 - Verify against the real code before proposing — check how sibling code does it, don't invent APIs. Sibling services in the same monorepo are the reference: if they do it the same way, leave it — don't "fix" a shared pattern in one service.
 - Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out.
+- Code navigation — `LSP` first (deferred: load it via ToolSearch) for definitions, references, interface implementations, call hierarchy, and types; Grep for plain text: strings, config, comments, and languages without a language server.
 
 # Workflow
 - A task is done when tests and linters have run. Report failures with the command output.

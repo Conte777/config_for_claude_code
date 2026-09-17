@@ -28,16 +28,9 @@
       "ExitPlanMode",
       "EnterWorktree",
       "ExitWorktree",
-      "CronCreate",
-      "CronDelete",
-      "CronList",
-      "ScheduleWakeup",
       "PushNotification",
-      "AskUserQuestion",
       "WebSearch",
       "WebFetch",
-      "DesignSync",
-      "RemoteTrigger",
       "ListMcpResourcesTool",
       "ReadMcpResourceTool",
       "mcp__context7__*",
@@ -51,13 +44,25 @@
       "Bash(glab ci:*)",
       "Bash(glab auth status:*)"
     ],
-    "deny": [],
+    "deny": [
+      "NotebookEdit",
+      "ReportFindings",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      "RemoteTrigger",
+      "AskUserQuestion",
+      "DesignSync",
+      "SendFeedback"
+    ],
     "ask": [
       "Bash(kubectl delete:*)"
     ],
     "defaultMode": "plan"
   },
   "disableClaudeAiConnectors": true,
+  "disableBundledSkills": true,
   "deniedMcpServers": [],
   "hooks": {
     "Notification": [
@@ -268,7 +273,6 @@
   "enabledPlugins": {
     "autogit@autogit": true,
     "clangd-lsp@claude-plugins-official": true,
-    "eli5@claude-community": true,
     "gopls-lsp@claude-plugins-official": true,
     "infra-mcp-postgres@infra-mcp": true,
     "mattpocock-skills@mattpocock": true,
@@ -278,7 +282,7 @@
     "swift-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "watch@claude-video": true,
-    "lighter@lighter": true
+    "show-me@skills": true
   },
   "extraKnownMarketplaces": {
     "autogit": {
@@ -323,10 +327,16 @@
         "repo": "anthropics/claude-plugins-official"
       }
     },
-    "lighter": {
+    "skills": {
       "source": {
         "source": "github",
-        "repo": "Conte777/lighter"
+        "repo": "humanlayer/skills"
+      }
+    },
+    "taste-skill": {
+      "source": {
+        "source": "github",
+        "repo": "leonxlnx/taste-skill"
       }
     }
   },
@@ -342,6 +352,7 @@
     "enabled": true,
     "mode": "hold"
   },
+  "timeFormat": "24-hour",
   "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
   "autoCompactEnabled": true,
