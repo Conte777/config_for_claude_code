@@ -1,7 +1,7 @@
 ---
 name: mr
 description: Create a GitLab merge request, put a branch up for review, or block one merge request on another. Every merge request in a GitLab repo goes through here, including one you decided to open yourself.
-allowed-tools: AskUserQuestion, mcp__plugin_autogit_autogit__branch, mcp__plugin_autogit_autogit__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*)
+allowed-tools: AskUserQuestion, mcp__plugin_autogit_autogit__branch, mcp__plugin_autogit_autogit__commit, Bash(git fetch:*), Bash(git remote get-url:*), Bash(git ls-remote:*), Bash(git rev-parse:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git push:*), Bash(glab api:*), Bash(glab mr create:*), Bash(glab mr list:*), Bash(glab mr update:*)
 ---
 
 # Create a merge request
@@ -18,10 +18,12 @@ Skipping the fetch makes `origin/<TARGET>` stale, which silently corrupts the co
 
 ## 2. Land on a feature branch
 
+Take `TICKET` from the current branch name, or from the ticket the user named in this session. With neither, ask the user whether this work has a ticket; a "no" leaves `TICKET` empty. Never infer an id from commit messages, the diff, or file contents — a match there belongs to someone else's work and sends the branch and the merge request to the wrong ticket.
+
 `BRANCH` is one of `main`, `master`, `develop`, `stage`, `staging`:
 
 - `git status --porcelain` empty → stop and report that there is nothing to branch from. Create no branch.
-- Otherwise take `TICKET` from the current branch name, or from the ticket the user named in this session. With neither, ask the user whether this work has a ticket. Never infer an id from commit messages, the diff, or file contents — a match there belongs to someone else's work and sends the branch to the wrong ticket. Then call `mcp__plugin_autogit_autogit__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
+- Otherwise call `mcp__plugin_autogit_autogit__branch` with `repoPath: REPO`, the ticket, and a short free-text description of the change. The server builds the branch name.
 
 `BRANCH` is a feature branch and the user named a ticket whose id does not appear in `BRANCH` → ask whether to continue on this branch, and stop if the user declines. A missing ticket in the name usually means the branch was cut without one, or that you are standing on the wrong branch — either is worth catching before the push. Leave the branch name as it is.
 
@@ -41,16 +43,41 @@ Otherwise `git push -u origin HEAD`.
 
 ## 5. Merge request
 
+Bind `~/.claude/.env` in the same shell as every `glab mr` call of this step: `set -a; . ~/.claude/.env; set +a`. It carries `GITLAB_MR_REVIEWERS` (comma-separated GitLab usernames) and `JIRA_URL` (bare Jira host). Either one empty → carry on without the reviewers or the ticket link, and name the empty variable in the report.
+
+### Merge request text
+
+Write it from `git log origin/<TARGET>..HEAD` and `git diff origin/<TARGET>..HEAD` — the whole branch, not its latest commit.
+
+- **Title** — one line in English. With `TICKET`: `<TICKET>: <summary>`, e.g. `CUS-1930: Add retries on notification send`. Without: a conventional-commit type with no scope, e.g. `feat: add retries on notification send` (`feat`, `fix`, `docs`, `refactor`, `chore`, …).
+- **Description** — markdown: with `TICKET`, the line `Задача: [<TICKET>](https://<JIRA_URL>/browse/<TICKET>)` and a blank line; then 2–5 bullets in Russian, each a change in behaviour and its reason, never a file list.
+
+Pipe the description to `--description-file -`, printing the link line from the shell variables so the Jira host stays out of the text you write:
+
+```
+{ printf 'Задача: [%s](https://%s/browse/%s)\n\n' "$TICKET" "$JIRA_URL" "$TICKET"; cat <<'EOF'
+- <change and its reason>
+EOF
+} | glab mr <create|update> ... --description-file -
+```
+
+`TICKET` or `JIRA_URL` empty → drop the `printf` and pipe the bullets alone.
+
+### Create or update
+
 `glab mr list --source-branch BRANCH --output json` — with no state flag it lists open merge requests only. `glab` picks the project and the host from `git remote`, so no id and no token are needed here.
 
-- A record comes back → keep that merge request exactly as it is, title and description included, and carry its `iid` into step 6.
 - The list is empty → create one:
 
   ```
-  glab mr create --source-branch BRANCH --target-branch TARGET --title "<first commit>" --description "" --yes
+  glab mr create --source-branch BRANCH --target-branch TARGET --title "<title>" --reviewer "$GITLAB_MR_REVIEWERS" --description-file - --yes
   ```
 
-  `<first commit>` is the **first** commit of the branch, i.e. the last line of `git log --pretty=%s origin/<TARGET>..HEAD`. `--yes` skips the confirmation prompt and the empty `--description` keeps the description empty. If `glab` opens an editor anyway, re-run with `--no-editor`.
+  `--yes` skips the confirmation prompt. If `glab` opens an editor anyway, re-run with `--no-editor`.
+
+- A record comes back → carry its `iid` into step 6, then:
+  1. Check the record's `title` and `description` against the branch. Either one states something the diff contradicts, or leaves out a change the branch makes → rewrite it to the format above with `glab mr update <iid> --title "<title>" --description-file -`. Keep lines that describe no code (deploy order, a note for the reviewer) as they are. Both match the branch → leave them untouched.
+  2. `glab mr update <iid> --reviewer +<user> --reviewer +<user> …` — one `+<user>` per name in `GITLAB_MR_REVIEWERS`. A bare list replaces the reviewers and drops the ones assigned by hand; `+` adds to them.
 
 ## 6. Dependencies
 
@@ -78,4 +105,4 @@ A failing POST or a status other than `merge_request_blocked` is not a reason to
 
 ## Done
 
-Report the merge request URL, then the blocks that took effect and the ones that did not, as separate lists. With no confirming question left in the flow, this report is the only place a missing block becomes visible.
+Report the merge request URL, whether the title and description were written, rewritten or left as they were, then the blocks that took effect and the ones that did not, as separate lists. With no confirming question left in the flow, this report is the only place a missing block becomes visible.
