@@ -1,81 +1,94 @@
 #!/usr/bin/env bash
 set -euo pipefail
-for c in jq uv; do command -v "$c" >/dev/null 2>&1 || exit 0; done
+command -v jq >/dev/null 2>&1 || exit 0
+
+MAX_BLOCKS=3
 
 input=$(cat)
 
-workspace=$(echo "$input" | jq -r '
-  .session.workspace // .session.cwd // .cwd // empty
-')
+session_id=$(echo "$input" | jq -r '.session_id // empty')
 
-if [[ -z "$workspace" ]]; then
-  workspace="$PWD"
+if [[ -z "$session_id" ]]; then
+  exit 0
+fi
+
+session_file="$HOME/.claude/.lint-sessions/$session_id"
+blocks_file="$session_file.blocks"
+
+if [[ ! -f "$session_file" ]]; then
+  exit 0
 fi
 
 find_project_root() {
-  local dir="$1"
-  local marker="$2"
+  local dir="$1" marker="$2"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/$marker" ]]; then
-      echo "$dir"
-      return 0
-    fi
+    [[ -f "$dir/$marker" ]] && { echo "$dir"; return 0; }
     dir=$(dirname "$dir")
   done
   return 1
 }
 
-messages=()
-
-# --- Go linting ---
-go_module_root=$(find_project_root "$workspace" "go.mod") || true
-
-if [[ -n "$go_module_root" ]]; then
-  if ! command -v golangci-lint &>/dev/null; then
-    messages+=("⚠️ golangci-lint not found in PATH. Install: https://golangci-lint.run/usage/install/")
+lint_go() {
+  local file="$1" dir module_root relative target
+  command -v golangci-lint >/dev/null 2>&1 || return 0
+  dir=$(dirname "$file")
+  module_root=$(find_project_root "$dir" "go.mod") || return 0
+  if [[ "$dir" == "$module_root" ]]; then
+    target="./"
   else
-    go_output=$(cd "$go_module_root" && golangci-lint run --timeout=120s ./... 2>&1) && go_exit=0 || go_exit=$?
-    go_output=$(echo "$go_output" | grep -v '^level=warning' || true)
-
-    if [[ $go_exit -eq 0 ]]; then
-      messages+=("✅ golangci-lint: no issues in project")
-    elif [[ $go_exit -eq 1 ]]; then
-      messages+=("⚠️ golangci-lint found issues in project:
-${go_output}")
-    else
-      messages+=("⚠️ golangci-lint error (exit ${go_exit}):
-${go_output}")
-    fi
+    target="./${dir#"$module_root"/}/"
   fi
-fi
+  (cd "$module_root" && golangci-lint run --timeout=60s "$target" 2>/dev/null) \
+    | grep -E '^[^[:space:]]+:[0-9]+:[0-9]+:' || true
+}
 
-# --- Python linting ---
-py_project_root=$(find_project_root "$workspace" "pyproject.toml") || \
-  py_project_root=$(find_project_root "$workspace" "ruff.toml") || true
-
-if [[ -n "${py_project_root:-}" ]]; then
-  if ! command -v uv &>/dev/null; then
-    messages+=("⚠️ uv not found in PATH. Install: https://docs.astral.sh/uv/getting-started/installation/")
-  else
-    py_output=$(cd "$py_project_root" && uv run ruff check . 2>&1) && py_exit=0 || py_exit=$?
-
-    if [[ $py_exit -eq 0 ]]; then
-      messages+=("✅ ruff: no issues in project")
-    elif [[ $py_exit -eq 1 ]]; then
-      messages+=("⚠️ ruff found issues in project:
-${py_output}")
-    else
-      messages+=("⚠️ ruff error (exit ${py_exit}):
-${py_output}")
-    fi
+lint_python() {
+  local file="$1"
+  if command -v ruff >/dev/null 2>&1; then
+    ruff check --output-format concise "$file" 2>/dev/null | grep -E ':[0-9]+:[0-9]+: ' || true
+  elif command -v uvx >/dev/null 2>&1; then
+    uvx ruff check --output-format concise "$file" 2>/dev/null | grep -E ':[0-9]+:[0-9]+: ' || true
   fi
+}
+
+findings=""
+seen_packages=""
+
+while IFS= read -r file; do
+  [[ -n "$file" && -f "$file" ]] || continue
+  case "$file" in
+    *.go)
+      package_dir=$(dirname "$file")
+      case "$seen_packages" in
+        *"|$package_dir|"*) continue ;;
+      esac
+      seen_packages="$seen_packages|$package_dir|"
+      out=$(lint_go "$file")
+      ;;
+    *.py) out=$(lint_python "$file") ;;
+    *) continue ;;
+  esac
+  [[ -n "$out" ]] && findings="${findings}${out}"$'\n'
+done < "$session_file"
+
+findings=$(printf '%s' "$findings" | sed '/^$/d')
+
+if [[ -z "$findings" ]]; then
+  rm -f "$blocks_file"
+  exit 0
 fi
 
-# --- Output ---
-if [[ ${#messages[@]} -eq 0 ]]; then
-  echo '{"continue": true}'
-else
-  combined=$(printf '%s\n\n' "${messages[@]}")
-  jq -n --arg msg "$combined" \
-    '{continue: true, systemMessage: $msg}'
+blocks=0
+[[ -f "$blocks_file" ]] && blocks=$(cat "$blocks_file" 2>/dev/null || echo 0)
+
+if [[ "$blocks" -ge "$MAX_BLOCKS" ]]; then
+  jq -n --arg msg "⚠️ Lint still failing after $MAX_BLOCKS attempts — letting the turn end. Outstanding:
+$findings" '{systemMessage: $msg}'
+  rm -f "$blocks_file"
+  exit 0
 fi
+
+echo $((blocks + 1)) > "$blocks_file"
+
+jq -n --arg reason "The files you changed this session still fail the linter. Fix these before finishing:
+$findings" '{decision: "block", reason: $reason}'

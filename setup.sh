@@ -59,6 +59,13 @@ command -v officecli >/dev/null 2>&1 \
 # hooks and duplicates them. On Linux those hooks just fail loudly and harmlessly.
 command -v adrafinil >/dev/null 2>&1 \
     || warn "adrafinil not found — its 10 hooks in settings.json will error on every run (macOS-only tool)."
+# The lint plugin skips a language whose tool is absent, and the Stop gate with it.
+command -v golangci-lint >/dev/null 2>&1 \
+    || warn "golangci-lint not found — Go files will not be linted: https://golangci-lint.run/usage/install/"
+command -v ruff >/dev/null 2>&1 || command -v uvx >/dev/null 2>&1 \
+    || warn "neither ruff nor uvx found — Python files will not be linted: https://docs.astral.sh/uv/getting-started/installation/"
+command -v google-java-format >/dev/null 2>&1 \
+    || warn "google-java-format not found — Java files will not be formatted: brew install google-java-format"
 success "  all required commands present"
 
 # --- 2. secrets ---------------------------------------------------------------
