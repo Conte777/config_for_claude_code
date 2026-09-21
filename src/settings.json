@@ -209,16 +209,6 @@
     ],
     "Stop": [
       {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/lint-project.sh",
-            "timeout": 150
-          }
-        ]
-      },
-      {
         "hooks": [
           {
             "type": "command",

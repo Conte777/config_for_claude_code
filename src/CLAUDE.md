@@ -13,7 +13,7 @@
 # Workflow
 - A task is done when tests and linters have run. Report failures with the command output.
 - Code carries its own explanation: ship it comment-free, even where surrounding code is commented.
-- Create commits and branches through `mcp__plugin_autogit_autogit__commit` and `mcp__plugin_autogit_autogit__branch`; the `git` CLI stays read-only (status, log, diff).
+- Create commits and branches through `mcp__plugin_autogit_autogit__commit` and `mcp__plugin_autogit_autogit__branch`. 
 
 # Infrastructure
 - GitLab outside the `mr` and `deploy` skills — `glab` (pipelines, jobs, issues, reading a merge request, `glab api`); it targets `$GITLAB_HOST` from `~/.claude/.env`, not gitlab.com.
