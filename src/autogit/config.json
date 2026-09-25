@@ -6,6 +6,21 @@
     "allowProtectedBranch": true
   },
   "workspaces": [
-    { "path": "~/Work/friday-releases", "preset": "ticket" }
-  ]
+    {
+      "path": "~/Work/friday-releases",
+      "preset": "ticket"
+    }
+  ],
+  "presets": {
+    "conventional": {
+      "commit": {
+        "maxSubject": 82
+      }
+    },
+    "ticket": {
+      "commit": {
+        "maxSubject": 60
+      }
+    }
+  }
 }

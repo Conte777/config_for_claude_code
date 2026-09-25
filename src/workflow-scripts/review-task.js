@@ -64,18 +64,17 @@ const SOURCES = `Sources (read with Read/Grep, absolute paths):
 const taskPrompt = `Review one Jira task spread across several merge requests (possibly in different repositories). Your review lens (role + what to hunt for) is defined by your agent prompt — stay strictly within it.
 
 ${SOURCES}
-- Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true — the repo's rules and DELIBERATE quirks. Read it BEFORE judging that repo.
+- Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true — the repo's rules and deliberate quirks. Read it before judging that repo.
 
-LINE NUMBERS: the "line" field MUST be the line number in the CLONED SOURCE FILE under clonePath — NEVER the line position inside the .diff file. A unified diff shifts every hunk by the preamble above it (for a new-file hunk the added lines are offset by the diff-file line where the hunk starts), so positions read off the .diff are wrong. To pin a line: open the actual file in clonePath and read its real line number there; use the diff only to locate WHAT changed, not to count line numbers.
+Line numbers: the "line" field is the line number in the cloned source file under clonePath, not the line position inside the .diff file. A unified diff shifts every hunk by the preamble above it (for a new-file hunk the added lines are offset by the diff-file line where the hunk starts), so positions read off the .diff are wrong. Open the actual file in clonePath and read its real line number there; use the diff only to locate what changed.
 
-Read manifest.json first. For each MR, study its diff, then OPEN the full code in clonePath and investigate: follow imports, callers, and related files to confirm a problem is real and actually reachable before flagging it.
+Read manifest.json first. For each MR, study its diff, then open the full code in clonePath and follow imports, callers, and related files to see how the change behaves.
 
-Hard rules:
-- Flag ONLY problems introduced by the CHANGED code (the diffs). Surrounding code is context only.
-- Respect patterns documented in the repo's CLAUDE.md (e.g. manual DI instead of FX, load-bearing typos that must NOT be "fixed") — do not report them as defects.
-- EVIDENCE, not speculation: every finding must name the concrete mechanism and the trigger/reachability path (which input or call sequence makes it happen). If you cannot point at the exact code that fails, do not report it.
-- Severity: "critical" = breaks prod, corrupts data, or is exploitable — must fix before merge; "warning" = real defect or risk — fix soon; "suggestion" = optional improvement.
-- Do NOT report: style/formatting/naming; "add error handling/logging/tests" where it already exists or isn't needed; hypotheticals with no trigger; anything you are unsure about. When in doubt, stay silent — a missed nitpick beats a false alarm. A clean change is a valid result (return no findings).
+Rules:
+- Report problems introduced by the changed code (the diffs). Surrounding code is context only.
+- Patterns documented in the repo's CLAUDE.md (e.g. manual DI instead of FX, load-bearing typos that stay as they are) are not defects.
+- Your job at this stage is coverage, not filtering: a separate validator re-checks every finding against the code and drops the ones that don't hold. Report every issue you find in your lens, including ones you are uncertain about or consider low-severity; it is better to surface a finding that later gets refuted than to silently drop a bug. Name the mechanism and the trigger as far as you established them, and say in "why" what you could not confirm.
+- Leave out pure style, formatting, and naming preferences. A clean change is a valid result (return no findings).
 
 Each finding's fields — write title/why/explanation in RUSSIAN, keep code/identifiers/paths in English:
 - severity, repo, iid (from manifest), file, line (string, "" if N/A)
@@ -94,7 +93,7 @@ const runLens = async (key) => {
   let prompt = key === 'over-engineering' && KEY
     ? `${taskPrompt}\n\nContext — what the task actually required: \`${WORK}/task.md\` (its description + comments). Complexity that this requirement genuinely demands is NOT over-engineering; only flag complexity beyond what the task asks for.`
     : taskPrompt
-  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: `review-${key}` }
+  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: `review-${key}`, disallowedTools: READ_ONLY }
   let r = await agent(prompt, opts)
   if (!r) r = await agent(prompt, opts) // 1 retry on a dropped stream
   return { lens: key, findings: (r && r.findings) || [] }
@@ -123,7 +122,7 @@ Each finding's fields — write title/why/explanation in RUSSIAN, keep code/iden
 If task.md is absent, states no checkable requirements, or everything is covered → return {"findings": []}.`
 
 const runCompleteness = async () => {
-  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: 'review-completeness' }
+  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: 'review-completeness', disallowedTools: READ_ONLY }
   let r = await agent(completenessPrompt, opts)
   if (!r) r = await agent(completenessPrompt, opts) // 1 retry on a dropped stream
   return { lens: 'completeness', findings: (r && r.findings) || [] }

@@ -1,0 +1,255 @@
+<title>Название плана</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --ink:#16202c; --muted:#5a6676; --line:#d8dee7; --code-bg:#eceff4;
+  --accent:#2b59c3; --accent-soft:#e6ecfa;
+  --add:#1f7a4d; --add-soft:#e1f2e8;
+  --del:#b3372f; --del-soft:#f8e5e3;
+  --edit:#9a6212; --edit-soft:#f7ecd9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0f141b; --surface:#171e27; --ink:#e4e9f0; --muted:#95a1b1; --line:#2a3441; --code-bg:#1f2833;
+    --accent:#7ea2ff; --accent-soft:#1c2a47;
+    --add:#5cc98e; --add-soft:#16301f;
+    --del:#f08a80; --del-soft:#3a1d1b;
+    --edit:#e0ae5c; --edit-soft:#352914;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f141b; --surface:#171e27; --ink:#e4e9f0; --muted:#95a1b1; --line:#2a3441; --code-bg:#1f2833;
+  --accent:#7ea2ff; --accent-soft:#1c2a47;
+  --add:#5cc98e; --add-soft:#16301f;
+  --del:#f08a80; --del-soft:#3a1d1b;
+  --edit:#e0ae5c; --edit-soft:#352914;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 "Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;padding-inline:16px}
+.wrap{max-width:820px;margin:0 auto;padding-block:40px 80px;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
+h1{font-size:30px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:20px;font-weight:600}
+h3{font-size:16px;font-weight:600}
+p{margin:0;max-width:68ch}
+ul,ol{margin:0}
+section{display:flex;flex-direction:column;gap:14px}
+code{font:.86em "JetBrains Mono",ui-monospace,Menlo,monospace;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{margin:0;background:var(--code-bg);border-radius:6px;padding:12px 14px;overflow-x:auto;font:13px/1.55 "JetBrains Mono",ui-monospace,Menlo,monospace}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.eyebrow{font:500 12px/1.4 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:12px}
+.summary{font-size:17px;line-height:1.55}
+.meta{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:12px/1 "JetBrains Mono",ui-monospace,monospace;padding:5px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+
+.k{font:500 11px/1 "JetBrains Mono",ui-monospace,monospace;text-transform:uppercase;letter-spacing:.04em;padding:4px 7px;border-radius:4px;white-space:nowrap}
+.k.add{background:var(--add-soft);color:var(--add)}
+.k.del{background:var(--del-soft);color:var(--del)}
+.k.edit{background:var(--edit-soft);color:var(--edit)}
+.k.keep{background:var(--code-bg);color:var(--muted)}
+.k.you{background:var(--accent-soft);color:var(--accent)}
+
+ul.changes{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}
+ul.changes li{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:baseline}
+ul.changes .k{justify-self:start}
+
+.dias{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+figure.dia{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+figure.dia .eyebrow{color:var(--muted)}
+figure.dia svg{width:100%;height:auto;display:block;color:var(--ink);overflow:visible}
+.dias.stack{grid-template-columns:1fr}
+.dia .scroll{overflow-x:auto}
+.dia .scroll svg{min-width:640px}
+figure.dia figcaption{font-size:13px;color:var(--muted)}
+.dia .n{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.dia .n.add{fill:var(--add-soft);stroke:var(--add)}
+.dia .n.del{fill:var(--del-soft);stroke:var(--del);stroke-dasharray:5 4}
+.dia .e{stroke:var(--muted);stroke-width:1.5;fill:none}
+.dia .e.add{stroke:var(--add);stroke-width:2}
+.dia .e.del{stroke:var(--del);stroke-dasharray:5 4}
+.dia .t{fill:var(--ink);font:500 13px "Golos Text",system-ui,sans-serif}
+.dia .t.s{fill:var(--muted);font:12px "JetBrains Mono",ui-monospace,monospace}
+.dia .t.del{fill:var(--del);text-decoration:line-through}
+.dia .ah{fill:var(--muted)}
+.dia .ah.add{fill:var(--add)}
+.dia .ah.del{fill:var(--del)}
+
+.pending{border:1px dashed var(--edit);border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.pending h2{color:var(--edit)}
+.pending ol{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.you-list{background:var(--accent-soft);border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.you-list ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+
+.divider{display:flex;align-items:center;gap:14px;margin-top:8px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+ol.steps{list-style:none;margin:0 0 0 12px;padding:0;counter-reset:s;border-left:2px solid var(--line)}
+ol.steps>li{counter-increment:s;position:relative;padding:0 0 26px 26px;display:flex;flex-direction:column;gap:8px}
+ol.steps>li:last-child{padding-bottom:0}
+ol.steps>li::before{content:counter(s);position:absolute;left:-13px;top:0;width:24px;height:24px;border-radius:50%;background:var(--bg);border:2px solid var(--accent);color:var(--accent);font:600 12px/20px "JetBrains Mono",monospace;text-align:center}
+.why{color:var(--muted)}
+ul.files{list-style:none;padding:0;display:flex;flex-direction:column;gap:5px}
+ul.files li{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:baseline}
+ul.files .k{justify-self:start}
+.done-when{font-size:14px}
+.done-when b{font-weight:600}
+details.ev{font-size:14px;color:var(--muted)}
+details.ev summary{cursor:pointer;width:fit-content}
+details.ev>div{padding:8px 0 0 16px;display:flex;flex-direction:column;gap:6px}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font:500 12px/1.4 "Golos Text",system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+td:first-child{width:45%}
+tr.grp td{background:var(--code-bg);font:500 12px/1.4 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding-block:6px}
+
+ul.plain{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.note{font-size:14px;color:var(--muted)}
+
+@media (max-width:560px){
+  h1{font-size:25px}
+  ul.changes li{grid-template-columns:1fr;gap:4px}
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">План</span>
+  <h1>Что меняем, одной фразой</h1>
+  <p class="summary">Два-три предложения простыми словами: что будет работать иначе после изменения и зачем.</p>
+  <div class="meta"><span class="chip">репозиторий</span><span class="chip">ветка</span><span class="chip">тикет</span></div>
+</header>
+
+<section>
+  <h2>Что изменится</h2>
+  <ul class="changes">
+    <li><span class="k del">убираем</span><span>Изменение простыми словами.</span></li>
+    <li><span class="k edit">меняем</span><span>Изменение простыми словами.</span></li>
+    <li><span class="k add">добавляем</span><span>Изменение простыми словами.</span></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Как это выглядит</h2>
+  <div class="dias">
+    <figure class="dia">
+      <span class="eyebrow">Было</span>
+      <svg viewBox="0 0 360 120" role="img" aria-label="A отправляет в B через старый канал и через новый">
+        <rect class="n" x="4" y="40" width="96" height="40" rx="6"/>
+        <text class="t" x="52" y="65" text-anchor="middle">A</text>
+        <rect class="n" x="260" y="40" width="96" height="40" rx="6"/>
+        <text class="t" x="52" y="65" text-anchor="middle" transform="translate(256 0)">B</text>
+        <line class="e" x1="100" y1="50" x2="252" y2="50"/>
+        <polygon class="ah" points="260,50 250,45 250,55"/>
+        <text class="t s" x="180" y="42" text-anchor="middle">старый канал</text>
+        <line class="e" x1="100" y1="70" x2="252" y2="70"/>
+        <polygon class="ah" points="260,70 250,65 250,75"/>
+        <text class="t s" x="180" y="88" text-anchor="middle">новый канал</text>
+      </svg>
+      <figcaption>Что показывает схема, одной фразой.</figcaption>
+    </figure>
+    <figure class="dia">
+      <span class="eyebrow">Станет</span>
+      <svg viewBox="0 0 360 120" role="img" aria-label="Старый канал удалён, A отправляет в B только через новый">
+        <rect class="n" x="4" y="40" width="96" height="40" rx="6"/>
+        <text class="t" x="52" y="65" text-anchor="middle">A</text>
+        <rect class="n" x="260" y="40" width="96" height="40" rx="6"/>
+        <text class="t" x="308" y="65" text-anchor="middle">B</text>
+        <line class="e del" x1="100" y1="50" x2="252" y2="50"/>
+        <polygon class="ah del" points="260,50 250,45 250,55"/>
+        <text class="t s del" x="180" y="42" text-anchor="middle">старый канал</text>
+        <line class="e add" x1="100" y1="70" x2="252" y2="70"/>
+        <polygon class="ah add" points="260,70 250,65 250,75"/>
+        <text class="t s" x="180" y="88" text-anchor="middle">новый канал</text>
+      </svg>
+      <figcaption>Что показывает схема, одной фразой.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="you-list">
+  <h2>Нужно от тебя</h2>
+  <ul>
+    <li>Ручное действие и перед каким шагом оно нужно.</li>
+  </ul>
+</section>
+
+<section class="pending">
+  <h2>Ещё не решено</h2>
+  <ol>
+    <li>Тема вопроса одной строкой.</li>
+  </ol>
+</section>
+
+<div class="divider"><span class="eyebrow">Подробно</span></div>
+
+<section>
+  <h2>Шаги</h2>
+  <ol class="steps">
+    <li>
+      <h3>Коммит или MR: что делает</h3>
+      <p class="why">Зачем этот шаг, одной строкой.</p>
+      <ul class="files">
+        <li><span class="k del">del</span><span><code>path/to/dir/</code></span></li>
+        <li><span class="k edit">edit</span><span><code>path/to/file.go</code>: что меняется</span></li>
+        <li><span class="k add">add</span><span><code>path/to/new.go</code>: что внутри</span></li>
+        <li><span class="k keep">keep</span><span><code>path/to/other.go</code>: почему не трогаем</span></li>
+      </ul>
+      <p><span class="k you">ждёт тебя</span> Ручное действие перед шагом.</p>
+      <p class="done-when"><b>Готово, когда</b> проверяемое условие: команда проходит, строка в логе, ключ исчез.</p>
+      <details class="ev">
+        <summary>Откуда известно</summary>
+        <div>
+          <p>Утверждение и его источник: <code>path/file.go:39-41</code>.</p>
+        </div>
+      </details>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>Решения</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Решение</th><th>Почему</th></tr></thead>
+    <tbody>
+      <tr class="grp"><td colspan="2">Тема</td></tr>
+      <tr><td>Итоговое решение.</td><td>Причина.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Что может сломаться</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Что сломается</th><th>Чем заметим</th></tr></thead>
+    <tbody>
+      <tr><td>Риск.</td><td>Сигнал, который система уже отдаёт: лог, метрика, строка в БД, тест.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Проверка на стенде</h2>
+  <ul class="plain">
+    <li><b>Что проверяем.</b> Какой сигнал подтверждает, что изменение сработало.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Не трогаем</h2>
+  <ul class="plain">
+    <li>Что остаётся как есть и почему.</li>
+  </ul>
+</section>
+
+</div>

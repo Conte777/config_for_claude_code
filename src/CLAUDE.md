@@ -6,12 +6,16 @@
 # Approach
 - Explain-then-act: asked to explain, diagnose, or discuss — no edits until told to.
 - Change only what the task asks — no drive-by refactors of unrelated code or config.
-- Verify against the real code before proposing — check how sibling code does it, don't invent APIs. Sibling services in the same monorepo are the reference: if they do it the same way, leave it — don't "fix" a shared pattern in one service.
-- Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out.
+- Verify against the real code before proposing — check how sibling code does it, don't invent APIs. Sibling services in the same monorepo are the reference for conventions: if they do it the same way, leave it — don't "fix" a shared pattern in one service.
+- A claim about how a dependency behaves ("otherwise fx panics", "the lib retries") is read from its source in the module cache, with `file:line`, before code, a plan, or MR text rests on it.
+- Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out. An option offered for a decision holds one change; an add-on rides as its own question with its own reason.
 - Code navigation — `LSP` first (deferred: load it via ToolSearch) for definitions, references, interface implementations, call hierarchy, and types; Grep for plain text: strings, config, comments, and languages without a language server.
 
 # Workflow
 - A task is done when tests and linters have run. Report failures with the command output.
+- Never write unit tests after the code — they only restate the implementation. Behavior is proven end-to-end.
+- Before code for a nontrivial change, list every way it can fail; then write the code against that list.
+- Verification on a stand confirms each change separately, from signals the system already emits — logs, metrics, DB rows, timings. When no existing signal shows a change fired, ask whether that change is needed at all.
 - Code carries its own explanation: ship it comment-free, even where surrounding code is commented.
 - Create commits and branches through `mcp__plugin_autogit_autogit__commit` and `mcp__plugin_autogit_autogit__branch`. 
 
