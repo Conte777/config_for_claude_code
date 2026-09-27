@@ -61,7 +61,7 @@
     "ask": [
       "Bash(kubectl delete:*)"
     ],
-    "defaultMode": "plan"
+    "defaultMode": "auto"
   },
   "disableClaudeAiConnectors": true,
   "skillOverrides": {
