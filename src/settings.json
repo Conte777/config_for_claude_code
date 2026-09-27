@@ -258,7 +258,6 @@
     "gopls-lsp@claude-plugins-official": true,
     "infra-mcp-postgres@infra-mcp": true,
     "mattpocock-skills@mattpocock": true,
-    "officecli@officecli": true,
     "pyright-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
@@ -297,12 +296,6 @@
       "source": {
         "source": "github",
         "repo": "mattpocock/skills"
-      }
-    },
-    "officecli": {
-      "source": {
-        "source": "github",
-        "repo": "officecli/officecli"
       }
     },
     "claude-plugins-official": {
@@ -401,4 +394,3 @@
   },
   "voiceEnabled": true
 }
-
