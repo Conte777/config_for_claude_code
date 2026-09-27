@@ -16,14 +16,6 @@
       "headers": {
         "X-API-Key": "${KEENABLE_API_KEY}"
       }
-    },
-    "verify": {
-      "args": [
-        "-y",
-        "verify-mcp@latest"
-      ],
-      "command": "npx",
-      "type": "stdio"
     }
   }
 }

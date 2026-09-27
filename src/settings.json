@@ -36,7 +36,6 @@
       "ListMcpResourcesTool",
       "ReadMcpResourceTool",
       "mcp__context7__*",
-      "mcp__verify__*",
       "mcp__plugin_infra-mcp-postgres_postgres__pg_read_*",
       "mcp__plugin_autogit_autogit__*",
       "mcp__keenable__*",
@@ -256,7 +255,6 @@
   },
   "enabledPlugins": {
     "autogit@autogit": true,
-    "clangd-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "infra-mcp-postgres@infra-mcp": true,
     "mattpocock-skills@mattpocock": true,
@@ -403,3 +401,4 @@
   },
   "voiceEnabled": true
 }
+
