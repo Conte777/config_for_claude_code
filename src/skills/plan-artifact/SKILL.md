@@ -39,7 +39,7 @@ Top half — readable without the code. Service and product names are fine; file
 
 - **Header**: a two-to-four-word name as `<title>` and `h1`, a 2–3 sentence summary of what works differently afterwards and why, meta chips for repo(s), branch and ticket.
 - **«Что изменится»**: 3–7 lines, one change each, tagged `add` / `edit` / `del`.
-- **Diagram**: «Было» and «Станет» of the mechanism the change touches, required whenever data flow, links between components, states or structure change. Load `artifact-diagramming` first, draw inline SVG with the template's `.dia` classes (`add` / `del` on nodes, edges, arrowheads and labels), label the edges, give each SVG its own marker ids. Flows wider than two columns go in `.dias.stack` with the SVG inside `.scroll` and class `wide`.
+- **Diagram**: «Было» and «Станет» of the mechanism the change touches, required whenever data flow, links between components, states or structure change. It holds only the components, links and states the change touches, plus the neighbours needed to read it. Load `artifact-diagramming` first, draw inline SVG with the template's `.dia` classes (`add` / `del` on nodes, edges, arrowheads and labels), label the edges, give each SVG its own marker ids. Flows wider than two columns go in `.dias.stack` with the SVG inside `.scroll` and class `wide`.
 - **«Нужно от тебя»**, only when the user must act by hand (a deposit to test a withdrawal flow, a login): each action and the step it blocks; the step itself carries the `ждёт тебя` tag.
 - **«Ещё не решено»**, only while questions are open.
 
