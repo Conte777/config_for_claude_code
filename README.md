@@ -40,7 +40,6 @@ setup.sh               deploy / re-sync
 cleanup.sh             remove the symlinks
 sync.sh                pull live state back into the repo
 .githooks/pre-commit   blocks commits containing a value from ~/.claude/.env
-docs/                  notes that outlived the files they came from
 ```
 
 `src/lib/`, `setup.sh`, `cleanup.sh` and `sync.sh` are repo tooling and are not
@@ -53,7 +52,7 @@ Supported: macOS and Linux. On Windows use WSL2 — the same bash scripts run un
 1. **Dependencies.** `setup.sh` requires `git`, `jq`, `node`, `npx`, `uv`, `gh` and
    `python3`, and stops with a list if any is missing. It never installs anything:
    guessing a package manager and reaching for `sudo` breaks the machine, not just the
-   config. `claude` itself and `officecli` are checked too, but only warned about.
+   config. `claude` itself is checked too, but only warned about.
 
    `autogit` is a dependency of the autogit plugin rather than of `setup.sh`, so nothing
    here checks for it — the plugin says so itself at the start of a session. Install it

@@ -21,4 +21,4 @@ Steps:
 
 A match means the lens still found the issue, so the code is likely NOT yet fixed even if the comment is marked resolved — report `resolved` as metadata, never as a reason to drop.
 
-Output: return exactly the caller's schema and nothing else — an array of `{ index, covered, author, quote, resolved }`, one entry per input finding. When `covered` is false, leave `author`/`quote` empty and `resolved` false.
+Output: return exactly the caller's schema and nothing else — `{ verdicts: [...] }` with one `{ index, covered, author, quote, resolved }` per input finding. When `covered` is false, leave `author`/`quote` empty and `resolved` false.

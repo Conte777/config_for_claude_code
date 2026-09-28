@@ -2,10 +2,10 @@ export const meta = {
   name: 'review-task',
   description: 'Review all MRs of a Jira task: 6 lenses + a task-completeness agent over diffs+clones, per-finding validation, then an opus summarizer.',
   phases: [
-    { title: 'Review', model: 'opus[1m]' },
-    { title: 'Dedupe', model: 'sonnet[1m]' },
-    { title: 'Validate', model: 'sonnet[1m]' },
-    { title: 'Match', model: 'sonnet[1m]' },
+    { title: 'Review', model: 'opus' },
+    { title: 'Dedupe', model: 'sonnet' },
+    { title: 'Validate', model: 'sonnet' },
+    { title: 'Match', model: 'sonnet' },
     { title: 'Summarize', model: 'opus' },
   ],
 }
@@ -73,7 +73,7 @@ Read manifest.json first. For each MR, study its diff, then open the full code i
 Rules:
 - Report problems introduced by the changed code (the diffs). Surrounding code is context only.
 - Patterns documented in the repo's CLAUDE.md (e.g. manual DI instead of FX, load-bearing typos that stay as they are) are not defects.
-- Your job at this stage is coverage, not filtering: a separate validator re-checks every finding against the code and drops the ones that don't hold. Report every issue you find in your lens, including ones you are uncertain about or consider low-severity; it is better to surface a finding that later gets refuted than to silently drop a bug. Name the mechanism and the trigger as far as you established them, and say in "why" what you could not confirm.
+- Your job at this stage is coverage, not filtering: a separate validator re-checks every finding against the code and drops the ones that don't hold. For this run that replaces the evidence bar in your agent prompt ("report only what you can tie to concrete code", "a false alarm is worse than a missed nitpick"). Report every issue you find in your lens, including ones you are uncertain about or consider low-severity; it is better to surface a finding that later gets refuted than to silently drop a bug. Name the mechanism and the trigger as far as you established them, and say in "why" what you could not confirm.
 - Leave out pure style, formatting, and naming preferences. A clean change is a valid result (return no findings).
 
 Each finding's fields — write title/why/explanation in RUSSIAN, keep code/identifiers/paths in English:
@@ -93,7 +93,7 @@ const runLens = async (key) => {
   let prompt = key === 'over-engineering' && KEY
     ? `${taskPrompt}\n\nContext — what the task actually required: \`${WORK}/task.md\` (its description + comments). Complexity that this requirement genuinely demands is NOT over-engineering; only flag complexity beyond what the task asks for.`
     : taskPrompt
-  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: `review-${key}`, disallowedTools: READ_ONLY }
+  const opts = { label: `lens:${key}`, phase: 'Review', schema: FINDINGS, model: 'opus', agentType: `review-${key}`, disallowedTools: READ_ONLY }
   let r = await agent(prompt, opts)
   if (!r) r = await agent(prompt, opts) // 1 retry on a dropped stream
   return { lens: key, findings: (r && r.findings) || [] }
@@ -122,7 +122,7 @@ Each finding's fields — write title/why/explanation in RUSSIAN, keep code/iden
 If task.md is absent, states no checkable requirements, or everything is covered → return {"findings": []}.`
 
 const runCompleteness = async () => {
-  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: 'opus[1m]', agentType: 'review-completeness', disallowedTools: READ_ONLY }
+  const opts = { label: 'completeness', phase: 'Review', schema: FINDINGS, model: 'opus', agentType: 'review-completeness', disallowedTools: READ_ONLY }
   let r = await agent(completenessPrompt, opts)
   if (!r) r = await agent(completenessPrompt, opts) // 1 retry on a dropped stream
   return { lens: 'completeness', findings: (r && r.findings) || [] }
@@ -174,7 +174,7 @@ Rules:
 - Every index appears at most once across all clusters. Report only clusters of 2+ indices; singletons are implied and must be omitted.
 
 No duplicates at all → return {"clusters": []}.`
-const deduped = await agent(dedupePrompt, { label: 'dedupe', phase: 'Dedupe', model: 'sonnet[1m]', schema: CLUSTERS, disallowedTools: NO_CODE })
+const deduped = await agent(dedupePrompt, { label: 'dedupe', phase: 'Dedupe', model: 'sonnet', schema: CLUSTERS, disallowedTools: NO_CODE })
 
 const RANK = { critical: 3, warning: 2, suggestion: 1 }
 const byIndex = new Map(all.map((f) => [f.index, f]))
@@ -228,9 +228,9 @@ ${SOURCES}
 - Repo conventions: \`<clonePath>/CLAUDE.md\` when manifest's claudeMd is true.
 
 Do this:
-1. LOCATE: find the MR in manifest.json, open the named file inside its clonePath and find the code the finding is about. If file/line point at the wrong place but the described code does exist among that MR's changed files, CORRECT file/line instead of refuting — a wrong address is not a wrong finding.
-2. PIN THE LINE: "line" MUST be the real line number in the cloned source file. NEVER a position inside the .diff — a unified diff shifts every hunk by its preamble, so numbers read off the .diff are wrong. Open the source and read the number there.
-3. REFUTE, actively: is the code actually reachable? is there a guard upstream? does the described trigger really exist? is the problem introduced by THIS diff, or pre-existing code the MR only touched nearby? Does clonePath/CLAUDE.md document this as a deliberate convention (manual DI, load-bearing typos, etc.)?
+1. Locate: find the MR in manifest.json, open the named file inside its clonePath and find the code the finding is about. If file/line point at the wrong place but the described code does exist among that MR's changed files, correct file/line instead of refuting — a wrong address is not a wrong finding.
+2. Pin the line: "line" is the real line number in the cloned source file, not a position inside the .diff — a unified diff shifts every hunk by its preamble, so numbers read off the .diff are wrong. Open the source and read the number there.
+3. Refute, actively: is the code actually reachable? is there a guard upstream? does the described trigger really exist? is the problem introduced by this diff, or pre-existing code the MR only touched nearby? Does clonePath/CLAUDE.md document this as a deliberate convention (manual DI, load-bearing typos, etc.)?
 
 Verdict:
 - "confirmed" — you found the mechanism AND the trigger in the code.
@@ -256,7 +256,7 @@ file/line: where the work belongs — corrected if the finding pointed at the wr
 
 const validateOne = async (f) => {
   const prompt = f.lens === 'completeness' ? completenessValidatePrompt(f) : defectValidatePrompt(f)
-  const opts = { label: `validate:${f.repo}#${f.iid}:${f.title.slice(0, 40)}`, phase: 'Validate', model: 'sonnet[1m]', schema: VERDICT, disallowedTools: READ_ONLY }
+  const opts = { label: `validate:${f.repo}#${f.iid}:${f.title.slice(0, 40)}`, phase: 'Validate', model: 'sonnet', schema: VERDICT, disallowedTools: READ_ONLY }
   let v = await agent(prompt, opts)
   if (!v) v = await agent(prompt, opts) // 1 retry on a dropped stream
   if (!v) return { ...f, doubt: 'валидатор не ответил — находка не проверена' }
@@ -302,13 +302,13 @@ const VERDICTS = {
 }
 const matchPrompt = `Match each automated review finding against the human comments already left on its MR.
 
-Findings (JSON; "index" is the stable id, "comment" if present is irrelevant — ignore it):
+Findings (JSON; "index" is the stable id):
 ${JSON.stringify(survivors.map((f) => ({ index: f.index, repo: f.repo, iid: f.iid, file: f.file, title: f.title, why: f.why })))}
 
 Manifest: ${WORK}/manifest.json — each MR has a discussionsPath to its human comments. Follow your agent prompt.
 
 Return {"verdicts": [...]} with one entry {index, covered, author, quote, resolved} per finding above.`
-const matched = await agent(matchPrompt, { label: 'comment-match', phase: 'Match', model: 'sonnet[1m]', agentType: 'review-comment-match', schema: VERDICTS })
+const matched = await agent(matchPrompt, { label: 'comment-match', phase: 'Match', model: 'sonnet', agentType: 'review-comment-match', schema: VERDICTS })
 for (const f of survivors) f.comment = null
 if (matched && matched.verdicts) {
   for (const v of matched.verdicts) {
@@ -326,13 +326,13 @@ Code and manifest: ${WORK}/manifest.json, ${WORK}/diffs/*, ${WORK}/repos/* (read
 Findings (JSON; "lenses" = which lenses reported it, already merged):
 ${JSON.stringify(survivors)}
 
-Every finding here has ALREADY been validated against the code by a dedicated agent, and duplicates have ALREADY been merged. Do NOT re-validate and do NOT drop findings on the merits — each one below appears in the report. Your job is calibration and presentation.
+Every finding here has already been validated against the code by a dedicated agent and duplicates are merged, so each one below appears in the report: your job is calibration and presentation, not re-validation.
 
-Some findings carry \`comment = {author, quote, resolved}\` — a human already raised this in the MR comments (a lens still found it, so the code is likely NOT fixed yet). Do NOT read the raw comments yourself — trust the field. Such findings go in their OWN section "💬 Уже поднято в комментариях МР", never in the severity sections.
+Some findings carry \`comment = {author, quote, resolved}\` — a human already raised this in the MR comments (a lens still found it, so the code is likely not fixed yet). Trust the field rather than reading the raw comments. Such findings go in their own section "💬 Уже поднято в комментариях МР", not in the severity sections.
 
 Some findings carry \`doubt\` (a non-empty string) — the validator could not fully confirm them. Keep them, and print the doubt as an extra line in the finding: \`- **⚠️ Не подтверждено:** <doubt>\`.
 
-Findings with \`lens = "completeness"\` are NOT code defects — they are requirements from the task that the MRs left missing or only partially done. They go in their OWN section "📋 Покрытие задачи", never in the severity sections.
+Findings with \`lens = "completeness"\` are not code defects — they are requirements from the task that the MRs left missing or only partially done. They go in their own section "📋 Покрытие задачи", not in the severity sections.
 
 Do this:
 1. RECALIBRATE severity across all findings on one scale (critical = fix before merge; warning = fix soon; suggestion = optional). The lenses judged in isolation, you see the whole picture.

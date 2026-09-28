@@ -3,5 +3,10 @@
     "repo": "https://github.com/tt-a1i/archify",
     "ref": "main",
     "path": "archify"
+  },
+  "agent-reach": {
+    "repo": "https://github.com/Panniantong/Agent-Reach",
+    "ref": "main",
+    "path": "agent_reach/skill"
   }
 }

@@ -52,8 +52,6 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 command -v claude >/dev/null 2>&1 \
     || warn "claude CLI not in PATH — symlinks will be created, but plugins and MCP servers will not."
-command -v officecli >/dev/null 2>&1 \
-    || warn "officecli not in PATH — the officecli skill needs it: curl -fsSL https://d.officecli.ai/install.sh | bash"
 # macOS-only, and settings.json calls it by the absolute path adrafinil itself
 # writes — anything else and `adrafinil install-hooks` stops recognising its own
 # hooks and duplicates them. On Linux those hooks just fail loudly and harmlessly.

@@ -1,5 +1,6 @@
 {
   "syncClaudeAiSkills": false,
+  "cleanupPeriodDays": 90,
   "env": {
     "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1",
     "CLAUDE_CODE_NEW_INIT": "1",
@@ -23,7 +24,6 @@
       "TaskUpdate",
       "TaskList",
       "TaskGet",
-      "TaskOutput",
       "TaskStop",
       "Skill",
       "EnterPlanMode",
@@ -335,6 +335,7 @@
   "effortLevel": "high",
   "awaySummaryEnabled": false,
   "showClearContextOnPlanAccept": true,
+  "dialogExpiry": "never",
   "autoUpdatesChannel": "latest",
   "tui": "fullscreen",
   "voice": {
