@@ -84,6 +84,7 @@ src/plugins/
 src/skills/.external/
 src/skills/archify
 src/skills/agent-reach
+src/skills/test-audit
 
 src/skills/synced/
 src/skills/.trash/

@@ -1,6 +1,6 @@
 {
-  "syncClaudeAiSkills": false,
   "cleanupPeriodDays": 90,
+  "syncClaudeAiSkills": false,
   "env": {
     "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1",
     "CLAUDE_CODE_NEW_INIT": "1",
@@ -62,6 +62,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "opus",
   "disableClaudeAiConnectors": true,
   "skillOverrides": {
     "loop": "off",
@@ -193,6 +194,16 @@
             "command": "/Applications/Adrafinil.app/Contents/Helpers/adrafinil acquire $CLAUDE_CODE_SESSION_ID --tool claude-code"
           }
         ]
+      },
+      {
+        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/conte/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -257,7 +268,6 @@
     "autogit@autogit": true,
     "gopls-lsp@claude-plugins-official": true,
     "infra-mcp-postgres@infra-mcp": true,
-    "mattpocock-skills@mattpocock": true,
     "pyright-lsp@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
@@ -265,7 +275,10 @@
     "watch@claude-video": true,
     "show-me@skills": true,
     "claude-mermaid@claude-mermaid": true,
-    "lint@claude-lint": true
+    "lint@claude-lint": true,
+    "mattpocock-skills@mattpocock": true,
+    "cowork-plugin-management@synced": false,
+    "pdf-viewer@synced": false
   },
   "extraKnownMarketplaces": {
     "autogit": {
@@ -333,6 +346,7 @@
   "language": "Russian",
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "advisorModel": "fable",
   "awaySummaryEnabled": false,
   "showClearContextOnPlanAccept": true,
   "dialogExpiry": "never",
@@ -345,8 +359,9 @@
   "timeFormat": "24-hour",
   "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
+  "editorMode": "normal",
   "autoCompactEnabled": true,
-  "switchModelsOnFlag": false,
+  "switchModelsOnFlag": true,
   "remoteControlAtStartup": true,
   "crossSessionInbound": "accept",
   "agentPushNotifEnabled": true,

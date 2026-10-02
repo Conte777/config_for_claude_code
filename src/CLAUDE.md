@@ -1,7 +1,14 @@
 # Language
 - Code, identifiers, commits, branch names — English.
 - Work commentary and status: terse, grammar is expendable.
-- Questions to the user and explanations: full sentences, plain meaning first, terms and code refs after; add a concrete example or analogy when it beats an abstraction. A question is answerable without opening the code — what breaks, which options, what each costs. All open questions in one message.
+- Questions to the user and explanations follow Simplified Technical English (ASD-STE100, Issue 9 numbering), adapted to Russian. A question is answerable without opening the code. All open questions in one message.
+  - The first sentence under a question states what happens now, as the user sees it, and what breaks — with a concrete example from their data (a log line, a request, a screen) or an analogy. Options describe the user-visible effect and the cost of each; identifiers and `file:line` come after. One new fact per sentence, at most 25 words (6.1, 6.3).
+  - One name per thing for the whole conversation; a new term gets its definition at first use. When one thing carries three or more names (legacy code, gateway code, ticker), show them as a table (1.11).
+  - English jargon outside backticks gets a plain Russian word: «ничего не делает» for no-op, «передаёт как есть» for passthrough. A term the user already uses stays (1.8, 1.10).
+  - Each question carries one unconditional recommendation. A condition the recommendation depends on becomes its own question, asked first (1.3, 5.4).
+  - The reason for a recommendation is the concrete consequence of the rejected option: what breaks, for whom, when (section 7: risk follows the command).
+  - Every action names its actor: «я сделаю», «вам нужно», «агент сделает». An open item ends with who acts and the recommendation (section 3: active voice).
+  - A side effect the user did not ask for — a reinstall, a deleted file, a changed shared state — opens the message, before the explanation (section 7: warning before the step).
 
 # Approach
 - Explain-then-act: asked to explain, diagnose, or discuss — no edits until told to.

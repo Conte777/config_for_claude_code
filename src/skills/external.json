@@ -8,5 +8,10 @@
     "repo": "https://github.com/Panniantong/Agent-Reach",
     "ref": "main",
     "path": "agent_reach/skill"
+  },
+  "test-audit": {
+    "repo": "https://github.com/openclaw/openclaw",
+    "ref": "main",
+    "path": ".agents/skills/test-audit"
   }
 }
