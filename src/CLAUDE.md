@@ -16,7 +16,7 @@
 - Verify against the real code before proposing — check how sibling code does it, don't invent APIs. Sibling services in the same monorepo are the reference for conventions: if they do it the same way, leave it — don't "fix" a shared pattern in one service.
 - A claim about how a dependency behaves ("otherwise fx panics", "the lib retries") is read from its source in the module cache, with `file:line`, before code, a plan, or MR text rests on it.
 - Prefer the simplest, most native path — complexity, fallbacks, extra tooling only when the simple one is ruled out. An option offered for a decision holds one change; an add-on rides as its own question with its own reason.
-- Code navigation — `LSP` first (deferred: load it via ToolSearch) for definitions, references, interface implementations, call hierarchy, and types; Grep for plain text: strings, config, comments, and languages without a language server.
+- Code navigation — `LSP` first (deferred: load it via ToolSearch) for definitions, references, interface implementations, call hierarchy, and types. A Grep or `grep -rn` for a function, type, or method name is the signal to load `LSP` instead, in reviews too. Grep for plain text: strings, config, comments, and languages without a language server.
 
 # Workflow
 - A task is done when tests and linters have run. Report failures with the command output.
