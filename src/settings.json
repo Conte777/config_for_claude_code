@@ -276,9 +276,10 @@
     "show-me@skills": true,
     "claude-mermaid@claude-mermaid": true,
     "lint@claude-lint": true,
-    "mattpocock-skills@mattpocock": true,
     "cowork-plugin-management@synced": false,
-    "pdf-viewer@synced": false
+    "pdf-viewer@synced": false,
+    "cc-plugin-you-should-know@builtin": true,
+    "mattpocock-skills@synced": false
   },
   "extraKnownMarketplaces": {
     "autogit": {
@@ -303,12 +304,6 @@
       "source": {
         "source": "github",
         "repo": "Conte777/infra-mcp"
-      }
-    },
-    "mattpocock": {
-      "source": {
-        "source": "github",
-        "repo": "mattpocock/skills"
       }
     },
     "claude-plugins-official": {

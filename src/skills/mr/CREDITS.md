@@ -1,0 +1,3 @@
+# Credits
+
+The description template in [`DESCRIPTION.md`](DESCRIPTION.md) is the `pr` skill's PR body template, translated into Russian headings. Its **Суть** section's menu of visuals (pseudocode, call trees, component trees, file trees, Mermaid, diffs) and its placement guidance come from [Dex Horthy](https://github.com/dexhorthy)'s [`show-me`](https://github.com/humanlayer/humanlayer) skill, reproduced almost word for word and aimed at a diff instead of a live conversation. The content is copied in rather than pointed at; this file is the attribution a dependency would otherwise have carried.

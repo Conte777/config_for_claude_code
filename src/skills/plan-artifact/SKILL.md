@@ -1,6 +1,6 @@
 ---
 name: plan-artifact
-description: Keep an implementation plan as one Artifact page that grows through the planning session. Use when grilling runs toward a plan to implement (`/grill-me давай составим план для …`, `/grill-with-docs`), or the user asks to plan before coding — «давай составим план», «спланируем», "let's plan", "make a plan for".
+description: Keep an implementation plan as one Artifact page that grows through the session. Use when the user wants a plan before coding — «давай составим план», "let's plan".
 ---
 
 # Plan as an Artifact page

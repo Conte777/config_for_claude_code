@@ -48,35 +48,14 @@ Bind `~/.claude/.env` in the same shell as every `glab mr` call of this step: `s
 Write it from `git log origin/<TARGET>..HEAD` and `git diff origin/<TARGET>..HEAD` — the whole branch, not its latest commit.
 
 - **Title** — one line in English. With `TICKET`: `<TICKET>: <summary>`, e.g. `CUS-1930: Add retries on notification send`. Without: a conventional-commit type with no scope, e.g. `feat: add retries on notification send` (`feat`, `fix`, `docs`, `refactor`, `chore`, …).
-- **Description** — markdown in Russian, in this order:
-  1. With `TICKET`, the line `Задача: [<TICKET>](https://<JIRA_URL>/browse/<TICKET>)` and a blank line.
-  2. **Why** — 1–3 sentences with no heading: what was wrong or missing before, and what works differently after the merge. The reason comes from the session or the ticket; when the session never discussed it, read `TICKET` through the `jira` skill's «Read a task». With neither, the paragraph is left out.
-  3. 2–5 bullets, each a change in behaviour and its reason, never a file list.
-  4. **Diagram** — one `mermaid` block with `subgraph Было` and `subgraph Стало` side by side, whenever the branch changes links between components, data flow, states or call order. It holds only the components, links and states the change touches, plus the neighbours needed to read it. Only `flowchart LR`, node ids unique across both subgraphs, labels in `[...]` or `|...|` without brackets or quotes inside — GitLab shows a syntax error as a red block in place of the diagram.
-
-  ```mermaid
-  flowchart LR
-    subgraph Было
-      A1[notification-svc] -->|send| P1[провайдер]
-      P1 -.->|503| X1[сообщение потеряно]
-    end
-    subgraph Стало
-      A2[notification-svc] -->|send, до 5 попыток| P2[провайдер]
-      A2 -->|после 5 неудач| D2[notifications.dlq]
-    end
-  ```
+- **Description** — the template and section rules in [`DESCRIPTION.md`](DESCRIPTION.md). Every section of the template is filled.
 
 Pipe the description to `--description-file -`, printing the link line from the shell variables so the Jira host stays out of the text you write:
 
 ~~~
 { printf 'Задача: [%s](https://%s/browse/%s)\n\n' "$TICKET" "$JIRA_URL" "$TICKET"; cat <<'EOF'
-<why>
-
-- <change and its reason>
-
-```mermaid
-<diagram>
-```
+## Суть
+...
 EOF
 } | glab mr <create|update> ... --description-file -
 ~~~
@@ -96,7 +75,7 @@ EOF
   `--yes` skips the confirmation prompt. If `glab` opens an editor anyway, re-run with `--no-editor`.
 
 - A record comes back → carry its `iid` into step 6, then:
-  1. Check the record's `title` and `description` against the branch. Either one states something the diff contradicts, or leaves out a change the branch makes → rewrite it to the format above with `glab mr update <iid> --title "<title>" --description-file -`. Keep lines that describe no code (deploy order, a note for the reviewer) as they are, and keep the diagram when it still matches the diff. Both match the branch → leave them untouched.
+  1. Check the record's `title` and `description` against the branch. Either one states something the diff contradicts, or leaves out a change the branch makes → rewrite it to the format in `DESCRIPTION.md` with `glab mr update <iid> --title "<title>" --description-file -`. Keep lines that describe no code (deploy order, a note for the reviewer) as they are, and keep the `Суть` visual when it still matches the diff. Both match the branch → leave them untouched.
   2. `glab mr update <iid> --reviewer +<user> --reviewer +<user> …` — one `+<user>` per name in `GITLAB_MR_REVIEWERS`. A bare list replaces the reviewers and drops the ones assigned by hand; `+` adds to them.
 
 ## 6. Dependencies
